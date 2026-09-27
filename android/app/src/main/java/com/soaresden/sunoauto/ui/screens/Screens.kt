@@ -347,7 +347,10 @@ fun OnboardingScreen(vm: LibraryViewModel, onLogin: () -> Unit, onPickFolder: ()
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(24.dp))
-        Icon(Icons.Default.LibraryMusic, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(R.mipmap.ic_launcher_round), contentDescription = null,
+            modifier = Modifier.size(120.dp)
+        )
         Spacer(Modifier.height(12.dp))
         Text(stringResource(R.string.welcome), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(
