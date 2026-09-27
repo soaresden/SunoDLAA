@@ -4,6 +4,9 @@
     <string name="node_all">Tous les titres · récents</string>
     <string name="node_all_alpha">Tous les titres · A→Z</string>
     <string name="node_projects">Workspaces</string>
+    <string name="aa_play_all">▶ Tout lire</string>
+    <string name="aa_shuffle">🔀 Aléatoire</string>
+    <string name="n_playable">%1$d titres jouables</string>
     <string name="node_projects_recent">Workspaces · récents</string>
     <string name="node_liked">Favoris</string>
     <string name="node_playlists">Playlists</string>

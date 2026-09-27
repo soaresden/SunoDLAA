@@ -30,13 +30,13 @@ object BrowseTree {
 
     suspend fun children(ctx: Context, repo: LibraryRepository, parentId: String): List<MediaItem> = when {
         parentId == MediaIds.ROOT -> listOf(
-            MediaItems.folder(MediaIds.ALL, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_all), playable = true),
-            MediaItems.folder(MediaIds.ALL_ALPHA, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_all_alpha), playable = true),
+            MediaItems.folder(MediaIds.ALL, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_all)),
+            MediaItems.folder(MediaIds.ALL_ALPHA, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_all_alpha)),
             MediaItems.folder(MediaIds.PROJECTS, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_projects)),
             MediaItems.folder(MediaIds.PROJECTS_RECENT, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_projects_recent)),
-            MediaItems.folder(MediaIds.LIKED, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_liked), playable = true),
-            MediaItems.folder(MediaIds.DOWNLOADED, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_downloaded), playable = true),
-            MediaItems.folder(MediaIds.RECENT, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_recent), playable = true),
+            MediaItems.folder(MediaIds.LIKED, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_liked)),
+            MediaItems.folder(MediaIds.DOWNLOADED, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_downloaded)),
+            MediaItems.folder(MediaIds.RECENT, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_recent)),
             MediaItems.folder(MediaIds.PLAYLISTS, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_playlists)),
         )
         // A→Z so Android Auto's "A•Z" letter jump lands on the right workspace
@@ -46,11 +46,27 @@ object BrowseTree {
         parentId == MediaIds.PROJECTS_RECENT -> repo.projectRows()
             .map { MediaItems.project(it.project, it.coverUrl, it.oldestAt?.let { d -> com.soaresden.sunoauto.ui.components.fmtDate(d) }) }
         parentId == MediaIds.PLAYLISTS -> repo.playlists().map { MediaItems.playlist(it) }
-        // Track lists: show EVERYTHING (incl. 🫥), so originals stay visible; playback is filtered separately.
-        else -> listFor(repo, parentId).map { MediaItems.clip(it, repo.projectName(it.projectId)).withParent(parentId) }
+        // Track lists: "Play all" + "Shuffle" first, then EVERY track (incl. 🫥) so originals stay visible;
+        // playback itself only queues tracks that can really play.
+        else -> {
+            val clips = listFor(repo, parentId)
+            val isPro = repo.isProNow()
+            val playable = clips.count { isPlayableSource(it, isPro) }
+            val head = if (playable > 0) {
+                val sub = com.soaresden.sunoauto.LocaleHelper.s(R.string.n_playable, playable)
+                listOf(
+                    MediaItems.action(MediaIds.playAll(parentId), com.soaresden.sunoauto.LocaleHelper.s(R.string.aa_play_all), sub),
+                    MediaItems.action(MediaIds.shuffleAll(parentId), com.soaresden.sunoauto.LocaleHelper.s(R.string.aa_shuffle), sub)
+                )
+            } else emptyList()
+            head + clips.map { MediaItems.clip(it, repo.projectName(it.projectId)).withParent(parentId) }
+        }
     }
 
     suspend fun item(ctx: Context, repo: LibraryRepository, mediaId: String): MediaItem? {
+        MediaIds.actionTarget(mediaId)?.let {
+            return MediaItems.action(mediaId, com.soaresden.sunoauto.LocaleHelper.s(if (MediaIds.isShuffle(mediaId)) R.string.aa_shuffle else R.string.aa_play_all), null)
+        }
         MediaIds.clipId(mediaId)?.let { id -> return repo.clip(id)?.let { MediaItems.clip(it, repo.projectName(it.projectId)) } }
         MediaIds.projectId(mediaId)?.let { id -> return repo.project(id)?.let { MediaItems.project(it) } }
         MediaIds.playlistId(mediaId)?.let { id -> return repo.playlist(id)?.let { MediaItems.playlist(it) } }
@@ -63,6 +79,7 @@ object BrowseTree {
      * 🫥 track never gets queued and Android Auto never shows "Source error".
      */
     suspend fun resolvePlayable(ctx: Context, repo: LibraryRepository, mediaId: String): List<MediaItem> {
+        MediaIds.actionTarget(mediaId)?.let { return resolvePlayable(ctx, repo, it) }
         val isPro = repo.isProNow()
         MediaIds.clipId(mediaId)?.let { id ->
             val c = repo.clip(id) ?: return emptyList()

@@ -194,8 +194,15 @@ class PlaybackService : MediaLibraryService() {
             session: MediaLibrarySession, browser: MediaSession.ControllerInfo,
             parentId: String, page: Int, pageSize: Int, params: LibraryParams?
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = scope.future {
-            val items = BrowseTree.children(this@PlaybackService, repo, parentId)
-            if (items.any { it.mediaMetadata.isPlayable == true && it.mediaMetadata.isBrowsable != true }) lastBrowsedParent = parentId
+            val all = BrowseTree.children(this@PlaybackService, repo, parentId)
+            if (all.any { MediaIds.clipId(it.mediaId) != null }) lastBrowsedParent = parentId
+            // Android Auto asks long lists page by page: return only the requested page.
+            val from = page.toLong() * pageSize.toLong()
+            val items = when {
+                pageSize <= 0 || (page == 0 && pageSize >= all.size) -> all
+                from >= all.size -> emptyList()
+                else -> all.subList(from.toInt(), minOf(all.size.toLong(), from + pageSize).toInt())
+            }
             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
         }
 
@@ -233,6 +240,17 @@ class PlaybackService : MediaLibraryService() {
             mediaSession: MediaSession, controller: MediaSession.ControllerInfo,
             mediaItems: List<MediaItem>, startIndex: Int, startPositionMs: Long
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = scope.future {
+            // "Play all" / "Shuffle" rows: queue the whole list.
+            if (mediaItems.size == 1) {
+                val id = mediaItems.first().mediaId
+                MediaIds.actionTarget(id)?.let { target ->
+                    val list = BrowseTree.resolvePlayable(this@PlaybackService, repo, target)
+                    val shuffle = MediaIds.isShuffle(id)
+                    player.shuffleModeEnabled = shuffle
+                    val start = if (shuffle && list.isNotEmpty()) kotlin.random.Random.nextInt(list.size) else 0
+                    return@future MediaSession.MediaItemsWithStartPosition(list, start, 0L)
+                }
+            }
             // When a single item from a folder is tapped, queue its siblings so "next" works in the car.
             val resolved = if (mediaItems.size == 1) {
                 val single = mediaItems.first()

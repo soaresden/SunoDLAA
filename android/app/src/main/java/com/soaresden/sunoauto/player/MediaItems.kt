@@ -42,10 +42,25 @@ object MediaItems {
             .build()
 
     fun project(p: ProjectEntity, coverUrl: String? = null, since: String? = null): MediaItem =
-        folder(MediaIds.project(p.id), p.name, listOfNotNull(com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.n_tracks, p.clipCount), since?.let { com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.since, it) }).joinToString(" · "), coverUrl?.let(Uri::parse), playable = true)
+        folder(MediaIds.project(p.id), p.name, listOfNotNull(com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.n_tracks, p.clipCount), since?.let { com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.since, it) }).joinToString(" · "), coverUrl?.let(Uri::parse), playable = false)
 
     fun playlist(p: PlaylistEntity): MediaItem =
-        folder(MediaIds.playlist(p.id), p.name, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.n_tracks, p.clipCount), p.imageUrl?.let(Uri::parse), playable = true)
+        folder(MediaIds.playlist(p.id), p.name, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.n_tracks, p.clipCount), p.imageUrl?.let(Uri::parse), playable = false)
+
+    /** A playable row that plays a whole list ("Play all", "Shuffle"). */
+    fun action(id: String, title: String, subtitle: String?): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(id)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setSubtitle(subtitle)
+                    .setIsBrowsable(false)
+                    .setIsPlayable(true)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST)
+                    .build()
+            )
+            .build()
 
     fun clip(c: ClipEntity, projectName: String? = null): MediaItem {
         val localUri = com.soaresden.sunoauto.data.LocalFiles.uriOrNull(c.localPath)
