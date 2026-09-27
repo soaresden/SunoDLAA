@@ -34,7 +34,7 @@ $defaults = @{
     port=8787; libraryPath=(Join-Path $Root 'downloads'); clientCookie='';
     deviceId=[guid]::NewGuid().ToString(); apiBase='https://studio-api.prod.suno.com';
     clerkBase='https://auth.suno.com'; folderPattern='Suno - {workspace}'; language='en'
-    fileNamePattern='<Disc#>-<Track#> <Title>'; audioFormat='mp3'
+    fileNamePattern='<Disc#:2>-<Track#:3> <Title>'; audioFormat='mp3'
 }
 $changed = $false
 foreach ($k in $defaults.Keys) {
@@ -59,7 +59,7 @@ function Folder-Name($workspace) {
 #   <Title> <Titre>  <Artist> <Artiste>  <Album> <Workspace>  <Year> <Annee>  <Genre>  <ID> <ID8>
 function File-Name($m) {
     $pat = $Cfg.fileNamePattern
-    if (-not $pat) { $pat = '<Disc#>-<Track#> <Title>' }
+    if (-not $pat) { $pat = '<Disc#:2>-<Track#:3> <Title>' }
     $eval = {
         param($mt)
         $k = ($mt.Groups[1].Value.ToLower() -replace '[^a-z0-9#]', '')

@@ -112,7 +112,7 @@
   </div>
   <div class="row">
     <label id="lblFileFmt">File name format</label>
-    <input id="cfgFilePattern" placeholder="&lt;Disc#&gt;-&lt;Track#&gt; &lt;Title&gt;">
+    <input id="cfgFilePattern" placeholder="&lt;Disc#:2&gt;-&lt;Track#:3&gt; &lt;Title&gt;">
     <span class="hint" id="fileEx"></span>
   </div>
   <div class="row"><label></label><span class="hint" id="tokensHint" style="margin-left:0"></span></div>
@@ -172,7 +172,7 @@ const I18N = {
   en: {
     language:"Language", conn:"Suno connection",
     fileFmt:"File name format", audio:"Download format",
-    tokens:"Tags: <Disc#> <Track#> <Title> <Artist> <Album> <Year> <Genre> <ID8> — French names work too (<Disque n°> <Piste n°> <Titre>…). Add :N for the number of digits, e.g. <Track#:2>. Track numbers follow the workspace's creation order (oldest = 001).",
+    tokens:"Tags: <Disc#> <Track#> <Title> <Artist> <Album> <Year> <Genre> <ID8> — French names work too (<Disque n°> <Piste n°> <Titre>…). The number after “:” is the digit count: <Disc#:2>-<Track#:3> <Title> → 01-054 Title. Track numbers follow the workspace's creation order (oldest = 001).",
     mp3Opt:"MP3 — Suno's quality (≈180 kbps VBR, 48 kHz)", wavOpt:"WAV — lossless (Suno Pro plans only)",
     applyFolders:"🔁 Apply folder format to existing folders", foldersNone:"All workspace folders already match the format.",
     foldersConfirm:(n,ex,c)=>`Rename ${n} folder(s) in your library?\n\n${ex}${c?`\n\n${c} folder(s) will be skipped: the new name already exists.`:''}\n\nAfterwards: run "Sync folder" in the SUNODLAA phone app, and rescan in MediaMonkey (or any player that indexes these folders).`,
@@ -192,7 +192,7 @@ const I18N = {
   fr: {
     language:"Langue", conn:"Connexion Suno",
     fileFmt:"Format des fichiers", audio:"Format de téléchargement",
-    tokens:"Balises : <Disque n°> <Piste n°> <Titre> <Artiste> <Album> <Année> <Genre> <ID8> — les noms anglais marchent aussi (<Disc#> <Track#> <Title>…). Ajoute :N pour le nombre de chiffres, ex. <Piste n°:2>. Les numéros de piste suivent l'ordre de création du workspace (le plus ancien = 001).",
+    tokens:"Balises : <Disque n°> <Piste n°> <Titre> <Artiste> <Album> <Année> <Genre> <ID8> — les noms anglais marchent aussi (<Disc#> <Track#> <Title>…). Le chiffre après « : » = nombre de chiffres : <Disque n°:2>-<Piste n°:3> <Titre> → 01-054 Titre. Les numéros de piste suivent l'ordre de création du workspace (le plus ancien = 001).",
     mp3Opt:"MP3 — qualité Suno (≈180 kbps VBR, 48 kHz)", wavOpt:"WAV — sans perte (offres Suno Pro uniquement)",
     applyFolders:"🔁 Appliquer le format aux dossiers existants", foldersNone:"Tous les dossiers de workspace respectent déjà le format.",
     foldersConfirm:(n,ex,c)=>`Renommer ${n} dossier(s) de ta bibliothèque ?\n\n${ex}${c?`\n\n${c} dossier(s) seront ignorés : le nouveau nom existe déjà.`:''}\n\nEnsuite : lance « Synchroniser le dossier » dans l'appli SUNODLAA du téléphone, et une réanalyse dans MediaMonkey (ou tout lecteur qui indexe ces dossiers).`,
@@ -246,14 +246,14 @@ async function loadConfig(){
   CFG=await api('/api/config');
   if(CFG.language && CFG.language!==LANG){ LANG=CFG.language; try{localStorage.setItem('sunodlaa_lang',LANG);}catch(e){} }
   $('#cfgLib').value=CFG.libraryPath||''; $('#cfgPattern').value=CFG.folderPattern||'Suno - {workspace}';
-  $('#cfgFilePattern').value=CFG.fileNamePattern||'<Disc#>-<Track#> <Title>'; $('#cfgAudio').value=CFG.audioFormat||'mp3'; $('#fileEx').textContent=CFG.fileExample?(T().ex+' '+CFG.fileExample):'';
+  $('#cfgFilePattern').value=CFG.fileNamePattern||'<Disc#:2>-<Track#:3> <Title>'; $('#cfgAudio').value=CFG.audioFormat||'mp3'; $('#fileEx').textContent=CFG.fileExample?(T().ex+' '+CFG.fileExample):'';
   $('#patternEx').textContent=CFG.folderExample?(T().ex+' '+CFG.folderExample):'';
   $('#taglibState').textContent=CFG.taglib?'OK':'—';
   if(!CFG.hasCookie){ $('#settings').classList.add('open'); toast(T().addCookie); }
 }
 async function saveConfig(){
   const body={libraryPath:$('#cfgLib').value.trim(),folderPattern:$('#cfgPattern').value.trim()||'Suno - {workspace}',
-    fileNamePattern:$('#cfgFilePattern').value.trim()||'<Disc#>-<Track#> <Title>', audioFormat:$('#cfgAudio').value};
+    fileNamePattern:$('#cfgFilePattern').value.trim()||'<Disc#:2>-<Track#:3> <Title>', audioFormat:$('#cfgAudio').value};
   const c=$('#cfgCookie').value.trim(); if(c) body.clientCookie=c;
   CFG=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   $('#cfgPattern').value=CFG.folderPattern; $('#patternEx').textContent=CFG.folderExample?(T().ex+' '+CFG.folderExample):'';
