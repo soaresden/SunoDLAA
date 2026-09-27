@@ -111,6 +111,20 @@
     <span class="hint" id="patternEx"></span>
   </div>
   <div class="row">
+    <label id="lblFileFmt">File name format</label>
+    <input id="cfgFilePattern" placeholder="&lt;Disc#&gt;-&lt;Track#&gt; &lt;Title&gt;">
+    <span class="hint" id="fileEx"></span>
+  </div>
+  <div class="row"><label></label><span class="hint" id="tokensHint" style="margin-left:0"></span></div>
+  <div class="row">
+    <label id="lblAudio">Download format</label>
+    <select id="cfgAudio"><option value="mp3" id="optMp3">MP3</option><option value="wav" id="optWav">WAV</option></select>
+  </div>
+  <div class="row">
+    <label></label>
+    <button id="btnApplyFolders" onclick="applyFolders()">🔁 Apply folder format to existing folders</button>
+  </div>
+  <div class="row">
     <label></label>
     <button class="primary" id="btnSave" onclick="saveConfig()">💾 Save</button>
     <button id="btnTest" onclick="testAuth()">🔌 Test connection</button>
@@ -156,7 +170,13 @@
 <script>
 const I18N = {
   en: {
-    language:"Language", conn:"Suno connection", signin:"🔑 Sign in", loginHint:"Opens a login window — sign in, done.",
+    language:"Language", conn:"Suno connection",
+    fileFmt:"File name format", audio:"Download format",
+    tokens:"Tags: <Disc#> <Track#> <Title> <Artist> <Album> <Year> <Genre> <ID8> — French names work too (<Disque n°> <Piste n°> <Titre>…). Add :N for the number of digits, e.g. <Track#:2>. Track numbers follow the workspace's creation order (oldest = 001).",
+    mp3Opt:"MP3 — Suno's quality (≈180 kbps VBR, 48 kHz)", wavOpt:"WAV — lossless (Suno Pro plans only)",
+    applyFolders:"🔁 Apply folder format to existing folders", foldersNone:"All workspace folders already match the format.",
+    foldersConfirm:(n,ex,c)=>`Rename ${n} folder(s) in your library?\n\n${ex}${c?`\n\n${c} folder(s) will be skipped: the new name already exists.`:''}\n\nAfterwards: run "Sync folder" in the SUNODLAA phone app, and rescan in MediaMonkey (or any player that indexes these folders).`,
+    foldersDone:(r,s,e)=>`${r} folder(s) renamed, ${s} skipped${e?`, ${e} error(s)`:''}.`, signin:"🔑 Sign in", loginHint:"Opens a login window — sign in, done.",
     manual:"…or paste the __client cookie manually", saveCookie:"Save cookie",
     folder:"Library folder", pattern:"Folder format", save:"💾 Save", test:"🔌 Test connection",
     workspaces:"Workspaces", search:"🔎 Filter tracks…", selAll:"Select all", clear:"Clear", queueMissing:"🫥 Queue missing",
@@ -170,7 +190,13 @@ const I18N = {
     missingQueued:"Missing tracks queued.", ex:"e.g."
   },
   fr: {
-    language:"Langue", conn:"Connexion Suno", signin:"🔑 Se connecter", loginHint:"Ouvre une fenêtre de login — connecte-toi, c'est tout.",
+    language:"Langue", conn:"Connexion Suno",
+    fileFmt:"Format des fichiers", audio:"Format de téléchargement",
+    tokens:"Balises : <Disque n°> <Piste n°> <Titre> <Artiste> <Album> <Année> <Genre> <ID8> — les noms anglais marchent aussi (<Disc#> <Track#> <Title>…). Ajoute :N pour le nombre de chiffres, ex. <Piste n°:2>. Les numéros de piste suivent l'ordre de création du workspace (le plus ancien = 001).",
+    mp3Opt:"MP3 — qualité Suno (≈180 kbps VBR, 48 kHz)", wavOpt:"WAV — sans perte (offres Suno Pro uniquement)",
+    applyFolders:"🔁 Appliquer le format aux dossiers existants", foldersNone:"Tous les dossiers de workspace respectent déjà le format.",
+    foldersConfirm:(n,ex,c)=>`Renommer ${n} dossier(s) de ta bibliothèque ?\n\n${ex}${c?`\n\n${c} dossier(s) seront ignorés : le nouveau nom existe déjà.`:''}\n\nEnsuite : lance « Synchroniser le dossier » dans l'appli SUNODLAA du téléphone, et une réanalyse dans MediaMonkey (ou tout lecteur qui indexe ces dossiers).`,
+    foldersDone:(r,s,e)=>`${r} dossier(s) renommé(s), ${s} ignoré(s)${e?`, ${e} erreur(s)`:''}.`, signin:"🔑 Se connecter", loginHint:"Ouvre une fenêtre de login — connecte-toi, c'est tout.",
     manual:"…ou coller le cookie __client manuellement", saveCookie:"Enregistrer le cookie",
     folder:"Dossier bibliothèque", pattern:"Format des dossiers", save:"💾 Enregistrer", test:"🔌 Tester la connexion",
     workspaces:"Workspaces", search:"🔎 Filtrer les titres…", selAll:"Tout cocher", clear:"Décocher", queueMissing:"🫥 File = manquants",
@@ -197,6 +223,8 @@ function esc(s){return(s==null?'':(''+s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<'
 function applyLang(){
   const t=T();
   $('#langSel').value=LANG; $('#lblLang').textContent=t.language;
+  $('#lblFileFmt').textContent=t.fileFmt; $('#lblAudio').textContent=t.audio; $('#tokensHint').textContent=t.tokens;
+  $('#optMp3').textContent=t.mp3Opt; $('#optWav').textContent=t.wavOpt; $('#btnApplyFolders').textContent=t.applyFolders;
   $('#lblConn').textContent=t.conn; $('#btnLogin').textContent=t.signin;
   if(!$('#loginStatus').dataset.live) $('#loginStatus').textContent=t.loginHint;
   $('#lblManual').textContent=t.manual; $('#btnSaveCookie').textContent=t.saveCookie;
@@ -218,16 +246,30 @@ async function loadConfig(){
   CFG=await api('/api/config');
   if(CFG.language && CFG.language!==LANG){ LANG=CFG.language; try{localStorage.setItem('sunodlaa_lang',LANG);}catch(e){} }
   $('#cfgLib').value=CFG.libraryPath||''; $('#cfgPattern').value=CFG.folderPattern||'Suno - {workspace}';
+  $('#cfgFilePattern').value=CFG.fileNamePattern||'<Disc#>-<Track#> <Title>'; $('#cfgAudio').value=CFG.audioFormat||'mp3'; $('#fileEx').textContent=CFG.fileExample?(T().ex+' '+CFG.fileExample):'';
   $('#patternEx').textContent=CFG.folderExample?(T().ex+' '+CFG.folderExample):'';
   $('#taglibState').textContent=CFG.taglib?'OK':'—';
   if(!CFG.hasCookie){ $('#settings').classList.add('open'); toast(T().addCookie); }
 }
 async function saveConfig(){
-  const body={libraryPath:$('#cfgLib').value.trim(),folderPattern:$('#cfgPattern').value.trim()||'Suno - {workspace}'};
+  const body={libraryPath:$('#cfgLib').value.trim(),folderPattern:$('#cfgPattern').value.trim()||'Suno - {workspace}',
+    fileNamePattern:$('#cfgFilePattern').value.trim()||'<Disc#>-<Track#> <Title>', audioFormat:$('#cfgAudio').value};
   const c=$('#cfgCookie').value.trim(); if(c) body.clientCookie=c;
   CFG=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   $('#cfgPattern').value=CFG.folderPattern; $('#patternEx').textContent=CFG.folderExample?(T().ex+' '+CFG.folderExample):'';
+  $('#fileEx').textContent=CFG.fileExample?(T().ex+' '+CFG.fileExample):'';
   $('#cfgCookie').value=''; toast(T().settingsSaved); testAuth();
+}
+async function applyFolders(){
+  const d=await api('/api/folders/preview'); const plan=(d.plan||[]);
+  const ren=plan.filter(p=>p.status==='rename'), conf=plan.filter(p=>p.status==='conflict');
+  if(!ren.length){ toast(T().foldersNone); return; }
+  const ex=ren.slice(0,6).map(p=>`${p.from}  →  ${p.to}`).join('\n')+(ren.length>6?`\n… (+${ren.length-6})`:'');
+  if(!confirm(T().foldersConfirm(ren.length,ex,conf.length))) return;
+  const r=await api('/api/folders/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(r.errors&&r.errors.length) console.warn(r.errors);
+  await rescan(true);
+  toast(T().foldersDone(r.renamed||0,r.skipped||0,(r.errors||[]).length),6000);
 }
 let loginPoll=null;
 async function doLogin(){
@@ -250,11 +292,11 @@ async function testAuth(){
   if(r.ok){ $('#authBadge').textContent=T().connected; $('#authBadge').className='badge ok'; loadWorkspaces(); }
   else { $('#authBadge').textContent=r.error==='NO_COOKIE'?T().noCookie:T().authErr; $('#authBadge').className='badge err'; }
 }
-async function rescan(){
-  toast(T().scanning);
+async function rescan(quiet){
+  if(!quiet) toast(T().scanning);
   const r=await api('/api/scan'); localIds={};
   if(r.ids) Object.keys(r.ids).forEach(id=>localIds[id]=true);
-  toast(T().filesFound(r.count||0)); renderWorkspaces(); renderClips();
+  if(!quiet) toast(T().filesFound(r.count||0)); renderWorkspaces(); renderClips();
 }
 async function loadWorkspaces(){
   $('#wsList').innerHTML='<div class="empty">'+T().loading+'</div>'; workspaces=[];
@@ -338,10 +380,11 @@ function renderQueue(){
 }
 async function downloadAll(){
   if(!queue.length){ toast(T().checkTracks); return; }
-  const ws=currentWs?currentWs.name:'Misc'; let track=1;
+  const ws=currentWs?currentWs.name:'Misc';
+  const order=clips.slice().sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||'')); const rank={}; order.forEach((c,i)=>rank[c.id]=i+1);
   for(const c of queue){
     const row=$('#q_'+c.id); const st=row?row.querySelector('.st'):null; if(st) st.textContent='⏳';
-    const body={clipId:c.id,audioUrl:c.audio_url,title:c.title,artist:c.display_name||'Suno',workspace:ws,disc:1,track:track++,
+    const body={clipId:c.id,audioUrl:c.audio_url,title:c.title,artist:c.display_name||'Suno',workspace:ws,disc:1,track:rank[c.id]||1,
       tags:(c.metadata&&c.metadata.tags)||'',imageUrl:c.image_large_url||c.image_url||'',lyrics:(c.metadata&&c.metadata.prompt)||'',createdAt:c.created_at||''};
     try{ const r=await api('/api/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       if(r.ok){ if(row){row.classList.add('done'); st.textContent='✅';} localIds[c.id]=true; }

@@ -1,4 +1,4 @@
-# =====================================================================
+﻿# =====================================================================
 #  Suno Web Downloader - serveur local (PowerShell + TagLib-Sharp)
 #  Sert l'interface web, fait proxy vers l'API Suno (auth Clerk),
 #  telecharge les MP3 et ecrit les tags ID3 (TSRC = id Suno, pochette...).
@@ -34,6 +34,7 @@ $defaults = @{
     port=8787; libraryPath=(Join-Path $Root 'downloads'); clientCookie='';
     deviceId=[guid]::NewGuid().ToString(); apiBase='https://studio-api.prod.suno.com';
     clerkBase='https://auth.suno.com'; folderPattern='Suno - {workspace}'; language='en'
+    fileNamePattern='<Disc#>-<Track#> <Title>'; audioFormat='mp3'
 }
 $changed = $false
 foreach ($k in $defaults.Keys) {
@@ -48,8 +49,42 @@ function Folder-Name($workspace) {
     $ws = Sanitize $workspace
     $pat = $Cfg.folderPattern
     if (-not $pat) { $pat = 'Suno - {workspace}' }
-    # on n'assainit que le nom du workspace, pas le motif (qui peut contenir des espaces/tirets)
-    return ($pat -replace '\{workspace\}', $ws)
+    # {workspace} ou <Workspace>/<Album> ; on n'assainit que le nom du workspace, pas le motif
+    $out = $pat -replace '\{workspace\}', $ws
+    return ($out -replace '(?i)<\s*(workspace|album)\s*>', $ws)
+}
+
+# Nom de fichier facon masque MediaMonkey. Balises (anglais ou francais, casse libre) :
+#   <Disc#> <Disque n>   -> 01      <Track#> <Piste n>  -> 054   (":N" pour choisir le nombre de chiffres)
+#   <Title> <Titre>  <Artist> <Artiste>  <Album> <Workspace>  <Year> <Annee>  <Genre>  <ID> <ID8>
+function File-Name($m) {
+    $pat = $Cfg.fileNamePattern
+    if (-not $pat) { $pat = '<Disc#>-<Track#> <Title>' }
+    $eval = {
+        param($mt)
+        $k = ($mt.Groups[1].Value.ToLower() -replace '[^a-z0-9#]', '')
+        $w = $mt.Groups[2].Value
+        switch -Regex ($k) {
+            '^(disc#|disc|discnumber|disquen|disque|cd)$'  { $d = 2; if ($w) { $d = [int]$w }; return ([string][int]$m.disc).PadLeft($d, '0') }
+            '^(track#|track|tracknumber|pisten|piste|no)$' { $d = 3; if ($w) { $d = [int]$w }; return ([string][int]$m.track).PadLeft($d, '0') }
+            '^(title|titre)$'           { return [string]$m.title }
+            '^(artist|artiste)$'        { return [string]$m.artist }
+            '^(album|workspace)$'       { return [string]$m.workspace }
+            '^(year|annee|anne|date)$'  { return [string]$m.year }
+            '^(genre|style)$'           { return [string]$m.genre }
+            '^(id|isrc)$'               { return [string]$m.id }
+            '^id8$'                     { $i = [string]$m.id; return $i.Substring(0, [Math]::Min(8, $i.Length)) }
+            default                     { return $mt.Value }
+        }
+    }.GetNewClosure()
+    $name = [regex]::Replace($pat, '<\s*([^<>:]+?)\s*(?::(\d+))?\s*>', [System.Text.RegularExpressions.MatchEvaluator]$eval)
+    $name = ($name -replace '[\\/:*?"<>|]', '_').Trim().TrimEnd('.')
+    if (-not $name) { $name = 'Untitled' }
+    return $name
+}
+function File-Example {
+    $ext = if ($Cfg.audioFormat -eq 'wav') { 'wav' } else { 'mp3' }
+    return (File-Name @{ disc=1; track=54; title="EuroDemo 'Slow Techno'"; artist='Soaresden'; workspace='Lucie'; year='2026'; genre='Techno'; id='1a2b3c4d-0000-0000-0000-000000000000' }) + ".$ext"
 }
 
 # ---- TagLib-Sharp ---------------------------------------------------
@@ -198,7 +233,7 @@ $script:ScanMap = @{}
 function Scan-Library {
     $map = @{}
     if (-not (Test-Path $Cfg.libraryPath)) { $script:ScanMap = $map; return $map }
-    Get-ChildItem -Path $Cfg.libraryPath -Recurse -Filter *.mp3 -ErrorAction SilentlyContinue | ForEach-Object {
+    Get-ChildItem -LiteralPath $Cfg.libraryPath -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.mp3', '.wav' } | ForEach-Object {
         $id = $null
         if ($TagLibOk) {
             try {
@@ -217,6 +252,48 @@ function Scan-Library {
     $script:ScanMap = $map
     return $map
 }
+# ---- Renommage des dossiers existants selon le format choisi -------------
+# Detecte les dossiers de workspace ("Suno -Lucie", "suno-Lucie", "Suno - Lucie"...)
+# et calcule leur nouveau nom avec folderPattern. Le reste du nom est garde tel quel.
+$WsFolderRegex = '^\s*suno\s*[-\u2013\u2014]\s*'
+function Folder-Plan {
+    $plan = @()
+    if (-not (Test-Path -LiteralPath $Cfg.libraryPath)) { return ,$plan }
+    $existing = @{}
+    Get-ChildItem -LiteralPath $Cfg.libraryPath -Directory -ErrorAction SilentlyContinue | ForEach-Object { $existing[$_.Name.ToLower()] = $true }
+    Get-ChildItem -LiteralPath $Cfg.libraryPath -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_.Name -notmatch $WsFolderRegex) { return }
+        $ws = ($_.Name -replace $WsFolderRegex, '').Trim()
+        if (-not $ws) { return }
+        $target = Folder-Name $ws
+        $status = 'rename'
+        if ($target -ceq $_.Name) { $status = 'same' }
+        elseif ($target.ToLower() -ne $_.Name.ToLower() -and $existing.ContainsKey($target.ToLower())) { $status = 'conflict' }
+        $plan += [pscustomobject]@{ from = $_.Name; to = $target; status = $status }
+    }
+    return ,$plan
+}
+function Folder-Apply {
+    $done = 0; $skipped = 0; $errors = @()
+    foreach ($p in (Folder-Plan)) {
+        if ($p.status -ne 'rename') { if ($p.status -eq 'conflict') { $skipped++ }; continue }
+        try {
+            $src = Join-Path $Cfg.libraryPath $p.from
+            if ($p.to.ToLower() -eq $p.from.ToLower()) {
+                # changement de casse seule : passer par un nom temporaire
+                $tmp = $p.from + '.~sunodlaa'
+                Rename-Item -LiteralPath $src -NewName $tmp -ErrorAction Stop
+                Rename-Item -LiteralPath (Join-Path $Cfg.libraryPath $tmp) -NewName $p.to -ErrorAction Stop
+            } else {
+                Rename-Item -LiteralPath $src -NewName $p.to -ErrorAction Stop
+            }
+            $done++
+        } catch { $errors += "$($p.from): $($_.Exception.Message)" }
+    }
+    $script:ScanMap = @{}
+    return @{ ok = $true; renamed = $done; skipped = $skipped; errors = $errors }
+}
+
 # ---- Stream d'un fichier local (avec support Range pour le seek) ----
 function Stream-File($req, $resp, $file) {
     $fs = [IO.File]::OpenRead($file)
@@ -231,7 +308,7 @@ function Stream-File($req, $resp, $file) {
             $resp.AddHeader('Content-Range', "bytes $start-$end/$total")
         }
         $resp.AddHeader('Accept-Ranges', 'bytes')
-        $resp.ContentType = 'audio/mpeg'
+        $resp.ContentType = $(if ($file -like '*.wav') { 'audio/wav' } else { 'audio/mpeg' })
         $len = $end - $start + 1
         $resp.ContentLength64 = $len
         $fs.Seek($start, [IO.SeekOrigin]::Begin) | Out-Null
@@ -249,6 +326,21 @@ function Stream-File($req, $resp, $file) {
 }
 
 # ---- Telechargement + tag ------------------------------------------
+# Lien de telechargement officiel (bouton "Download" du site) : mp3 ou wav selon l'offre.
+function Resolve-Download($id, $fmt) {
+    for ($i = 0; $i -lt 20; $i++) {
+        $r = Invoke-RestMethod -Uri ($Cfg.apiBase + "/api/download/clip/$id" + "?format=$fmt") -Headers (Suno-Headers) -Method Get
+        if ($r.url) { return @{ url = $r.url } }
+        if ($r.status -ne 'processing') {
+            $why = 'No download link from Suno'
+            if ($r.reason) { $why = [string]$r.reason } elseif ($r.message) { $why = [string]$r.message }
+            return @{ why = $why }
+        }
+        Start-Sleep -Seconds 2
+    }
+    return @{ why = 'Suno is still preparing the file - try again in a minute' }
+}
+
 function Download-Clip($body) {
     $clipId    = $body.clipId
     $audioUrl  = $body.audioUrl
@@ -262,19 +354,32 @@ function Download-Clip($body) {
     $lyrics    = $body.lyrics
     $createdAt = $body.createdAt
 
-    if (-not $audioUrl) { return @{ ok = $false; error = "No audio URL (track not downloadable on this account)" } }
+    $format = if ($Cfg.audioFormat -eq 'wav') { 'wav' } else { 'mp3' }
+    # 1) lien officiel de Suno (respecte l'offre du compte) ; 2) en MP3, lien direct du clip
+    $url = $null; $why = $null
+    if ($clipId) {
+        try { $r = Resolve-Download $clipId $format; $url = $r.url; $why = $r.why } catch { $why = $_.Exception.Message }
+    }
+    if (-not $url -and $format -eq 'mp3' -and $audioUrl) { $url = $audioUrl }
+    if (-not $url) {
+        if ($why -eq 'not_authorized') { $why = "Suno refused the $($format.ToUpper()) download on this account (plan without downloads)" }
+        return @{ ok = $false; error = $(if ($why) { $why } else { 'No download link from Suno' }) }
+    }
 
     $folderName = Folder-Name $workspace
     $dir = Join-Path $Cfg.libraryPath $folderName
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
-    $id8 = if ($clipId) { $clipId.Substring(0, [Math]::Min(8, $clipId.Length)) } else { 'clip' }
-    $fname = ('{0:00}-{1:000} {2} ({3}).mp3' -f $disc, $track, (Sanitize $title), $id8)
-    $out = Join-Path $dir $fname
+    $year = ''; if ($createdAt -and $createdAt.Length -ge 4) { $year = $createdAt.Substring(0, 4) }
+    $base = File-Name @{ disc=$disc; track=$track; title=$title; artist=$artist; workspace=$workspace; year=$year; genre=$tags; id=$clipId }
+    $out = Join-Path $dir ($base + '.' + $format)
 
     try {
-        Invoke-WebRequest -Uri $audioUrl -OutFile $out -UseBasicParsing -TimeoutSec 120
+        Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 300
     } catch {
-        return @{ ok = $false; error = "Download refused: $($_.Exception.Message)" }
+        if ($url -ne $audioUrl -and $format -eq 'mp3' -and $audioUrl) {
+            try { Invoke-WebRequest -Uri $audioUrl -OutFile $out -UseBasicParsing -TimeoutSec 300 }
+            catch { return @{ ok = $false; error = "Download refused: $($_.Exception.Message)" } }
+        } else { return @{ ok = $false; error = "Download refused: $($_.Exception.Message)" } }
     }
 
     if ($TagLibOk) {
@@ -357,11 +462,13 @@ while ($listener.IsListening) {
                     if ($null -ne $b.deviceId)    { $Cfg.deviceId = $b.deviceId }
                     if ($null -ne $b.folderPattern -and $b.folderPattern) { $Cfg.folderPattern = $b.folderPattern }
                     if ($b.language -in @('en','fr')) { $Cfg.language = $b.language }
+                    if ($null -ne $b.fileNamePattern -and $b.fileNamePattern) { $Cfg.fileNamePattern = $b.fileNamePattern }
+                    if ($b.audioFormat -in @('mp3','wav')) { $Cfg.audioFormat = $b.audioFormat }
                     Save-Config $Cfg
                 }
                 Write-Json $resp @{
                     port=$Cfg.port; libraryPath=$Cfg.libraryPath; folderPattern=$Cfg.folderPattern; language=$Cfg.language
-                    folderExample=(Folder-Name 'Lucie')
+                    folderExample=(Folder-Name 'Lucie'); fileNamePattern=$Cfg.fileNamePattern; fileExample=(File-Example); audioFormat=$Cfg.audioFormat
                     hasCookie=[bool]$Cfg.clientCookie; deviceId=$Cfg.deviceId; taglib=$TagLibOk
                 }; break
             }
@@ -412,6 +519,13 @@ while ($listener.IsListening) {
                 $r = Download-Clip $b
                 Write-Json $resp $r
                 break
+            }
+            '^/api/folders/preview$' {
+                $plan = Folder-Plan
+                Write-Json $resp @{ ok=$true; plan=@($plan) }; break
+            }
+            '^/api/folders/apply$' {
+                Write-Json $resp (Folder-Apply); break
             }
             '^/api/play$' {
                 $qp = [System.Web.HttpUtility]::ParseQueryString($req.Url.Query)

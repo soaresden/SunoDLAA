@@ -37,6 +37,13 @@ A small local web app (double-click to start, nothing to install):
 - **See what you already have**: ✅ on disk · 🫥 missing. One click queues everything missing.
 - **Download in bulk** into **one folder per workspace**, with a naming pattern *you* choose
   (default `Suno - {workspace}` → `Suno - Lucie`).
+- **File names your way, like MediaMonkey's mask**: `<Disc#>-<Track#> <Title>` →
+  `01-054 EuroDemo 'Slow Techno'.mp3` (French tags such as `<Piste n°>` work too). Track numbers
+  follow the workspace's creation order, so a track downloaded later keeps its number.
+- **MP3 or WAV**: MP3 is Suno's own quality (≈180 kbps VBR, 48 kHz — there is no 128/320 choice on
+  Suno's side); WAV is lossless and available on Suno Pro plans.
+- **Re-organize what you already have**: one click renames existing workspace folders to your
+  format (e.g. `Suno -Lucie` → `Suno - Lucie`), with a preview, never overwriting an existing folder.
 - **Proper ID3 tags on every file**: title, artist, album (= workspace), cover art, lyrics,
   year, and the **Suno track ID** (in `TSRC`) so the file stays linked to Suno forever.
 - **Originals highlighted in gold** and pinned first — covers are grouped under the song they come from.
