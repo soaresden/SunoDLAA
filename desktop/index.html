@@ -110,8 +110,8 @@
   .pcard .ptitle{margin:10px 12px 6px}
   #pcEmpty{padding:6px 12px 14px;text-align:center}
   .pc-art{height:170px;background:linear-gradient(135deg,var(--fuchsia),var(--orange),var(--turq));background-size:cover;background-position:center;position:relative}
-  .pc-art.noimg::after{content:'♫';position:absolute;inset:0;display:grid;place-items:center;font-size:64px;color:rgba(255,255,255,.85)}
-  .pc-art .kbtn{position:absolute;right:8px;top:8px;background:rgba(255,255,255,.85);padding:4px 8px}
+  .pc-art.noimg::after{content:'♫';position:absolute;inset:0;display:grid;place-items:center;font-size:64px;color:rgba(255,255,255,.85);pointer-events:none}
+  .pc-art .kbtn{position:absolute;right:8px;top:8px;z-index:1;background:rgba(255,255,255,.9);padding:5px 10px;font-weight:700}
   .pc-info{padding:10px 12px 0}
   .pc-t{font-weight:800;font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
   .pc-s{color:var(--muted);font-size:12px;margin-top:2px}
@@ -204,9 +204,29 @@
   .wstools2{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
   #stepBackup .num{background:linear-gradient(135deg,var(--turq),var(--cobalt));font-size:18px}
   #backupInfo{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.9} #backupInfo code{background:var(--bg2);padding:1px 6px;border-radius:6px;word-break:break-all}
-  .karaoke{position:fixed;inset:0;background:rgba(255,249,252,.97);z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
-  .karaoke.show{display:flex} .karaoke .line{font-size:26px;line-height:1.7;max-width:800px;color:var(--muted)}
-  .karaoke .w.on{color:var(--fuchsia);font-weight:700} .karaoke .close{position:absolute;top:16px;right:20px}
+  .karaoke{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;background:#1a0c17;color:#fff;overflow:hidden}
+  .karaoke.show{display:flex}
+  .k-bg{position:absolute;inset:-60px;background:linear-gradient(135deg,var(--fuchsia),var(--orange),var(--turq));background-size:cover;background-position:center;filter:blur(50px) brightness(.4);transform:scale(1.15)}
+  .k-top,.k-lines,.k-ctrl,.lyfollow.k{position:relative;z-index:1}
+  .k-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 24px}
+  .k-t{font-size:20px;font-weight:800} .k-s{font-size:13px;opacity:.7}
+  .k-x{background:rgba(255,255,255,.15);color:#fff;font-size:18px;border-radius:50%;width:40px;height:40px;padding:0}
+  .k-lines{flex:1;overflow:auto;padding:32vh 8vw;text-align:center;scrollbar-width:none}
+  .k-lines::-webkit-scrollbar{display:none}
+  .k-lines .ly{font-size:30px;line-height:1.3;padding:10px 0;color:rgba(255,255,255,.32);font-weight:800;cursor:pointer;transition:color .25s,transform .25s}
+  .k-lines .ly.past{color:rgba(255,255,255,.55)}
+  .k-lines .ly.on{color:#fff;transform:scale(1.12)}
+  .k-lines .ly.on .w{transition:color .12s} .k-lines .ly.on .w.sung{color:#FF7AC0;text-shadow:0 0 18px rgba(255,122,192,.55)}
+  .k-lines .ly.sec{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#7FE3D8;cursor:default;padding-top:26px}
+  .k-ctrl{display:flex;justify-content:center;gap:16px;padding:14px}
+  .k-ctrl button{background:rgba(255,255,255,.14);color:#fff;border-radius:50%;width:48px;height:48px;font-size:18px;padding:0}
+  .k-ctrl .k-play{width:60px;height:60px;font-size:22px;background:linear-gradient(135deg,var(--fuchsia),var(--orange))}
+  .lyfollow{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:3;border-radius:999px;padding:7px 14px;font-weight:700;background:var(--ink);color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  .lyfollow.k{position:absolute;bottom:92px;background:#fff;color:var(--ink)}
+  .pc-panel{position:relative}
+  #pcLyr{position:relative}
+  .ly.on .w.sung{color:var(--fuchsia)} .ly.past{opacity:.6}
+  .ly.sec{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--turq);cursor:default;margin-top:8px}
   .toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:50;display:none;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.25)}
   .stat.loc b{color:var(--cobalt)}
   .syncrow{display:flex;gap:18px;flex-wrap:wrap}
@@ -392,14 +412,14 @@
         <div class="pchead"><div class="ptitle" id="pcHead"></div><span><button class="small" id="pcMiniBtn" onclick="toggleMini()">⧉</button> <button class="small" id="pcFloatBtn" onclick="toggleFloat()">⇲</button></span></div>
         <div id="pcEmpty"></div>
         <div id="pcBody" class="hidden">
-          <div class="pc-art" id="pcArt"><button class="small kbtn" onclick="openKaraoke()" title="Karaoke">⛶</button></div>
+          <div class="pc-art" id="pcArt"><button class="small kbtn" onclick="openKaraoke()" title="Karaoke">🎤 Karaoké ⛶</button></div>
           <div class="pc-info"><div class="pc-t" id="pcTitle"></div><div class="pc-s" id="pcSub"></div><div id="pcSrc"></div></div>
           <div class="pc-seek"><span id="pcCur">0:00</span><input type="range" id="pcSeek" min="0" max="1000" value="0"><span id="pcDur">0:00</span></div>
           <div class="pc-ctrl"><button id="pcShuf" onclick="toggleShuffle()">🔀</button><button onclick="prevTrack()">⏮</button><button class="pc-play" id="pcPlay" onclick="togglePlay()">▶</button><button onclick="nextTrack(false)">⏭</button><button id="pcRep" onclick="cycleRepeat()">🔁</button></div>
           <div class="pc-vol">🔈<input type="range" id="pcVol" min="0" max="100" oninput="this.style.setProperty('--p',this.value+'%')">🔊</div>
           <div class="pc-path" id="pcPath"></div>
           <div class="pc-tabs"><button id="pcTabL" onclick="togglePanel('lyrics')"></button><button id="pcTabQ" onclick="togglePanel('queue')"></button></div>
-          <div class="pc-panel" id="pcPanel"><div id="pcLyr"></div><div id="pcQueue" class="hidden"></div></div>
+          <div class="pc-panel" id="pcPanel"><div id="pcLyr"></div><div id="pcQueue" class="hidden"></div><button class="lyfollow hidden" id="pcFollow"></button></div>
         </div>
       </div></div>
       <audio id="audio" preload="metadata"></audio>
@@ -411,7 +431,13 @@
 <div class="notice hidden" id="notice"></div>
 <div class="menu hidden" id="menu"></div>
 <div class="modal hidden" id="modal"><div class="mbox"><h3 id="modalTitle"></h3><div id="modalBody"></div><div class="mbtns" id="modalBtns"></div></div></div>
-<div class="karaoke" id="karaoke"><button class="close" onclick="closeKaraoke()">✕</button><div class="line" id="karaokeLine">…</div></div>
+<div class="karaoke" id="karaoke">
+  <div class="k-bg" id="kBg"></div>
+  <div class="k-top"><div style="min-width:0"><div class="k-t" id="kTitle"></div><div class="k-s" id="kSub"></div></div><button class="k-x" onclick="closeKaraoke()">✕</button></div>
+  <div class="k-lines" id="kLines"></div>
+  <button class="lyfollow k hidden" id="kFollow"></button>
+  <div class="k-ctrl"><button onclick="prevTrack()">⏮</button><button id="kPlay" class="k-play" onclick="togglePlay()">▶</button><button onclick="nextTrack(false)">⏭</button></div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -419,6 +445,7 @@
 const I18N = {
   en: {
     setup:"⚙️ Setup", library:"📚 My library",
+    followLyrics:"⤓ Follow the lyrics",
     miniIsOpen:"The player is in the mini window.", miniBack:"Bring it back",
     sortLbl:"Sort:", sbNew:"Newest", sbOld:"Oldest", sbAZ:"A→Z", sbLong:"Longest", wbAZ:"A→Z", wbRecent:"Latest", wbMiss:"Missing",
     miniOpen:"Mini player: a small window that stays on top of your other windows", miniClose:"Put the player back in the page", miniUnsupported:"The mini player needs Edge or Chrome (version 116 or newer).",
@@ -517,6 +544,7 @@ const I18N = {
   },
   fr: {
     setup:"⚙️ Réglages", library:"📚 Ma bibliothèque",
+    followLyrics:"⤓ Suivre les paroles",
     miniIsOpen:"Le lecteur est dans la mini-fenêtre.", miniBack:"Le remettre ici",
     sortLbl:"Trier :", sbNew:"Récents", sbOld:"Anciens", sbAZ:"A→Z", sbLong:"Durée", wbAZ:"A→Z", wbRecent:"Derniers", wbMiss:"Manquants",
     miniOpen:"Mini-lecteur : une petite fenêtre qui reste au-dessus de tes autres fenêtres", miniClose:"Remettre le lecteur dans la page", miniUnsupported:"Le mini-lecteur demande Edge ou Chrome (version 116 ou plus).",
@@ -642,6 +670,7 @@ const MM_FR='<Disque n°:2>-<Piste n°:3> <Titre>';
 function setLang(l){ LANG=l; try{localStorage.setItem('sunodlaa_lang',l);}catch(e){} post('/api/config',{language:l}).catch(()=>{}); applyLang(); }
 function applyLang(){
   const t=T(); document.documentElement.lang=LANG; $('#langSel').value=LANG;
+  $('#pcFollow').textContent=t.followLyrics; $('#kFollow').textContent=t.followLyrics;
   $('#btnSetup').textContent=t.setup; $('#btnLibrary').textContent=t.library; $('#btnBackup').textContent=t.backupBtn; $('#btnBackup').title=t.backupTip;
   $('#btnBackup2').textContent=t.backupBtnLong; $('#btnRestore').textContent=t.restoreBtn; $('#sbTitle').textContent=t.sbTitle; $('#sbText').textContent=t.sbText;
   $('#sTitle').textContent=t.sTitle; $('#sIntro').textContent=t.sIntro; $('#sLangLbl').textContent=t.lang+' ';
@@ -1485,7 +1514,7 @@ async function toggleMini(){
   const ic=document.querySelector('link[rel=icon]'); if(ic) d.head.appendChild(ic.cloneNode(true));
   d.body.className='minibody';
   // inline onclick="..." in the mini window runs there: give it the player functions
-  ['togglePlay','prevTrack','nextTrack','toggleShuffle','cycleRepeat','togglePanel','toggleFloat','toggleMini','openKaraoke','jumpTo','reveal','$','gid','savePlayer']
+  ['togglePlay','prevTrack','nextTrack','toggleShuffle','cycleRepeat','togglePanel','toggleFloat','toggleMini','openKaraoke','jumpTo','reveal','seekLine','$','gid','savePlayer']
     .forEach(n=>{ try{ PIP[n]=window[n]||eval(n); }catch(e){} });
   PIP.PL=PL; PIP.REVEAL=REVEAL;
   d.body.appendChild($('#pcard'));
@@ -1531,7 +1560,7 @@ function startCurrent(){
   PL.cur=info; PL.lyr=null; PL.lyrLine=-1;
   a.src=info.local&&e.k==='file'?('/api/play?path='+encodeURIComponent(info.path)):info.src;
   a.volume=PL.vol; a.play().catch(()=>{});
-  renderPlayer(); renderClips(); loadLyrics(info.clip);
+  renderPlayer(); renderClips(); loadLyrics(info.clip); if(KV.open) openKaraoke();
   if('mediaSession' in navigator){ try{ navigator.mediaSession.metadata=new MediaMetadata({title:info.title,artist:info.sub,album:'SUNODLAA',artwork:info.img?[{src:info.img,sizes:'512x512',type:'image/jpeg'}]:[]}); }catch(x){} }
 }
 function nextTrack(auto){
@@ -1550,29 +1579,101 @@ const REVEAL=[];
 const REV_IDX={};
 function revealBtn(p,label){ if(!p) return ''; if(REV_IDX[p]==null){ REV_IDX[p]=REVEAL.length; REVEAL.push(p); } return `<button class="small" title="${esc(p)}" onclick="event.stopPropagation();reveal(REVEAL[${REV_IDX[p]}])">📂${label?' '+esc(label):''}</button>`; }
 async function reveal(p){ if(!p) return; const r=await api('/api/reveal?path='+encodeURIComponent(p)).catch(()=>({ok:false})); if(!r.ok) toast(T().revealFail); }
+/* ============================== lyrics + karaoke ============================== */
+// PL.lyr = { lines:[{t,s,e,sec,words:[{w,s,e}]}] }  (or {text} when Suno has no timings)
+function buildLines(d){
+  const words=d.aligned_words||[], lines=[];
+  if(words.length){
+    let cur=null;
+    const push=()=>{ if(cur&&cur.words.length){ cur.t=cur.words.map(x=>x.w).join('').trim(); if(cur.t) lines.push(cur); } cur=null; };
+    words.forEach(w=>{
+      const parts=String(w.word||'').split('\n'), s=+w.start_s||0, e=+w.end_s||s;
+      parts.forEach((part,i)=>{
+        if(i>0) push();                      // a newline closes the line
+        if(part.trim()){ if(!cur) cur={words:[],s,e}; cur.words.push({w:part,s,e}); cur.e=e; }
+        else if(part&&cur) cur.words.push({w:part,s,e});
+      });
+    });
+    push();
+  } else {
+    (d.aligned_lyrics||[]).forEach(l=>{ const t=String(l.text||'').trim(); if(t) lines.push({t,s:+l.start_s||0,e:+l.end_s||0,words:null}); });
+  }
+  lines.forEach(l=>{ l.sec=/^\s*\[[^\]]*\]\s*$/.test(l.t); });
+  return lines.filter(l=>l.t);
+}
 async function loadLyrics(c){
   if(!c){ PL.lyr={none:true}; renderLyrics(); return; }
   const id=c.id; PL.lyr={loading:true}; renderLyrics();
   try{
     const d=await api('/api/lyrics?id='+id); if(!PL.cur||!PL.cur.clip||PL.cur.clip.id!==id) return;
-    let lines=(d.aligned_lyrics||[]).filter(l=>(l.text||'').trim()).map(l=>({t:l.text,s:+l.start_s||0,e:+l.end_s||0}));
-    if(!lines.length&&(d.aligned_words||[]).length){ // build lines from words
-      let cur=null; lines=[];
-      d.aligned_words.forEach(w=>{ const txt=(w.word||''); if(!cur){ cur={t:'',s:+w.start_s||0,e:0}; lines.push(cur); } cur.t+=txt; cur.e=+w.end_s||cur.e; if(/\n/.test(txt)){ cur.t=cur.t.trim(); cur=null; } });
-    }
-    lines=lines.filter(l=>l.t.replace(/\[[^\]]*\]/g,'').trim());
-    PL.lyr=lines.length?{lines}:{text:c.prompt||''};
+    const lines=buildLines(d);
+    PL.lyr=lines.some(l=>!l.sec)?{lines}:{text:c.prompt||''};
   }catch(e){ PL.lyr={text:c.prompt||''}; }
   renderLyrics();
 }
-function renderLyrics(){
-  const el=$('#pcLyr'); if(!el) return; const t=T(), L=PL.lyr;
-  if(!L||L.loading){ el.innerHTML='<div class="muted small-t">…</div>'; return; }
-  if(L.none){ el.innerHTML='<div class="muted small-t">'+esc(t.noLyrics)+'</div>'; return; }
-  if(L.lines) el.innerHTML=L.lines.map((l,i)=>`<div class="ly" id="ly${i}" onclick="$('#audio').currentTime=${l.s}">${esc(l.t)}</div>`).join('');
-  else el.innerHTML=L.text?'<div class="ly static">'+esc(L.text).replace(/\n/g,'<br>')+'</div>':'<div class="muted small-t">'+esc(t.noLyricsClip)+'</div>';
-  PL.lyrLine=-1;
+function linesHtml(L,prefix){
+  return L.lines.map((l,i)=>l.sec
+    ?`<div class="ly sec" id="${prefix}${i}">${esc(l.t.replace(/[\[\]]/g,''))}</div>`
+    :`<div class="ly" id="${prefix}${i}" onclick="seekLine(${i})">${l.words?l.words.map((w,j)=>`<span class="w" data-j="${j}">${esc(w.w)}</span>`).join(''):esc(l.t)}</div>`).join('');
 }
+function renderLyrics(){
+  const t=T(), L=PL.lyr;
+  const fill=(el,prefix)=>{ if(!el) return;
+    if(!L||L.loading){ el.innerHTML='<div class="muted small-t">…</div>'; return; }
+    if(L.none){ el.innerHTML='<div class="muted small-t">'+esc(t.noLyrics)+'</div>'; return; }
+    if(L.lines) el.innerHTML=linesHtml(L,prefix);
+    else el.innerHTML=L.text?'<div class="ly static">'+esc(L.text).replace(/\n/g,'<br>')+'</div>':'<div class="muted small-t">'+esc(t.noLyricsClip)+'</div>'; };
+  fill($('#pcLyr'),'ly'); if(KV.open) fill($('#kLines'),'kl');
+  PL.lyrLine=-1; LYV.forEach(v=>{ v.cur=-1; v.follow=true; v.btn&&v.btn.classList.add('hidden'); });
+}
+function seekLine(i){ const L=PL.lyr; if(!L||!L.lines||!L.lines[i]) return; $('#audio').currentTime=Math.max(0,L.lines[i].s-0.05); LYV.forEach(v=>{ v.follow=true; v.btn&&v.btn.classList.add('hidden'); }); if($('#audio').paused) $('#audio').play(); }
+
+/* ---- follow the song; stop following when you scroll yourself, with a button to come back ---- */
+const LYV=[];   // views: panel + karaoke
+function lyrView(el,btn,prefix){
+  const v={el,btn,prefix,follow:true,until:0,cur:-1}; LYV.push(v);
+  const userMoved=()=>{ if(Date.now()<v.until) return; if(v.follow){ v.follow=false; btn.classList.remove('hidden'); } };
+  el.addEventListener('wheel',()=>{ v.until=0; userMoved(); },{passive:true});
+  el.addEventListener('touchmove',()=>{ v.until=0; userMoved(); },{passive:true});
+  el.addEventListener('scroll',userMoved,{passive:true});
+  btn.addEventListener('click',()=>{ v.follow=true; btn.classList.add('hidden'); centerLine(v,true); });
+  return v;
+}
+function centerLine(v,instant){
+  const n=v.el.querySelector('.ly.on'); if(!n) return;
+  v.until=Date.now()+(instant?300:900);
+  v.el.scrollTo({top:n.offsetTop-v.el.clientHeight/2+n.clientHeight/2,behavior:instant?'auto':'smooth'});
+}
+function lyrTick(c){
+  const L=PL.lyr; if(!L||!L.lines) return;
+  let k=-1; for(let i=0;i<L.lines.length;i++){ if(c>=L.lines[i].s-0.12) k=i; else break; }
+  LYV.forEach(v=>{
+    if(!v.el.isConnected||v.el.offsetParent===null&&!v.el.closest('.karaoke.show')) return;
+    if(k!==v.cur){
+      const o=v.el.querySelector('#'+v.prefix+v.cur); if(o){ o.classList.remove('on'); o.classList.add('past'); o.querySelectorAll('.w').forEach(w=>w.classList.add('sung')); }
+      v.el.querySelectorAll('.ly').forEach((e,i)=>{ e.classList.toggle('past',i<k); if(i>=k) e.querySelectorAll('.w.sung').forEach(w=>w.classList.remove('sung')); });
+      v.cur=k; const n=v.el.querySelector('#'+v.prefix+k); if(n) n.classList.add('on');
+      if(v.follow) centerLine(v,false);
+    }
+    const line=L.lines[k]; if(line&&line.words){ const n=v.el.querySelector('#'+v.prefix+k);
+      if(n) n.querySelectorAll('.w').forEach(w=>{ const wd=line.words[+w.dataset.j]; w.classList.toggle('sung',!!wd&&c>=wd.s-0.05); }); }
+  });
+}
+
+/* ---- full-screen karaoke ---- */
+const KV={open:false};
+function openKaraoke(){
+  const info=PL.cur; if(!info||!info.clip){ toast(T().noLyrics); return; }
+  KV.open=true; $('#karaoke').classList.add('show');
+  $('#kBg').style.backgroundImage=info.img?`url("${info.img}")`:'';
+  $('#kTitle').textContent=info.title; $('#kSub').textContent=info.sub;
+  renderLyrics(); renderKaraokeCtrl();
+  setTimeout(()=>lyrTick($('#audio').currentTime||0),50);
+}
+function closeKaraoke(){ KV.open=false; $('#karaoke').classList.remove('show'); }
+function renderKaraokeCtrl(){ const b=$('#kPlay'); if(b) b.textContent=$('#audio').paused?'▶':'⏸'; }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&KV.open) closeKaraoke(); });
+
 function renderPlayer(){
   const t=T(), card=$('#pcard'); if(!card) return;
   const info=PL.cur; applyFloat();
@@ -1609,13 +1710,11 @@ function fmtT(s){ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+St
     if(!PL.seeking){ $('#pcSeek').value=d?Math.round(1000*c/d):0; }
     $('#pcCur').textContent=fmtT(c); $('#pcDur').textContent=fmtT(d);
     $('#pcSeek').style.setProperty('--p',(d?100*c/d:0)+'%');
-    const L=PL.lyr; if(L&&L.lines){ let k=-1; for(let i=0;i<L.lines.length;i++){ if(c>=L.lines[i].s-0.15) k=i; else break; }
-      if(k!==PL.lyrLine){ const o=gid('ly'+PL.lyrLine); if(o) o.classList.remove('on'); PL.lyrLine=k; const n=gid('ly'+k);
-        if(n){ n.classList.add('on'); const box=$('#pcLyr'); box.scrollTo({top:n.offsetTop-box.offsetTop-box.clientHeight/2+n.clientHeight/2,behavior:'smooth'}); } } }
-    if(alignedWords) alignedWords.forEach((w,i)=>{ const s=document.getElementById('kw'+i); if(s) s.classList.toggle('on',c>=w.s&&c<=w.e); });
+    lyrTick(c);
   });
-  a.addEventListener('play',()=>{ PL.errors=0; renderPlayer(); });
-  a.addEventListener('pause',renderPlayer);
+  a.addEventListener('play',()=>{ PL.errors=0; renderPlayer(); renderKaraokeCtrl(); });
+  a.addEventListener('pause',()=>{ renderPlayer(); renderKaraokeCtrl(); });
+  lyrView($('#pcLyr'),$('#pcFollow'),'ly'); lyrView($('#kLines'),$('#kFollow'),'kl');
   a.addEventListener('ended',()=>nextTrack(true));
   a.addEventListener('error',()=>{ if(!PL.cur) return; PL.errors++; logUI('player: cannot play '+(PL.cur.path||PL.cur.src||'?'));
     toast(T().cantPlay(PL.cur.title)); if(PL.errors<5&&PL.i<PL.q.length-1) setTimeout(()=>nextTrack(false),800); });
@@ -1628,14 +1727,7 @@ function fmtT(s){ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+St
     else if(e.key==='ArrowRight'&&e.shiftKey) nextTrack(false); else if(e.key==='ArrowLeft'&&e.shiftKey) prevTrack(); });
   if('mediaSession' in navigator){ try{ navigator.mediaSession.setActionHandler('nexttrack',()=>nextTrack(false)); navigator.mediaSession.setActionHandler('previoustrack',prevTrack); }catch(x){} }
 })();
-async function openKaraoke(){
-  const c=PL.cur&&PL.cur.clip; if(!c){ toast(T().noLyrics); return; } $('#karaoke').classList.add('show'); $('#karaokeLine').textContent='…';
-  try{ const d=await api('/api/lyrics?id='+c.id); const w=d.aligned_words||[];
-    if(w.length){ alignedWords=w.map(x=>({t:esc(x.word||''),s:x.start_s||0,e:x.end_s||0})); $('#karaokeLine').innerHTML=alignedWords.map((x,i)=>`<span class="w" id="kw${i}">${x.t}</span>`).join(' '); }
-    else $('#karaokeLine').innerHTML=esc(c.prompt||'—').replace(/\n/g,'<br>');
-  }catch(e){ $('#karaokeLine').textContent='—'; }
-}
-function closeKaraoke(){ $('#karaoke').classList.remove('show'); alignedWords=null; }
+
 
 /* ============================== backup ============================== */
 function csvCell(v){ v=(v==null?'':''+v); return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
