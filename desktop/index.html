@@ -146,6 +146,52 @@
   .wshead .folder{font-size:12px;margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .wshead .folder code{font-size:11px;background:var(--bg2);padding:2px 6px;border-radius:6px;word-break:break-all}
   .notice{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;border:2px solid var(--ok);padding:12px 16px;border-radius:14px;z-index:60;max-width:min(680px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.18);word-break:break-all}
+  .dots{padding:5px 8px;font-weight:800}
+  .clip .del{padding:5px 7px;opacity:.55} .clip .del:hover{opacity:1;background:#FDE3E8}
+  .clip .tno{width:30px;flex:none;text-align:right;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;font-family:ui-monospace,Consolas,monospace}
+  .clip.orig .tno{color:#9A6B00;font-weight:700}
+  button.hot{background:linear-gradient(90deg,#FFF1C9,#FFE0EF);color:#7A4A00;font-weight:700}
+  .batchbar{position:sticky;top:0;z-index:5;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;margin-bottom:8px;border-radius:12px;background:var(--ink);color:#fff}
+  .batchbar button{background:rgba(255,255,255,.14);color:#fff} .batchbar button.danger{background:var(--bad)} .batchbar button:disabled{opacity:.4}
+  .pchead{display:flex;align-items:center;justify-content:space-between;padding-right:8px}
+  .pc-panel{display:block} .pc-panel:not(.open){display:none}
+  /* floating bar (Spotify-like) */
+  .pcard.floating{position:fixed;left:0;right:0;bottom:0;z-index:45;border-radius:0;border:none;border-top:1px solid var(--border);box-shadow:0 -8px 30px rgba(0,0,0,.08);overflow:visible}
+  .pcard.floating.nocur{display:none}
+  .pcard.floating .pchead{position:absolute;right:6px;top:6px;padding:0;z-index:2} .pcard.floating .pchead .ptitle{display:none}
+  .pcard.floating #pcEmpty{display:none}
+  .pcard.floating #pcBody{display:grid;grid-template-columns:minmax(220px,1fr) minmax(300px,2fr) minmax(220px,1fr);grid-template-areas:"art ctrl vol" "art seek tabs";align-items:center;column-gap:16px;padding:8px 44px 8px 12px}
+  .pcard.floating #pcBody.hidden{display:none}
+  .pcard.floating .pc-art{grid-area:art;height:56px;width:56px;border-radius:8px;flex:none}
+  .pcard.floating .pc-art .kbtn{display:none}
+  .pcard.floating .pc-art.noimg::after{font-size:24px}
+  .pcard.floating .pc-info{position:absolute;left:80px;top:12px;width:calc(33% - 90px);padding:0}
+  .pcard.floating .pc-t{font-size:14px;-webkit-line-clamp:1} .pcard.floating #pcSrc{display:none}
+  .pcard.floating .pc-ctrl{grid-area:ctrl;padding:0} .pcard.floating .pc-ctrl .pc-play{width:40px;height:40px;font-size:18px}
+  .pcard.floating .pc-seek{grid-area:seek;padding:0}
+  .pcard.floating .pc-vol{grid-area:vol;justify-content:flex-end;padding:0}
+  .pcard.floating .pc-path{display:none}
+  .pcard.floating .pc-tabs{grid-area:tabs;border:none;justify-content:flex-end;gap:4px}
+  .pcard.floating .pc-tabs button{flex:none;border-radius:999px;padding:4px 10px}
+  .pcard.floating .pc-panel{position:absolute;right:12px;bottom:calc(100% + 8px);width:min(420px,92vw);background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.18)}
+  .pcard.floating #pcLyr,.pcard.floating #pcQueue{max-height:50vh}
+  body.has-bar #library{height:calc(100vh - 55px - 76px)}
+  body.has-bar .toast{bottom:90px}
+  @media (max-width:800px){ .pcard.floating #pcBody{grid-template-columns:1fr;grid-template-areas:"ctrl" "seek"} .pcard.floating .pc-art,.pcard.floating .pc-info,.pcard.floating .pc-vol,.pcard.floating .pc-tabs{display:none} }
+  .menu{position:fixed;z-index:70;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.15);padding:6px;display:flex;flex-direction:column;min-width:220px}
+  .menu button{background:#fff;text-align:left;border-radius:8px;padding:8px 10px}
+  .menu button:hover{background:var(--bg2)} .menu button.danger{color:var(--bad)}
+  button.danger{background:var(--bad);color:#fff;font-weight:700}
+  .modal{position:fixed;inset:0;background:rgba(27,27,31,.35);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px}
+  .modal .mbox{background:#fff;border-radius:18px;padding:18px;width:min(760px,100%);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .modal h3{margin:0 0 8px} #modalBody{overflow:auto;min-height:0}
+  .mbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+  .plan{margin-top:10px;display:flex;flex-direction:column;gap:4px}
+  .prow{display:flex;gap:10px;align-items:flex-start;padding:6px 8px;border-radius:10px;cursor:pointer;font-size:13px}
+  .prow:hover{background:var(--bg2)} .prow .from{color:var(--muted);text-decoration:line-through;word-break:break-all} .prow .to{color:var(--ok);font-weight:600;word-break:break-all}
+  .prow .newt{width:100%;margin-top:4px;padding:5px 8px}
+  .wstools2{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  #stepBackup .num{background:linear-gradient(135deg,var(--turq),var(--cobalt));font-size:18px}
   #backupInfo{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.9} #backupInfo code{background:var(--bg2);padding:1px 6px;border-radius:6px;word-break:break-all}
   .karaoke{position:fixed;inset:0;background:rgba(255,249,252,.97);z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
   .karaoke.show{display:flex} .karaoke .line{font-size:26px;line-height:1.7;max-width:800px;color:var(--muted)}
@@ -251,13 +297,22 @@
     </div>
   </div>
 
+  <div class="step" id="stepBackup">
+    <div class="num">💾</div>
+    <div class="body">
+      <h3 id="sbTitle"></h3>
+      <p id="sbText"></p>
+      <div class="row"><button class="primary" id="btnBackup2" onclick="doBackup()"></button><button id="btnRestore" onclick="doRestore()"></button></div>
+      <input type="file" id="restoreFile" accept=".json,application/json" class="hidden" onchange="doRestoreFile(this)">
+      <div id="backupInfo"></div>
+    </div>
+  </div>
+
   <details id="advanced" style="margin-top:18px">
     <summary id="advSum"></summary>
     <div class="step" style="margin-top:10px"><div class="body">
       <div class="row"><span id="lblDelay"></span><input type="text" id="delayInput" style="max-width:70px" onchange="saveOpts({downloadDelaySec:+this.value||0})"><span class="muted small-t" id="lblDelayHint"></span></div>
       <div class="row"><button id="btnRenameFolders" onclick="applyFolders()"></button><span class="muted small-t" id="lblRenameHint"></span></div>
-      <div class="row" style="margin-top:14px"><button id="btnBackup2" onclick="doBackup()"></button><button id="btnRestore" onclick="doRestore()"></button></div>
-      <div id="backupInfo"></div>
     </div></div>
   </details>
 
@@ -276,6 +331,7 @@
       <div class="stat loc"><b id="nLocal">–</b><span id="lLocal"></span></div>
     </div>
     <button class="go big" id="btnEverything" onclick="downloadEverything()"></button>
+    <button class="small hot hidden" id="btnCleanAll" onclick="openCleanAll()"></button>
     <button class="small" id="btnRecheck" onclick="refreshAll()"></button>
     <div class="analyzing" id="syncBox">
       <div class="syncrow"><span id="syncSuno"></span><span id="syncDisk"></span></div>
@@ -299,12 +355,14 @@
         <select id="sortSel" onchange="F.sort=this.value;savePrefs();renderClips()"></select>
       </div>
       <div class="toolbar">
+        <label class="chk small-t" id="selAllBox"><input type="checkbox" id="selAll" onchange="selectAllView(this.checked)"> <span id="lblSelAll"></span></label>
         <div class="seg" id="filterSeg"></div>
         <span class="spacer"></span>
         <button class="small" id="btnPlayView" onclick="playAllView(false)">▶</button><button class="small" id="btnShufView" onclick="playAllView(true)">🔀</button>
         <button class="small" id="btnWsMissing" onclick="downloadViewMissing()"></button>
-        <button class="small" id="btnSelected" onclick="downloadSelected()"></button>
+
       </div>
+      <div class="batchbar hidden" id="batchBar"></div>
       <div id="clipList"></div>
     </div>
     <div class="col job">
@@ -318,8 +376,8 @@
         <div class="row"><button class="small" id="btnStop" onclick="stopJob()"></button></div>
       </div>
       <div id="failList"></div>
-      <div class="pcard" id="pcard">
-        <div class="ptitle" id="pcHead"></div>
+      <div id="dockHome"><div class="pcard" id="pcard">
+        <div class="pchead"><div class="ptitle" id="pcHead"></div><button class="small" id="pcFloatBtn" onclick="toggleFloat()">⇲</button></div>
         <div id="pcEmpty"></div>
         <div id="pcBody" class="hidden">
           <div class="pc-art" id="pcArt"><button class="small kbtn" onclick="openKaraoke()" title="Karaoke">⛶</button></div>
@@ -328,16 +386,19 @@
           <div class="pc-ctrl"><button id="pcShuf" onclick="toggleShuffle()">🔀</button><button onclick="prevTrack()">⏮</button><button class="pc-play" id="pcPlay" onclick="togglePlay()">▶</button><button onclick="nextTrack(false)">⏭</button><button id="pcRep" onclick="cycleRepeat()">🔁</button></div>
           <div class="pc-vol">🔈<input type="range" id="pcVol" min="0" max="100" oninput="this.style.setProperty('--p',this.value+'%')">🔊</div>
           <div class="pc-path" id="pcPath"></div>
-          <div class="pc-tabs"><button id="pcTabL" onclick="setTab('lyrics')"></button><button id="pcTabQ" onclick="setTab('queue')"></button></div>
-          <div id="pcLyr"></div><div id="pcQueue" class="hidden"></div>
+          <div class="pc-tabs"><button id="pcTabL" onclick="togglePanel('lyrics')"></button><button id="pcTabQ" onclick="togglePanel('queue')"></button></div>
+          <div class="pc-panel" id="pcPanel"><div id="pcLyr"></div><div id="pcQueue" class="hidden"></div></div>
         </div>
-      </div>
+      </div></div>
       <audio id="audio" preload="metadata"></audio>
     </div>
   </div>
 </section>
 
+<div id="floatHome"></div>
 <div class="notice hidden" id="notice"></div>
+<div class="menu hidden" id="menu"></div>
+<div class="modal hidden" id="modal"><div class="mbox"><h3 id="modalTitle"></h3><div id="modalBody"></div><div class="mbtns" id="modalBtns"></div></div></div>
 <div class="karaoke" id="karaoke"><button class="close" onclick="closeKaraoke()">✕</button><div class="line" id="karaokeLine">…</div></div>
 <div class="toast" id="toast"></div>
 
@@ -346,11 +407,30 @@
 const I18N = {
   en: {
     setup:"⚙️ Setup", library:"📚 My library",
+    nSelected:n=>`${n} selected`, bDownload:n=>`Download (${n})`, bMove:"Move to…", bIgnore:"Don't download", bDelete:"Delete…", bClear:"Clear", selAll:"All",
+    bDeleteTitle:n=>`Delete ${n} track(s)?`, delSunoN:n=>`${n} track(s) go to your Suno trash (you can restore them from suno.com).`, delFilesN:n=>`${n} file(s) go to the Windows Recycle Bin.`, bDeleted:(n,f)=>`🗑 ${n} track(s) deleted${f?`, ${f} file(s) in the Recycle Bin`:''}.`,
+    moveTitle:n=>`Move ${n} track(s) to…`, moveBtn:"Move", pickTarget:"Pick a workspace.", moved:(n,w,f)=>`📁 ${n} track(s) moved to “${w}”${f?`, ${f} file(s) moved too`:''}. Use 🧹 Tidy up files to renumber.`,
+    wsRenameBtn:"Rename", wsDeleteBtn:"Delete", wsRenameTitle:"Rename the workspace", wsRenameHelp:"Renamed on Suno, and its folder on your disk is renamed to match.", wsRenamed:v=>`✅ Workspace renamed “${v}”.`, folderRenamed:"Folder renamed.", folderNotRenamed:e=>`Folder not renamed: ${e}`,
+    wsDeleteTitle:n=>`Delete the workspace “${n}”?`, wsDelSuno:n=>`It goes to your Suno trash with its ${n} track(s) (you can restore it from suno.com).`, wsDelFolder:"Also send its folder to the Windows Recycle Bin:", wsDeleted:n=>`🗑 Workspace “${n}” deleted.`,
+    cleanAllBtn:n=>`✨ ${n} messy title(s) to clean up`, trackNoTip:"Track number: the original is 001, then oldest to newest",
+    floatPlayer:"Detach as a bar at the bottom (like Spotify)", dockPlayer:"Put the player back in the right column",
+    sbTitle:"Backup", sbText:"One .json file with your whole library (Suno + what's on your disk) and your settings, plus a .csv list of every track that opens in Excel. Your Suno sign-in is never included.",
+    more:"More…", mRename:"Rename (on Suno and on disk)", mIgnore:"Don't download this one", mUnignore:"Download it again", mDeleteBoth:"Delete on Suno and on disk…", mDeleteSuno:"Delete on Suno…", mDeleteFile:"Delete this file (Recycle Bin)",
+    renameTitle:"Rename the track", renameHelp:"The new title is saved on Suno, and your file is renamed and re-tagged to match.", suggestion:"Suggestion:", cancel:"Cancel", renameBtn:"Rename",
+    renamed:v=>`✅ Renamed “${v}”`, fileNotRenamed:e=>`file not renamed: ${e}`, sunoRefused:e=>`Suno refused: ${e}`,
+    deleteTitle:"Delete this track?", delSuno:"It goes to your Suno trash (you can restore it from suno.com).", delFile:"The file goes to the Windows Recycle Bin:", delRenumber:"The newer tracks of this workspace move up one number: use 🧹 Tidy up files afterwards to rename them.", deleteBtn:"Delete",
+    inRecycle:"File sent to the Recycle Bin.", inTrashFolder:"File moved to “_SUNODLAA trash” in your music folder.", fileNotDeleted:e=>`File not deleted: ${e}`, deleted:x=>`🗑 “${x}” deleted.`,
+    delLocalConfirm:p=>`Send this file to the Recycle Bin?\n\n${p}`,
+    orgBtn:"Tidy up files", orgTip:"Rename and number your files the SUNODLAA way: the original is 001, then the other versions from oldest to newest", orgNone:"✅ All files already have the right name and number.",
+    orgTitle:n=>`🧹 ${n} file(s) to rename`, orgHelp:"The original (★) gets number 001, then every other version from oldest to newest. Title, track number and album tags are updated too. Untick what you want to keep as is.", orgApply:"Rename the ticked files", orgDone:(o,b)=>`🧹 ${o} file(s) renamed${b?`, ${b} error(s)`:''}.`,
+    cleanBtn:"Clean up titles", cleanTip:"Suggests clean titles for names like “1m7s_4m30s_Song_x4_x2 (Edit)”", cleanNone:"✅ No messy title here.",
+    cleanTitleT:n=>`✨ ${n} title(s) to clean up`, cleanHelp:"Removes durations (1m7s, 4m30s), speed marks (x2, x3.1), “(Edit)”, “(clean)” and old numbers. You can edit each suggestion. The new titles are saved on Suno and your files are renamed to match.", cleanApply:"Rename on Suno", cleanDone:(o,b)=>`✨ ${o} title(s) renamed${b?`, ${b} refused`:''}.`,
+    matchedName:"On your disk — found by its file name (original = 001, then oldest to newest)", ignoredTip:"Not on your disk, and you chose not to download it",
     backupBtn:"💾 Backup", backupTip:"Save your library, what's on your disk and your settings into one .zip file (plus an Excel-ready list of all your tracks)",
     backupBtnLong:"💾 Make a backup now", restoreBtn:"♻ Restore a backup…", backupRunning:"Making the backup…",
-    backupDone:(p,kb)=>`✅ Backup saved (${kb} KB): ${p} — it contains my-suno-library.csv (opens in Excel), your library and your settings (never your Suno sign-in).`,
-    backupFail:e=>`Backup failed: ${e}`, restoreConfirm:"Restore a backup? Your saved library and settings will be replaced by the ones in the backup (your Suno sign-in is kept).",
-    restoreDone:x=>`Restored: ${x}. Reloading…`, cacheWhere:"Your library is saved automatically in", backupWhere:"Backups go to",
+    backupDone:(p,csv,kb)=>`✅ Backup saved (${kb} KB): ${p}${csv?`\n📊 Track list for Excel: ${csv}`:''}\nIt holds your library, what's on your disk and your settings — never your Suno sign-in.`,
+    backupFail:e=>`Backup failed: ${e}`, restoreConfirm:"Restore this backup? Your saved library and settings will be replaced by the ones in the file (your Suno sign-in is kept).",
+    restoreDone:x=>`Restored from ${x}. Reloading…`, restoreBad:"This file is not a SunoAAWeb backup (.json).", cacheWhere:"Your library is saved automatically in", backupWhere:"Backups go to",
     lastBackup:d=>`Last backup: ${d}`, noBackup:"No backup yet.", showInFolder:"Show in folder", openFolder:"Open", revealFail:"Can't open this in Explorer (file moved?).",
     noFolderYet:p=>`No file yet — downloads will go to ${p}`,
     nowPlaying:"Player", playerEmpty:"Press ▶ on a track, or play the list on screen:", playView:"Play this list", shuffleView:"Shuffle this list",
@@ -422,11 +502,30 @@ const I18N = {
   },
   fr: {
     setup:"⚙️ Réglages", library:"📚 Ma bibliothèque",
+    nSelected:n=>`${n} sélectionné(s)`, bDownload:n=>`Télécharger (${n})`, bMove:"Déplacer vers…", bIgnore:"Ne pas télécharger", bDelete:"Supprimer…", bClear:"Désélectionner", selAll:"Tout",
+    bDeleteTitle:n=>`Supprimer ${n} titre(s) ?`, delSunoN:n=>`${n} titre(s) partent dans ta corbeille Suno (récupérables depuis suno.com).`, delFilesN:n=>`${n} fichier(s) partent dans la corbeille Windows.`, bDeleted:(n,f)=>`🗑 ${n} titre(s) supprimé(s)${f?`, ${f} fichier(s) dans la corbeille`:''}.`,
+    moveTitle:n=>`Déplacer ${n} titre(s) vers…`, moveBtn:"Déplacer", pickTarget:"Choisis un workspace.", moved:(n,w,f)=>`📁 ${n} titre(s) déplacé(s) vers « ${w} »${f?`, ${f} fichier(s) déplacé(s) aussi`:''}. Utilise 🧹 Ranger pour renuméroter.`,
+    wsRenameBtn:"Renommer", wsDeleteBtn:"Supprimer", wsRenameTitle:"Renommer le workspace", wsRenameHelp:"Renommé sur Suno, et son dossier sur ton disque est renommé pareil.", wsRenamed:v=>`✅ Workspace renommé « ${v} ».`, folderRenamed:"Dossier renommé.", folderNotRenamed:e=>`Dossier non renommé : ${e}`,
+    wsDeleteTitle:n=>`Supprimer le workspace « ${n} » ?`, wsDelSuno:n=>`Il part dans ta corbeille Suno avec ses ${n} titre(s) (récupérable depuis suno.com).`, wsDelFolder:"Envoyer aussi son dossier dans la corbeille Windows :", wsDeleted:n=>`🗑 Workspace « ${n} » supprimé.`,
+    cleanAllBtn:n=>`✨ ${n} titre(s) moche(s) à nettoyer`, trackNoTip:"Numéro de piste : l'originale est 001, puis de la plus ancienne à la plus récente",
+    floatPlayer:"Détacher en barre en bas (comme Spotify)", dockPlayer:"Remettre le lecteur dans la colonne de droite",
+    sbTitle:"Sauvegarde", sbText:"Un fichier .json avec toute ta bibliothèque (Suno + ce qu'il y a sur ton disque) et tes réglages, plus une liste .csv de tous les titres qui s'ouvre dans Excel. Ta connexion Suno n'y est jamais.",
+    more:"Plus…", mRename:"Renommer (sur Suno et sur le disque)", mIgnore:"Ne pas télécharger celui-ci", mUnignore:"Le télécharger à nouveau", mDeleteBoth:"Supprimer sur Suno et sur le disque…", mDeleteSuno:"Supprimer sur Suno…", mDeleteFile:"Supprimer ce fichier (corbeille)",
+    renameTitle:"Renommer le titre", renameHelp:"Le nouveau titre est enregistré sur Suno, et ton fichier est renommé et retagué pareil.", suggestion:"Suggestion :", cancel:"Annuler", renameBtn:"Renommer",
+    renamed:v=>`✅ Renommé « ${v} »`, fileNotRenamed:e=>`fichier non renommé : ${e}`, sunoRefused:e=>`Suno a refusé : ${e}`,
+    deleteTitle:"Supprimer ce titre ?", delSuno:"Il part dans ta corbeille Suno (récupérable depuis suno.com).", delFile:"Le fichier part dans la corbeille Windows :", delRenumber:"Les titres plus récents de ce workspace remontent d'un numéro : utilise ensuite 🧹 Ranger les fichiers pour les renommer.", deleteBtn:"Supprimer",
+    inRecycle:"Fichier envoyé dans la corbeille.", inTrashFolder:"Fichier déplacé dans « _SUNODLAA trash » dans ton dossier de musique.", fileNotDeleted:e=>`Fichier non supprimé : ${e}`, deleted:x=>`🗑 « ${x} » supprimé.`,
+    delLocalConfirm:p=>`Envoyer ce fichier dans la corbeille ?\n\n${p}`,
+    orgBtn:"Ranger les fichiers", orgTip:"Renomme et numérote tes fichiers façon SUNODLAA : l'originale en 001, puis les autres versions de la plus ancienne à la plus récente", orgNone:"✅ Tous les fichiers ont déjà le bon nom et le bon numéro.",
+    orgTitle:n=>`🧹 ${n} fichier(s) à renommer`, orgHelp:"L'originale (★) prend le numéro 001, puis toutes les autres versions de la plus ancienne à la plus récente. Les tags titre, numéro de piste et album sont mis à jour aussi. Décoche ce que tu veux garder tel quel.", orgApply:"Renommer les fichiers cochés", orgDone:(o,b)=>`🧹 ${o} fichier(s) renommé(s)${b?`, ${b} erreur(s)`:''}.`,
+    cleanBtn:"Nettoyer les titres", cleanTip:"Propose des titres propres pour les noms du genre « 1m7s_4m30s_Chanson_x4_x2 (Edit) »", cleanNone:"✅ Aucun titre à nettoyer ici.",
+    cleanTitleT:n=>`✨ ${n} titre(s) à nettoyer`, cleanHelp:"Enlève les durées (1m7s, 4m30s), les vitesses (x2, x3.1), « (Edit) », « (clean) » et les anciens numéros. Tu peux modifier chaque proposition. Les nouveaux titres sont enregistrés sur Suno et tes fichiers renommés pareil.", cleanApply:"Renommer sur Suno", cleanDone:(o,b)=>`✨ ${o} titre(s) renommé(s)${b?`, ${b} refusé(s)`:''}.`,
+    matchedName:"Sur ton disque — retrouvé par son nom de fichier (originale = 001, puis de la plus ancienne à la plus récente)", ignoredTip:"Pas sur ton disque, et tu as choisi de ne pas le télécharger",
     backupBtn:"💾 Sauvegarde", backupTip:"Enregistre ta bibliothèque, ce qu'il y a sur ton disque et tes réglages dans un seul fichier .zip (avec la liste de tous tes titres, lisible dans Excel)",
     backupBtnLong:"💾 Faire une sauvegarde maintenant", restoreBtn:"♻ Restaurer une sauvegarde…", backupRunning:"Sauvegarde en cours…",
-    backupDone:(p,kb)=>`✅ Sauvegarde enregistrée (${kb} Ko) : ${p} — elle contient my-suno-library.csv (s'ouvre dans Excel), ta bibliothèque et tes réglages (jamais ta connexion Suno).`,
+    backupDone:(p,csv,kb)=>`✅ Sauvegarde enregistrée (${kb} Ko) : ${p}${csv?`\n📊 Liste des titres pour Excel : ${csv}`:''}\nElle contient ta bibliothèque, ce qu'il y a sur ton disque et tes réglages — jamais ta connexion Suno.`,
     backupFail:e=>`Échec de la sauvegarde : ${e}`, restoreConfirm:"Restaurer une sauvegarde ? Ta bibliothèque enregistrée et tes réglages seront remplacés par ceux de la sauvegarde (ta connexion Suno est gardée).",
-    restoreDone:x=>`Restauré : ${x}. Rechargement…`, cacheWhere:"Ta bibliothèque est enregistrée automatiquement dans", backupWhere:"Les sauvegardes vont dans",
+    restoreDone:x=>`Restauré depuis ${x}. Rechargement…`, restoreBad:"Ce fichier n'est pas une sauvegarde SunoAAWeb (.json).", cacheWhere:"Ta bibliothèque est enregistrée automatiquement dans", backupWhere:"Les sauvegardes vont dans",
     lastBackup:d=>`Dernière sauvegarde : ${d}`, noBackup:"Pas encore de sauvegarde.", showInFolder:"Voir dans le dossier", openFolder:"Ouvrir", revealFail:"Impossible d'ouvrir ça dans l'Explorateur (fichier déplacé ?).",
     noFolderYet:p=>`Aucun fichier pour l'instant — les téléchargements iront dans ${p}`,
     nowPlaying:"Lecteur", playerEmpty:"Appuie sur ▶ sur un titre, ou lance la liste affichée :", playView:"Lire cette liste", shuffleView:"Lecture aléatoire",
@@ -524,7 +623,7 @@ function setLang(l){ LANG=l; try{localStorage.setItem('sunodlaa_lang',l);}catch(
 function applyLang(){
   const t=T(); document.documentElement.lang=LANG; $('#langSel').value=LANG;
   $('#btnSetup').textContent=t.setup; $('#btnLibrary').textContent=t.library; $('#btnBackup').textContent=t.backupBtn; $('#btnBackup').title=t.backupTip;
-  $('#btnBackup2').textContent=t.backupBtnLong; $('#btnRestore').textContent=t.restoreBtn;
+  $('#btnBackup2').textContent=t.backupBtnLong; $('#btnRestore').textContent=t.restoreBtn; $('#sbTitle').textContent=t.sbTitle; $('#sbText').textContent=t.sbText;
   $('#sTitle').textContent=t.sTitle; $('#sIntro').textContent=t.sIntro; $('#sLangLbl').textContent=t.lang+' ';
   $('#s1Title').textContent=t.s1Title; $('#s1Text').textContent=t.s1Text; $('#s1HelpSum').textContent=t.s1HelpSum;
   $('#s1HelpSteps').innerHTML=t.s1Help.map(x=>'<li>'+esc(x)+'</li>').join(''); $('#btnCookie').textContent=t.saveCookie;
@@ -661,7 +760,7 @@ function ago(iso){ if(!iso) return ''; const rtf=new Intl.RelativeTimeFormat(LAN
   return rtf.format(0,'minute'); }
 function slim(c){ const m=c.metadata||{}; return {id:c.id,title:c.title||'',created_at:c.created_at||'',duration:m.duration||c.duration||0,tags:m.tags||'',prompt:m.prompt||'',
   cover:m.cover_clip_id||'',image_url:c.image_url||'',image_large_url:c.image_large_url||'',audio_url:c.audio_url||'',is_liked:!!c.is_liked,display_name:c.display_name||''}; }
-function slimWs(w){ return {id:w.id,name:w.name||'',image_url:w.image_url||'',clip_count:w.clip_count||0,marker:JSON.stringify(w.last_updated_clip??null)+'|'+(w.clip_count||0)}; }
+function slimWs(w){ return {id:w.id,name:w.name||'',description:w.description||'',image_url:w.image_url||'',clip_count:w.clip_count||0,marker:JSON.stringify(w.last_updated_clip??null)+'|'+(w.clip_count||0)}; }
 function wsById(id){ return workspaces.find(w=>w.id===id); }
 function nClips(){ let n=0; for(const k in clipsByWs) n+=(clipsByWs[k]||[]).length; return n; }
 function savePrefs(){ try{ localStorage.setItem('sunodlaa_view',JSON.stringify({sort:F.sort,wsSort:F.wsSort,incomplete:F.incomplete,filter:F.filter})); }catch(e){} }
@@ -689,6 +788,7 @@ async function loadCache(){
     workspaces=d.workspaces; clipsByWs=d.clips||{}; wsMarker=d.markers||{}; syncedAt=d.savedAt||null;
     logUI(`library cache loaded: ${workspaces.length} workspaces, ${nClips()} tracks (saved ${d.savedAt})`);
   } else logUI('no library cache yet: first full load from Suno');
+  await loadIgnored();
   const al=await api('/api/cache/aliases').catch(()=>({})); ALIASES=(al&&typeof al==='object')?al:{};
   if(Object.keys(ALIASES).length) logUI(`title aliases loaded: ${Object.keys(ALIASES).length} renamed tracks`);
   recomputeMatch();
@@ -765,7 +865,7 @@ function trackNo(p){ const b=(p||'').split(/[\\/]/).pop(); const m=b.match(/^\s*
 // Link Suno tracks to files: 1) Suno id in the tags (TSRC/TXXX/COMM) or (id8) in the name,
 // 2) same title inside the same workspace folder (files without any id only).
 function recomputeMatch(){
-  MATCH={}; LOCAL_ONLY={}; CLIPWS={};
+  MATCH={}; LOCAL_ONLY={}; CLIPWS={}; NUMS_CACHE={};
   const used=new Set(), byId={}, byId8={};
   LOCAL.forEach((f,i)=>{ if(f.id) byId[f.id]=i; else if(f.id8) (byId8[f.id8]=byId8[f.id8]||[]).push(i); });
   for(const w of workspaces) for(const c of (clipsByWs[w.id]||[])){
@@ -775,6 +875,12 @@ function recomputeMatch(){
   }
   const byFolder={};
   LOCAL.forEach((f,i)=>{ if(used.has(i)||f.id) return; const k=norm(f.w); (byFolder[k]=byFolder[k]||[]).push(i); });
+  // 2) the exact file name SUNODLAA would give it (original = 001, then oldest to newest)
+  for(const w of workspaces){
+    const pool=byFolder[norm(w.name)]; if(!pool) continue;
+    const byName={}; pool.forEach(i=>{ if(!used.has(i)) byName[LOCAL[i].p.split(/[\\/]/).pop().replace(/\.[^.]+$/,'').toLowerCase()]=i; });
+    (clipsByWs[w.id]||[]).forEach(c=>{ if(MATCH[c.id]) return; const i=byName[expectedBase(c,w).toLowerCase()]; if(i!=null&&!used.has(i)){ MATCH[c.id]={p:LOCAL[i].p,k:'name'}; used.add(i); } });
+  }
   for(const w of workspaces){
     const pool=byFolder[norm(w.name)]; if(!pool) continue;
     const cg={}, fg={};
@@ -793,27 +899,29 @@ function recomputeMatch(){
   LOCAL.forEach((f,i)=>{ if(used.has(i)) return; const id=wsByNorm[norm(f.w)]||ORPH_ID; (LOCAL_ONLY[id]=LOCAL_ONLY[id]||[]).push(f); });
 }
 function logMatch(){
-  let byId=0,byTitle=0; for(const k in MATCH) (MATCH[k].k==='id'?byId++:byTitle++);
+  let byId=0,byTitle=0,byName=0; for(const k in MATCH) (MATCH[k].k==='id'?byId++:MATCH[k].k==='name'?byName++:byTitle++);
   let lo=0; for(const k in LOCAL_ONLY) lo+=LOCAL_ONLY[k].length;
-  logUI(`match: ${LOCAL.length} files on disk, ${nClips()} Suno tracks -> ${byId} by id, ${byTitle} by title, ${nClips()-byId-byTitle} missing, ${lo} only on disk (${(LOCAL_ONLY[ORPH_ID]||[]).length} in folders unknown to Suno)`);
+  logUI(`match: ${LOCAL.length} files on disk, ${nClips()} Suno tracks -> ${byId} by id, ${byName} by expected name, ${byTitle} by title, ${nClips()-byId-byTitle-byName} not on disk (${Object.keys(IGNORED).length} ignored), ${lo} only on disk (${(LOCAL_ONLY[ORPH_ID]||[]).length} in folders unknown to Suno)`);
 }
 
 /* ---- stats / status ---- */
 function wsStats(w){
   const cs=clipsByWs[w.id]; if(!cs) return null;
-  let have=0,first='',last='';
-  cs.forEach(c=>{ if(MATCH[c.id]) have++; const d=c.created_at||''; if(d&&(!first||d<first)) first=d; if(d>last) last=d; });
-  return {total:cs.length,have,miss:cs.length-have,first,last,local:(LOCAL_ONLY[w.id]||[]).length};
+  let have=0,ign=0,first='',last='';
+  cs.forEach(c=>{ if(MATCH[c.id]) have++; else if(IGNORED[c.id]) ign++; const d=c.created_at||''; if(d&&(!first||d<first)) first=d; if(d>last) last=d; });
+  return {total:cs.length,have,ign,miss:cs.length-have-ign,first,last,local:(LOCAL_ONLY[w.id]||[]).length};
 }
 function renderStats(){
-  const t=T(); if(!$('#nTracks')) return; let tot=0,have=0,known=0,lo=0;
-  workspaces.forEach(w=>{ const s=wsStats(w); if(s){ tot+=s.total; have+=s.have; known++; } });
+  const t=T(); if(!$('#nTracks')) return; let tot=0,have=0,known=0,lo=0,ign=0;
+  workspaces.forEach(w=>{ const s=wsStats(w); if(s){ tot+=s.total; have+=s.have; ign+=s.ign; known++; } });
+  tot-=ign;
   for(const k in LOCAL_ONLY) lo+=LOCAL_ONLY[k].length;
   $('#nTracks').textContent=known?tot:'–'; $('#nWs').textContent=workspaces.length||'–';
   $('#nHave').textContent=known?have:'–'; $('#nMiss').textContent=known?(tot-have):'–'; $('#nLocal').textContent=LOCAL.length?lo:'–';
   const b=$('#btnEverything'), ready=known>0&&!syncing; b.textContent=ready?t.everything(tot-have):t.notAnalyzed;
   b.disabled=!ready||(tot-have)===0||!!(job&&job.running);
   $('#btnRecheck').disabled=syncing||!!scanProg;
+  const ug=countUgly(), bc=$('#btnCleanAll'); bc.classList.toggle('hidden',!ug||syncing); bc.textContent=t.cleanAllBtn(ug); bc.title=t.cleanTip;
 }
 function renderSync(){
   const t=T(); if(!$('#syncSuno')) return;
@@ -878,28 +986,28 @@ function filtered(cs){
   const q=norm($('#search').value);
   return cs.filter(c=>{
     if(F.filter==='have'&&!MATCH[c.id]) return false;
-    if(F.filter==='miss'&&MATCH[c.id]) return false;
+    if(F.filter==='miss'&&!isMissing(c)) return false;
     if(F.filter==='fav'&&!c.is_liked) return false;
     return !q||norm(c.title).includes(q)||norm(c.tags).includes(q);
   });
 }
 function renderClips(){
   const t=T(), el=$('#clipList'); if(!el) return;
-  const bm=$('#btnWsMissing'), bs=$('#btnSelected');
+  const bm=$('#btnWsMissing');
   $('#search').placeholder=t.search;
   $('#sortSel').innerHTML=[['new',t.sortNew],['old',t.sortOld],['az',t.sortAZ],['long',t.sortLong]].map(([k,n])=>`<option value="${k}" ${F.sort===k?'selected':''}>${esc(n)}</option>`).join('');
   const head=$('#wsHead');
   if(currentWs===ORPH_ID){
-    bm.classList.add('hidden'); bs.classList.add('hidden'); $('#filterSeg').innerHTML='';
+    bm.classList.add('hidden'); $('#filterSeg').innerHTML='';
     head.innerHTML=`<div class="wshead"><div class="ph" style="display:grid;place-items:center;color:#fff">📁</div><div><h2>${esc(t.orphans)}</h2><div class="muted small-t">${esc(t.orphansHint)}</div></div></div>`;
     el.innerHTML=localFilesHtml(LOCAL_ONLY[ORPH_ID]||[],true); return;
   }
   const cs=viewClips();
   const w=wsById(currentWs);
-  if(!cs){ head.innerHTML=''; el.innerHTML='<div class="empty">'+(currentWs&&w?'…':esc(t.pickWs))+'</div>'; bm.classList.add('hidden'); bs.classList.add('hidden'); $('#filterSeg').innerHTML=''; return; }
+  if(!cs){ head.innerHTML=''; el.innerHTML='<div class="empty">'+(currentWs&&w?'…':esc(t.pickWs))+'</div>'; bm.classList.add('hidden'); $('#filterSeg').innerHTML=''; renderBatchBar(); return; }
   // header
   let first='',last='',dur=0; cs.forEach(c=>{ const d=c.created_at||''; if(d&&(!first||d<first)) first=d; if(d>last) last=d; dur+=+c.duration||0; });
-  const nHave=cs.filter(c=>MATCH[c.id]).length, nFav=cs.filter(c=>c.is_liked).length;
+  const nHave=cs.filter(c=>MATCH[c.id]).length, nFav=cs.filter(c=>c.is_liked).length, nMiss=cs.filter(isMissing).length;
   const img=w&&w.image_url?`<img src="${esc(w.image_url)}">`:'<div class="ph"></div>';
   const range=first?`${fmtDate(first)} → ${fmtDate(last)}`:'';
   let folder='';
@@ -907,54 +1015,65 @@ function renderClips(){
     const dir=f?f.p.replace(/[\\/][^\\/]*$/,''):(lo?lo.p.replace(/[\\/][^\\/]*$/,''):'');
     folder=dir?`<div class="folder">📁 <code>${esc(dir)}</code>${revealBtn(dir,t.openFolder)}</div>`:`<div class="folder muted">📁 ${esc(t.noFolderYet((CFG.libraryPath||'').replace(/[\\/]+$/,'')+'\\'+(CFG.folderPattern||'Suno - {workspace}').replace('{workspace}',w.name)))}</div>`; }
   else folder=`<div class="folder">📁 <code>${esc(CFG.libraryPath||'')}</code>${revealBtn(CFG.libraryPath,t.openFolder)}</div>`;
-  head.innerHTML=`<div class="wshead">${img}<div style="min-width:0"><h2>${esc(w?w.name:t.allTracks)}</h2><div class="muted small-t">${esc([t.nTracks(cs.length),range,dur?t.totalDur(Math.round(dur/3600*10)/10):''].filter(Boolean).join(' · '))}</div>${folder}</div></div>`;
-  $('#filterSeg').innerHTML=[['all',t.fAll,cs.length],['have',t.fHave,nHave],['miss',t.fMiss,cs.length-nHave],['fav',t.fFav,nFav]]
+  const nUgly=cs.filter(c=>cleanTitle(c.title)!==c.title).length;
+  const tools=`<div class="wstools2"><button class="small" onclick="openOrganize()" title="${esc(t.orgTip)}">🧹 ${esc(t.orgBtn)}</button><button class="small${nUgly?' hot':''}" onclick="openCleanTitles()" title="${esc(t.cleanTip)}">✨ ${esc(t.cleanBtn)}${nUgly?` (${nUgly})`:''}</button>${w?`<button class="small" onclick="renameWorkspace()">✏️ ${esc(t.wsRenameBtn)}</button><button class="small" onclick="deleteWorkspace()">🗑 ${esc(t.wsDeleteBtn)}</button>`:''}</div>`;
+  head.innerHTML=`<div class="wshead">${img}<div style="min-width:0;flex:1"><h2>${esc(w?w.name:t.allTracks)}</h2><div class="muted small-t">${esc([t.nTracks(cs.length),range,dur?t.totalDur(Math.round(dur/3600*10)/10):''].filter(Boolean).join(' · '))}</div>${folder}${tools}</div></div>`;
+  $('#filterSeg').innerHTML=[['all',t.fAll,cs.length],['have',t.fHave,nHave],['miss',t.fMiss,nMiss],['fav',t.fFav,nFav]]
     .map(([k,n,c])=>`<button class="${F.filter===k?'on':''}" onclick="F.filter='${k}';F.limit=300;savePrefs();renderClips()">${esc(n)} <span class="muted">${c}</span></button>`).join('');
-  const miss=cs.filter(c=>!MATCH[c.id]).length;
+  const miss=nMiss;
   bm.classList.remove('hidden'); bm.textContent=t.wsMissing(miss); bm.disabled=!miss||!!(job&&job.running);
-  bs.classList.toggle('hidden',!selected.size); bs.textContent=t.selected(selected.size); bs.disabled=!!(job&&job.running);
+
   const orig=originalsOf(cs);
   let list=filtered(cs);
   const by={new:(a,b)=>(b.created_at||'').localeCompare(a.created_at||''),old:(a,b)=>(a.created_at||'').localeCompare(b.created_at||''),
     az:(a,b)=>collator.compare(a.title||'',b.title||''),long:(a,b)=>(+b.duration||0)-(+a.duration||0)}[F.sort]||((a,b)=>0);
-  list.sort(by);
+  list.sort((a,b)=>((orig.has(b.id)?1:0)-(orig.has(a.id)?1:0))||by(a,b));   // the original (★) always on top
   VIEW_LIST=list;
   const rows=[];
   if(!list.length) rows.push('<div class="empty">'+esc(F.filter==='miss'&&cs.length?t.nothingMissing:t.noTracks)+'</div>');
   list.slice(0,F.limit).forEach(c=>{
     const m=MATCH[c.id], o=orig.has(c.id);
-    const av=m?(m.k==='id'?'✅':'☑️'):'🫥', avT=m?(m.k==='id'?t.matchedId:t.matchedTitle)+'\n'+m.p:t.notOnDisk;
+    const ig=!m&&IGNORED[c.id];
+    const av=m?(m.k==='id'?'✅':'☑️'):(ig?'🚫':'🫥'), avT=m?(m.k==='id'?t.matchedId:m.k==='name'?t.matchedName:t.matchedTitle)+'\n'+m.p:(ig?t.ignoredTip:t.notOnDisk);
     const im=c.image_url?`<img loading="lazy" src="${esc(c.image_url)}">`:'<div class="ph"></div>';
     const wsn=currentWs===ALL_ID&&CLIPWS[c.id]?`<span class="ws">${esc(CLIPWS[c.id].name)}</span> · `:'';
     const sub=[fmtDate(c.created_at,true),fmtDur(c.duration),c.tags].filter(Boolean).join(' · ');
     const playing=PL.cur&&PL.cur.clip&&PL.cur.clip.id===c.id;
-    rows.push(`<div class="clip${o?' orig':''}${playing?' playing':''}"><input type="checkbox" ${selected.has(c.id)?'checked':''} ${m?'disabled':''} onchange="toggleSel('${c.id}',this.checked)">`+
-      `<span class="avail" title="${esc(avT)}">${av}</span>${im}`+
+    rows.push(`<div class="clip${o?' orig':''}${playing?' playing':''}"><input type="checkbox" ${selected.has(c.id)?'checked':''} onchange="toggleSel('${c.id}',this.checked)">`+
+      `<span class="avail" title="${esc(avT)}">${av}</span><span class="tno" title="${esc(t.trackNoTip)}">${String((CLIPWS[c.id]?numsFor(CLIPWS[c.id].id)[c.id]:0)||'').padStart(3,'0')}</span>${im}`+
       `<div class="t"><div class="title">${o?'<span class="star" title="'+esc(t.original)+'">★ </span>':''}${c.is_liked?'<span class="heart">♥ </span>':''}${esc(c.title||'—')}</div><div class="sub2">${wsn}${esc(sub)}</div>${m?`<div class="path" title="${esc(m.p)}">💾 ${esc(relPath(m.p))}</div>`:''}</div>`+
-      `${m?revealBtn(m.p):''}<button class="small${playing?' primary':''}" onclick="play('${c.id}')">${playing?'♪':'▶'}</button></div>`);
+      `${m?revealBtn(m.p):''}<button class="small${playing?' primary':''}" onclick="play('${c.id}')">${playing?'♪':'▶'}</button><button class="small del" title="${esc(m?t.mDeleteBoth:t.mDeleteSuno)}" onclick="deleteTrack('${c.id}')">🗑</button><button class="small dots" title="${esc(t.more)}" onclick="trackMenu(event,'${c.id}')">⋯</button></div>`);
   });
   if(list.length>F.limit) rows.push(`<div class="more"><button class="small" onclick="F.limit+=300;renderClips()">${esc(t.showMore(list.length-F.limit))}</button></div>`);
   if(currentWs!==ALL_ID){ const lo=LOCAL_ONLY[currentWs]||[]; if(lo.length) rows.push(`<details class="localonly"><summary>${esc(t.localOnlyTitle(lo.length))}</summary><div class="muted small-t" style="margin:6px 0">${esc(t.localOnlyHint)}</div>${localFilesHtml(lo,false)}</details>`); }
   el.innerHTML=rows.join('');
+  const vis=list.slice(0,F.limit); $('#selAll').checked=vis.length>0&&vis.every(c=>selected.has(c.id)); $('#lblSelAll').textContent=t.selAll;
+  renderBatchBar();
 }
 function localFilesHtml(files,withDir){
   LOCAL_VIEW=files.slice().sort((a,b)=>collator.compare(a.p,b.p));
   if(!LOCAL_VIEW.length) return '<div class="empty">—</div>';
-  return LOCAL_VIEW.map((f,i)=>{ const name=f.p.split(/[\\/]/).pop(); return `<div class="lfile"><button class="small" onclick="playLocal(${i})">▶</button><div class="fn" title="${esc(f.p)}">${esc(name)}${withDir?`<div class="dir">${esc(f.w)}</div>`:''}</div></div>`; }).join('');
+  return LOCAL_VIEW.map((f,i)=>{ const name=f.p.split(/[\\/]/).pop(); return `<div class="lfile"><button class="small" onclick="playLocal(${i})">▶</button><div class="fn" title="${esc(f.p)}">${esc(name)}${withDir?`<div class="dir">${esc(f.w)}</div>`:''}</div>${revealBtn(f.p)}<button class="small" title="${esc(T().mDeleteFile)}" onclick="deleteLocalFile(${i})">🗑</button></div>`; }).join('');
+}
+async function deleteLocalFile(i){
+  const t=T(), f=LOCAL_VIEW[i]; if(!f) return;
+  if(!confirm(t.delLocalConfirm(f.p))) return;
+  const d=await post('/api/file/recycle',{paths:[f.p]}).catch(()=>null); const x=d&&d.results&&d.results[0];
+  if(x&&x.ok){ LOCAL=LOCAL.filter(y=>y.p!==f.p); recomputeMatch(); renderAll(); toast(x.how==='trashfolder'?t.inTrashFolder:t.inRecycle,4000); logUI('user: deleted local file '+f.p); }
+  else toast(t.fileNotDeleted(x?x.error:'?'),6000);
 }
 function toggleSel(id,on){ on?selected.add(id):selected.delete(id); renderClips(); }
 
 /* ============================== download job ============================== */
-function trackNumbers(cs){ const r={}; cs.slice().sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||'')).forEach((c,i)=>r[c.id]=i+1); return r; }
 function makeItems(cs){ const nums={}; return cs.map(c=>{ const w=CLIPWS[c.id]||{id:'',name:'Misc'}; if(!nums[w.id]) nums[w.id]=trackNumbers(clipsByWs[w.id]||[]); return {clip:c,ws:w.name||'Misc',track:nums[w.id][c.id]||1}; }); }
 function confirmStart(n){ const t=T(); let m=t.confirmAll(n); if(ACC&&ACC.ok&&!ACC.pro) m+=t.confirmFree; return confirm(m); }
 function downloadEverything(){
-  const cs=[]; workspaces.forEach(w=>cs.push(...(clipsByWs[w.id]||[]).filter(c=>!MATCH[c.id])));
+  const cs=[]; workspaces.forEach(w=>cs.push(...(clipsByWs[w.id]||[]).filter(isMissing)));
   if(!cs.length){ toast(T().nothingMissing); return; }
   if(confirmStart(cs.length)) runJob(makeItems(cs),'everything missing');
 }
 function downloadViewMissing(){
-  const cs=(viewClips()||[]).filter(c=>!MATCH[c.id]);
+  const cs=(viewClips()||[]).filter(isMissing);
   if(!cs.length){ toast(T().nothingMissing); return; }
   if(confirmStart(cs.length)) runJob(makeItems(cs),'missing in '+(currentWs===ALL_ID?'All tracks':((wsById(currentWs)||{}).name)));
 }
@@ -996,9 +1115,347 @@ function renderJob(){
   $('#failList').innerHTML=job.fails.slice(-30).reverse().map(f=>`<div class="fail"><b>${esc(f.ws)} — ${esc(f.title)}</b>${esc(f.error)}</div>`).join('');
 }
 
+/* ============================== names (same rules as the server) ============================== */
+function sanitizeName(s){ return ((s||'')+'').replace(/[\\/:*?"<>|]/g,'_').trim(); }
+function folderNameFor(ws){ const w=sanitizeName(ws)||'Untitled', pat=CFG.folderPattern||'Suno - {workspace}'; return pat.replace(/\{workspace\}/g,w).replace(/<\s*(workspace|album)\s*>/gi,w); }
+function fileNameFor(m){
+  const pat=CFG.fileNamePattern||'<Disc#:2>-<Track#:3> <Title>';
+  let n=pat.replace(/<\s*([^<>:]+?)\s*(?::(\d+))?\s*>/g,(all,key,w)=>{
+    const k=key.toLowerCase().replace(/[^a-z0-9#]/g,'');
+    if(/^(disc#|disc|discnumber|disquen|disque|cd)$/.test(k)) return String(parseInt(m.disc)||0).padStart(w?+w:2,'0');
+    if(/^(track#|track|tracknumber|pisten|piste|no)$/.test(k)) return String(parseInt(m.track)||0).padStart(w?+w:3,'0');
+    if(/^(title|titre)$/.test(k)) return m.title||'';
+    if(/^(artist|artiste)$/.test(k)) return m.artist||'';
+    if(/^(album|workspace)$/.test(k)) return m.workspace||'';
+    if(/^(year|annee|anne|date)$/.test(k)) return m.year||'';
+    if(/^(genre|style)$/.test(k)) return m.genre||'';
+    if(/^(id|isrc)$/.test(k)) return m.id||'';
+    if(k==='id8') return (m.id||'').slice(0,8);
+    return all;
+  });
+  n=n.replace(/[\\/:*?"<>|]/g,'_').trim().replace(/\.+$/,'');
+  return n||'Untitled';
+}
+const SEP=()=>((CFG.libraryPath||'').includes('/')&&!(CFG.libraryPath||'').includes('\\'))?'/':'\\';
+// Track numbers: the original(s) first (= 001), then every other version from oldest to newest.
+function trackNumbers(cs){
+  const orig=originalsOf(cs), r={};
+  cs.slice().sort((a,b)=>((orig.has(b.id)?1:0)-(orig.has(a.id)?1:0))||(a.created_at||'').localeCompare(b.created_at||'')).forEach((c,i)=>r[c.id]=i+1);
+  return r;
+}
+let NUMS_CACHE={};
+function numsFor(wsId){ if(!NUMS_CACHE[wsId]) NUMS_CACHE[wsId]=trackNumbers(clipsByWs[wsId]||[]); return NUMS_CACHE[wsId]; }
+function expectedBase(c,w){ w=w||CLIPWS[c.id]; if(!w) return null;
+  return fileNameFor({disc:1,track:numsFor(w.id)[c.id]||1,title:c.title,artist:c.display_name||'Suno',workspace:w.name,year:(c.created_at||'').slice(0,4),genre:c.tags,id:c.id}); }
+function expectedPath(c,ext){ const w=CLIPWS[c.id]; if(!w) return null; const s=SEP();
+  return (CFG.libraryPath||'').replace(/[\\/]+$/,'')+s+folderNameFor(w.name)+s+expectedBase(c,w)+'.'+(ext||CFG.audioFormat||'mp3'); }
+
+/* ============================== ignored tracks ============================== */
+let IGNORED={};
+async function loadIgnored(){ const d=await api('/api/cache/file?name=ignored.json').catch(()=>({})); IGNORED=(d&&typeof d==='object'&&!Array.isArray(d))?d:{}; }
+function saveIgnored(){ post('/api/cache/file?name=ignored.json',IGNORED).catch(()=>{}); }
+function isMissing(c){ return !MATCH[c.id]&&!IGNORED[c.id]; }
+function toggleIgnore(id){ const c=findClip(id); if(IGNORED[id]) delete IGNORED[id]; else IGNORED[id]=1; saveIgnored(); logUI(`user: ${IGNORED[id]?'ignore':'un-ignore'} "${c&&c.title}"`); closeMenu(); renderAll(); }
+
+/* ============================== modal + track menu ============================== */
+function openModal(title,body,buttons){
+  $('#modalTitle').textContent=title; $('#modalBody').innerHTML=body;
+  $('#modalBtns').innerHTML=''; (buttons||[]).forEach(b=>{ const e=document.createElement('button'); e.textContent=b.label; if(b.cls) e.className=b.cls; e.onclick=b.onclick; $('#modalBtns').appendChild(e); });
+  $('#modal').classList.remove('hidden');
+}
+function closeModal(){ $('#modal').classList.add('hidden'); }
+function closeMenu(){ $('#menu').classList.add('hidden'); }
+document.addEventListener('click',e=>{ if(!e.target.closest('#menu')&&!e.target.closest('.dots')) closeMenu(); });
+function trackMenu(ev,id){
+  ev.stopPropagation(); const t=T(), c=findClip(id); if(!c) return; const m=MATCH[id];
+  const items=[
+    [`✏️ ${t.mRename}`,`renameTrack('${id}')`],
+    m?[`📂 ${t.showInFolder}`,`reveal(MATCH['${id}'].p);closeMenu()`]:null,
+    !m?[IGNORED[id]?`↩ ${t.mUnignore}`:`🚫 ${t.mIgnore}`,`toggleIgnore('${id}')`]:null,
+    [`🗑 ${m?t.mDeleteBoth:t.mDeleteSuno}`,`deleteTrack('${id}')`,'danger'],
+  ].filter(Boolean);
+  const el=$('#menu'); el.innerHTML=items.map(([l,f,cls])=>`<button class="${cls||''}" onclick="${f}">${esc(l)}</button>`).join('');
+  el.classList.remove('hidden'); const r=ev.target.getBoundingClientRect();
+  el.style.top=Math.min(window.innerHeight-el.offsetHeight-8,r.bottom+4)+'px'; el.style.left=Math.max(8,r.right-el.offsetWidth)+'px';
+}
+
+/* ============================== rename / delete (cascade Suno -> disk) ============================== */
+function extOf(p){ const m=(p||'').match(/\.([^.\\/]+)$/); return m?m[1].toLowerCase():(CFG.audioFormat||'mp3'); }
+async function applyTitle(c,newTitle){
+  const r=await post('/api/suno/title',{id:c.id,title:newTitle}).catch(e=>({ok:false,error:''+e}));
+  if(!r.ok) return {ok:false,error:r.error||('HTTP '+r.status)};
+  c.title=newTitle; NUMS_CACHE={};
+  const m=MATCH[c.id]; let file=null;
+  if(m){ const to=expectedPath(c,extOf(m.p)); const w=CLIPWS[c.id];
+    const mv=await post('/api/file/move',{items:[{from:m.p,to,title:newTitle,track:numsFor(w.id)[c.id],album:folderNameFor(w.name)}]}).catch(()=>null);
+    const res=mv&&mv.results&&mv.results[0];
+    if(res&&res.ok){ movedLocal(m.p,res.to,c); file=res.to; } else file={error:res?res.error:'?'}; }
+  return {ok:true,file};
+}
+function movedLocal(from,to,c){ const f=LOCAL.find(x=>x.p===from); if(f){ f.p=to; f.id=c.id; f.id8=c.id.slice(0,8); f.t=c.title; f.ft=c.title; f.w=(CLIPWS[c.id]||{}).name||f.w; } if(MATCH[c.id]) MATCH[c.id]={p:to,k:'id'}; }
+function renameTrack(id){
+  closeMenu(); const t=T(), c=findClip(id); if(!c) return;
+  openModal(t.renameTitle,`<div class="small-t muted">${esc(t.renameHelp)}</div><input type="text" id="renameInput" style="width:100%;margin-top:10px" value="${esc(c.title)}">
+    <div class="small-t" style="margin-top:8px">${esc(t.suggestion)} <a href="#" onclick="$('#renameInput').value=${esc(JSON.stringify(cleanTitle(c.title)))};return false">${esc(cleanTitle(c.title))}</a></div>`,
+    [{label:t.cancel,onclick:closeModal},{label:t.renameBtn,cls:'primary',onclick:async()=>{
+      const v=$('#renameInput').value.trim(); if(!v||v===c.title){ closeModal(); return; }
+      $('#modalBtns').innerHTML='…';
+      const old=c.title, r=await applyTitle(c,v); closeModal();
+      logUI(`user: rename "${old}" -> "${v}": ${r.ok?'ok':r.error}${r.file&&r.file.error?' (file: '+r.file.error+')':''}`);
+      if(r.ok){ toast(t.renamed(v)+(r.file&&r.file.error?' — '+t.fileNotRenamed(r.file.error):''),5000); saveCache(); recomputeMatch(); renderAll(); renderPlayer(); }
+      else toast(t.sunoRefused(r.error),8000);
+    }}]);
+  setTimeout(()=>{ const i=$('#renameInput'); i&&i.focus(); i&&i.select(); },50);
+}
+async function deleteTrack(id){
+  closeMenu(); const t=T(), c=findClip(id); if(!c) return; const m=MATCH[id];
+  openModal(t.deleteTitle,`<b>${esc(c.title)}</b> <span class="muted small-t">(${esc((CLIPWS[id]||{}).name||'')})</span><ul class="small-t">
+    <li>${esc(t.delSuno)}</li>${m?`<li>${esc(t.delFile)}<br><code>${esc(m.p)}</code></li>`:''}<li>${esc(t.delRenumber)}</li></ul>`,
+    [{label:t.cancel,onclick:closeModal},{label:t.deleteBtn,cls:'danger',onclick:async()=>{
+      $('#modalBtns').innerHTML='…';
+      const r=await post('/api/suno/trash',{ids:[id]}).catch(e=>({ok:false,error:''+e}));
+      if(!r.ok){ closeModal(); toast(t.sunoRefused(r.error||('HTTP '+r.status)),8000); logUI(`user: delete "${c.title}" refused by Suno`); return; }
+      let fileMsg='';
+      if(m){ const d=await post('/api/file/recycle',{paths:[m.p]}).catch(()=>null); const x=d&&d.results&&d.results[0];
+        if(x&&x.ok){ LOCAL=LOCAL.filter(f=>f.p!==m.p); fileMsg=x.how==='trashfolder'?t.inTrashFolder:t.inRecycle; } else fileMsg=t.fileNotDeleted(x?x.error:'?'); }
+      const w=CLIPWS[id]; if(w) clipsByWs[w.id]=(clipsByWs[w.id]||[]).filter(x=>x.id!==id); delete IGNORED[id];
+      NUMS_CACHE={}; recomputeMatch(); saveCache(); closeModal(); renderAll();
+      logUI(`user: deleted "${c.title}" on Suno${m?' + file '+m.p:''}`);
+      toast(t.deleted(c.title)+(fileMsg?' '+fileMsg:''),6000);
+    }}]);
+}
+
+/* ============================== tidy up files (numbers, names, folders) ============================== */
+function organizePlan(cs){
+  const plan=[];
+  cs.forEach(c=>{ const m=MATCH[c.id]; if(!m) return; const to=expectedPath(c,extOf(m.p)); if(!to) return;
+    if(to!==m.p) plan.push({c,from:m.p,to}); });
+  return plan;
+}
+function openOrganize(){
+  const t=T(), cs=viewClips()||[]; NUMS_CACHE={};
+  const plan=organizePlan(cs);
+  if(!plan.length){ toast(t.orgNone,4000); return; }
+  const rel=p=>relPath(p);
+  openModal(t.orgTitle(plan.length),`<div class="small-t muted">${esc(t.orgHelp)}</div><div class="plan">${plan.map((x,i)=>`<label class="prow"><input type="checkbox" checked data-i="${i}"><div><div class="from">${esc(rel(x.from))}</div><div class="to">→ ${esc(rel(x.to))}</div></div></label>`).join('')}</div>`,
+    [{label:t.cancel,onclick:closeModal},{label:t.orgApply,cls:'primary',onclick:async()=>{
+      const sel=[...document.querySelectorAll('#modalBody .prow input:checked')].map(e=>plan[+e.dataset.i]);
+      $('#modalBtns').innerHTML='…';
+      // two passes through temporary names so that 003 -> 002 and 002 -> 001 never collide
+      const tmp=sel.map(x=>({x,mid:x.from.replace(/(\.[^.\\/]+)$/,'.~sunodlaa$1')}));
+      await post('/api/file/move',{items:tmp.map(y=>({from:y.x.from,to:y.mid}))});
+      const w=c=>CLIPWS[c.id];
+      const r=await post('/api/file/move',{items:tmp.map(y=>({from:y.mid,to:y.x.to,title:y.x.c.title,track:numsFor(w(y.x.c).id)[y.x.c.id],album:folderNameFor(w(y.x.c).name)}))}).catch(()=>null);
+      let ok=0,bad=[]; (r&&r.results||[]).forEach((res,i)=>{ const y=tmp[i]; if(res.ok){ ok++; movedLocal(y.x.from,res.to,y.x.c); } else bad.push(y.x.from+' : '+res.error); });
+      closeModal(); recomputeMatch(); renderAll(); renderPlayer();
+      logUI(`user: tidy up ${sel.length} files -> ${ok} ok, ${bad.length} errors ${bad.slice(0,3).join(' | ')}`);
+      toast(t.orgDone(ok,bad.length),6000); if(bad.length) showNotice(bad.slice(0,6).join('\n'));
+    }}]);
+}
+
+/* ============================== clean up ugly titles ============================== */
+function cleanTitle(t0){
+  let s=(t0||'');
+  s=s.replace(/^\s*\[temp\]\s*-\s*/i,'');
+  s=s.replace(/^\s*\d{1,2}-\d{2,3}\s*(?:-\s*)?(?=\S)/,'');                               // 01-054 prefix
+  s=s.replace(/(^|[_\s-])(?:dur[ée]e|duration)?[_\s-]?\d{1,2}m\d{1,2}s(?=[_\s-]|\(|$)/gi,' ');   // 1m7s, _4m30s, duree_3m50s
+  s=s.replace(/(^|[_\s-])x\d+(?:[.,]\d+)?(?=[_\s-]|\(|$)/gi,' ');                             // _x2, _x3.1
+  s=s.replace(/\s*\((?:edit|edited|clean|temp)\)/gi,'');                                     // (Edit) (clean)
+  s=s.replace(/^[\s_]*\d{1,2}-\d{2,3}\s*(?:-\s*)?(?=\S)/,'');                              // number left after a duration
+  s=s.replace(/_+/g,' ').replace(/\s{2,}/g,' ').replace(/^[\s\-–—.]+|[\s\-–—.]+$/g,'').trim();
+  return s||(t0||'');
+}
+function openCleanTitles(){
+  const t=T(), cs=(viewClips()||[]).filter(c=>cleanTitle(c.title)!==c.title);
+  if(!cs.length){ toast(t.cleanNone,4000); return; }
+  openModal(t.cleanTitleT(cs.length),`<div class="small-t muted">${esc(t.cleanHelp)}</div><div class="plan">${cs.map((c,i)=>`<label class="prow"><input type="checkbox" checked data-i="${i}"><div style="flex:1;min-width:0"><div class="from">${esc(c.title)}${currentWs===ALL_ID?` <span class="muted">· ${esc((CLIPWS[c.id]||{}).name||'')}</span>`:''}</div><input type="text" class="newt" data-i="${i}" value="${esc(cleanTitle(c.title))}"></div></label>`).join('')}</div>`,
+    [{label:t.cancel,onclick:closeModal},{label:t.cleanApply,cls:'primary',onclick:async()=>{
+      const rows=[...document.querySelectorAll('#modalBody .prow')].map(r=>({on:r.querySelector('input[type=checkbox]').checked,c:cs[+r.querySelector('.newt').dataset.i],v:r.querySelector('.newt').value.trim()})).filter(x=>x.on&&x.v&&x.v!==x.c.title);
+      let ok=0,bad=0,i=0;
+      for(const x of rows){ i++; $('#modalBtns').textContent=`${i} / ${rows.length}…`; const r=await applyTitle(x.c,x.v); if(r.ok) ok++; else bad++; await new Promise(z=>setTimeout(z,300)); }
+      closeModal(); saveCache(); recomputeMatch(); renderAll(); renderPlayer();
+      logUI(`user: clean titles -> ${ok} renamed on Suno, ${bad} failed`);
+      toast(t.cleanDone(ok,bad),6000);
+    }}]);
+}
+
+/* ============================== restore a backup (.json) ============================== */
+function pickRestore(){ $('#restoreFile').value=''; $('#restoreFile').click(); }
+async function doRestoreFile(input){
+  const t=T(), f=input.files&&input.files[0]; if(!f) return;
+  let d; try{ d=JSON.parse(await f.text()); }catch(e){ toast(t.restoreBad,6000); return; }
+  if(!d||!d.sunodlaa_backup){ toast(t.restoreBad,6000); return; }
+  if(!confirm(t.restoreConfirm)) return;
+  if(d.library) await post('/api/cache/library',d.library);
+  if(d.localIndex) await post('/api/cache/file?name=local-index.json',d.localIndex);
+  if(d.titleAliases) await post('/api/cache/file?name=title-aliases.json',d.titleAliases);
+  if(d.ignored) await post('/api/cache/file?name=ignored.json',d.ignored);
+  if(d.settings){ const s=d.settings, keep={}; ['folderPattern','fileNamePattern','audioFormat','saveLrc','downloadDelaySec','language','libraryPath'].forEach(k=>{ if(s[k]!=null&&s[k]!=='') keep[k]=s[k]; }); await post('/api/config',keep); }
+  logUI('user: restored backup '+f.name);
+  toast(t.restoreDone(f.name),4000); setTimeout(()=>location.reload(),1200);
+}
+
+/* ============================== batch selection ============================== */
+function selectAllView(on){ (VIEW_LIST||[]).slice(0,F.limit).forEach(c=>on?selected.add(c.id):selected.delete(c.id)); renderClips(); }
+function clearSel(){ selected=new Set(); renderClips(); }
+function selClips(){ const all=viewClips()||[]; return all.filter(c=>selected.has(c.id)); }
+function renderBatchBar(){
+  const t=T(), el=$('#batchBar'); if(!el) return;
+  const cs=selClips();
+  if(!cs.length){ el.classList.add('hidden'); return; }
+  const miss=cs.filter(isMissing).length, busy=!!(job&&job.running);
+  el.classList.remove('hidden');
+  el.innerHTML=`<b>${esc(t.nSelected(cs.length))}</b>
+    <button class="small" ${!miss||busy?'disabled':''} onclick="downloadSelected()">⬇ ${esc(t.bDownload(miss))}</button>
+    <button class="small" onclick="openMoveDialog()">📁 ${esc(t.bMove)}</button>
+    <button class="small" onclick="batchIgnore()">🚫 ${esc(t.bIgnore)}</button>
+    <button class="small danger" onclick="batchDelete()">🗑 ${esc(t.bDelete)}</button>
+    <span class="spacer"></span><button class="small" onclick="clearSel()">✕ ${esc(t.bClear)}</button>`;
+}
+function downloadSelected(){
+  const cs=selClips().filter(isMissing); selected=new Set();
+  if(cs.length) runJob(makeItems(cs),'selection'); else renderClips();
+}
+function batchIgnore(){
+  const cs=selClips().filter(c=>!MATCH[c.id]); const allIgn=cs.every(c=>IGNORED[c.id]);
+  cs.forEach(c=>{ if(allIgn) delete IGNORED[c.id]; else IGNORED[c.id]=1; });
+  saveIgnored(); logUI(`user: ${allIgn?'un-ignore':'ignore'} ${cs.length} track(s)`); selected=new Set(); renderAll();
+}
+async function sunoPost(path,body){ return await post('/api/suno/post',{path,body}).catch(e=>({ok:false,error:''+e})); }
+async function trashOnSuno(ids){ return await post('/api/suno/trash',{ids}).catch(e=>({ok:false,error:''+e})); }
+async function deleteClipsCascade(cs){
+  const t=T(), ids=cs.map(c=>c.id);
+  const r=await trashOnSuno(ids);
+  if(!r.ok) return {ok:false,error:r.error||('HTTP '+r.status)};
+  const paths=cs.map(c=>MATCH[c.id]&&MATCH[c.id].p).filter(Boolean);
+  let rec=[]; if(paths.length){ const d=await post('/api/file/recycle',{paths}).catch(()=>null); rec=(d&&d.results)||[]; }
+  const gone=new Set(rec.filter(x=>x.ok).map(x=>x.path)); LOCAL=LOCAL.filter(f=>!gone.has(f.p));
+  const idset=new Set(ids); for(const k in clipsByWs) clipsByWs[k]=(clipsByWs[k]||[]).filter(c=>!idset.has(c.id));
+  ids.forEach(id=>{ delete IGNORED[id]; selected.delete(id); });
+  NUMS_CACHE={}; recomputeMatch(); saveCache(); renderAll();
+  return {ok:true,files:paths.length,filesOk:gone.size,how:(rec[0]||{}).how};
+}
+function batchDelete(){
+  const t=T(), cs=selClips(); if(!cs.length) return;
+  const onDisk=cs.filter(c=>MATCH[c.id]).length;
+  openModal(t.bDeleteTitle(cs.length),`<ul class="small-t"><li>${esc(t.delSunoN(cs.length))}</li>${onDisk?`<li>${esc(t.delFilesN(onDisk))}</li>`:''}<li>${esc(t.delRenumber)}</li></ul>
+    <div class="plan">${cs.slice(0,60).map(c=>`<div class="small-t">• ${esc(c.title)} <span class="muted">${MATCH[c.id]?'💾':''}</span></div>`).join('')}${cs.length>60?`<div class="muted small-t">… +${cs.length-60}</div>`:''}</div>`,
+    [{label:t.cancel,onclick:closeModal},{label:t.deleteBtn,cls:'danger',onclick:async()=>{
+      $('#modalBtns').textContent='…';
+      const r=await deleteClipsCascade(cs); closeModal();
+      logUI(`user: batch delete ${cs.length} track(s): ${r.ok?'ok, files '+r.filesOk+'/'+r.files:'refused '+r.error}`);
+      toast(r.ok?t.bDeleted(cs.length,r.filesOk):t.sunoRefused(r.error),7000);
+    }}]);
+}
+/* ---- move tracks to another workspace (Suno + files) ---- */
+function openMoveDialog(){
+  const t=T(), cs=selClips(); if(!cs.length) return;
+  const src=new Set(cs.map(c=>(CLIPWS[c.id]||{}).id));
+  const list=workspaces.slice().sort((a,b)=>collator.compare(a.name,b.name));
+  openModal(t.moveTitle(cs.length),`<input type="text" id="moveQ" placeholder="${esc(t.wsSearch)}" style="width:100%" oninput="filterMove()"><div class="plan" id="moveList">${list.map(w=>`<label class="prow mv" data-n="${esc(norm(w.name))}"><input type="radio" name="mvto" value="${w.id}" ${src.size===1&&src.has(w.id)?'disabled':''}><div>${esc(w.name)} <span class="muted small-t">${(clipsByWs[w.id]||[]).length}</span></div></label>`).join('')}</div>`,
+    [{label:t.cancel,onclick:closeModal},{label:t.moveBtn,cls:'primary',onclick:async()=>{
+      const sel=document.querySelector('input[name=mvto]:checked'); if(!sel){ toast(t.pickTarget); return; }
+      const target=wsById(sel.value); $('#modalBtns').textContent='…';
+      const r=await moveClips(cs,target); closeModal();
+      toast(r.ok?t.moved(r.n,target.name,r.filesOk):t.sunoRefused(r.error),7000);
+    }}]);
+  setTimeout(()=>$('#moveQ')&&$('#moveQ').focus(),50);
+}
+function filterMove(){ const q=norm($('#moveQ').value); document.querySelectorAll('#moveList .mv').forEach(e=>e.classList.toggle('hidden',!!q&&!e.dataset.n.includes(q))); }
+async function moveClips(cs,target){
+  // group by source workspace: Suno moves from one workspace at a time
+  const bySrc={}; cs.forEach(c=>{ const w=CLIPWS[c.id]; if(w&&w.id!==target.id) (bySrc[w.id]=bySrc[w.id]||[]).push(c); });
+  const filesBefore={}; cs.forEach(c=>{ if(MATCH[c.id]) filesBefore[c.id]=MATCH[c.id].p; });
+  let n=0, err=null;
+  for(const sid in bySrc){
+    const ids=bySrc[sid].map(c=>c.id);
+    const r=await sunoPost(`/api/project/${sid}/clips`,{update_type:'move',metadata:{clip_ids:ids,target_project_id:target.id}});
+    if(!r.ok){ err=r.error||('HTTP '+r.status); break; }
+    const idset=new Set(ids);
+    clipsByWs[sid]=(clipsByWs[sid]||[]).filter(c=>!idset.has(c.id));
+    clipsByWs[target.id]=(clipsByWs[target.id]||[]).concat(bySrc[sid]);
+    n+=ids.length;
+  }
+  NUMS_CACHE={}; recomputeMatch();
+  // files follow: into the target folder, with the SUNODLAA name
+  const items=[]; cs.forEach(c=>{ const p0=filesBefore[c.id]; if(p0&&CLIPWS[c.id]&&CLIPWS[c.id].id===target.id){ const to=expectedPath(c,extOf(p0)); if(to&&to!==p0) items.push({c,from:p0,to}); } });
+  let filesOk=0;
+  if(items.length){ const r=await post('/api/file/move',{items:items.map(x=>({from:x.from,to:x.to,title:x.c.title,track:numsFor(target.id)[x.c.id],album:folderNameFor(target.name)}))}).catch(()=>null);
+    ((r&&r.results)||[]).forEach((res,i)=>{ if(res.ok){ filesOk++; movedLocal(items[i].from,res.to,items[i].c); } }); }
+  selected=new Set(); recomputeMatch(); saveCache(); renderAll();
+  logUI(`user: moved ${n} track(s) to "${target.name}", files ${filesOk}/${items.length}${err?' ERROR '+err:''}`);
+  return err&&!n?{ok:false,error:err}:{ok:true,n,filesOk};
+}
+
+/* ============================== workspace: rename / delete ============================== */
+function wsFolderPath(w){
+  const cs=clipsByWs[w.id]||[]; const f=cs.map(c=>MATCH[c.id]).find(m=>m); const lo=(LOCAL_ONLY[w.id]||[])[0];
+  const any=f?f.p:(lo?lo.p:null); if(!any) return null;
+  // the workspace folder = first level under the music folder
+  const lib=(CFG.libraryPath||'').replace(/[\\/]+$/,''), rest=any.slice(lib.length+1), top=rest.split(/[\\/]/)[0];
+  return lib+SEP()+top;
+}
+function renameWorkspace(){
+  const t=T(), w=wsById(currentWs); if(!w) return;
+  const dir=wsFolderPath(w);
+  openModal(t.wsRenameTitle,`<div class="small-t muted">${esc(t.wsRenameHelp)}</div><input type="text" id="wsNewName" style="width:100%;margin-top:10px" value="${esc(w.name)}">
+    ${dir?`<div class="small-t" style="margin-top:8px">📁 <code>${esc(dir)}</code> → <code id="wsNewDir"></code></div>`:''}`,
+    [{label:t.cancel,onclick:closeModal},{label:t.renameBtn,cls:'primary',onclick:async()=>{
+      const v=$('#wsNewName').value.trim().slice(0,100); if(!v||v===w.name){ closeModal(); return; }
+      $('#modalBtns').textContent='…';
+      const r=await sunoPost(`/api/project/${w.id}/metadata`,{name:v,description:w.description||v});
+      if(!r.ok){ closeModal(); toast(t.sunoRefused(r.error||('HTTP '+r.status)),8000); return; }
+      const old=w.name; w.name=v;
+      let fmsg='';
+      if(dir){ const to=(CFG.libraryPath||'').replace(/[\\/]+$/,'')+SEP()+folderNameFor(v);
+        if(to!==dir){ const fr=await post('/api/folder/rename',{from:dir,to}).catch(()=>null);
+          if(fr&&fr.ok){ LOCAL.forEach(f=>{ if(f.p.startsWith(dir+SEP())){ f.p=to+f.p.slice(dir.length); f.w=v; } }); fmsg=' '+t.folderRenamed; }
+          else fmsg=' '+t.folderNotRenamed(fr?fr.error:'?'); } }
+      recomputeMatch(); saveCache(); closeModal(); renderAll();
+      logUI(`user: workspace "${old}" renamed "${v}"${fmsg}`);
+      toast(t.wsRenamed(v)+fmsg,6000);
+    }}]);
+  const upd=()=>{ const e=$('#wsNewDir'); if(e) e.textContent=(CFG.libraryPath||'').replace(/[\\/]+$/,'')+SEP()+folderNameFor($('#wsNewName').value.trim()||w.name); };
+  setTimeout(()=>{ const i=$('#wsNewName'); if(i){ i.oninput=upd; upd(); i.focus(); i.select(); } },50);
+}
+function deleteWorkspace(){
+  const t=T(), w=wsById(currentWs); if(!w) return;
+  const dir=wsFolderPath(w), n=(clipsByWs[w.id]||[]).length;
+  openModal(t.wsDeleteTitle(w.name),`<ul class="small-t"><li>${esc(t.wsDelSuno(n))}</li></ul>
+    ${dir?`<label class="prow"><input type="checkbox" id="wsDelFolder"><div>${esc(t.wsDelFolder)}<br><code>${esc(dir)}</code></div></label>`:''}`,
+    [{label:t.cancel,onclick:closeModal},{label:t.deleteBtn,cls:'danger',onclick:async()=>{
+      const alsoFolder=dir&&$('#wsDelFolder')&&$('#wsDelFolder').checked;
+      $('#modalBtns').textContent='…';
+      const r=await sunoPost('/api/project/trash',{project_id:w.id,undo_trash:false});
+      if(!r.ok){ closeModal(); toast(t.sunoRefused(r.error||('HTTP '+r.status)),8000); return; }
+      let fmsg='';
+      if(alsoFolder){ const d=await post('/api/file/recycle',{paths:[dir]}).catch(()=>null); const x=d&&d.results&&d.results[0];
+        if(x&&x.ok){ LOCAL=LOCAL.filter(f=>!f.p.startsWith(dir+SEP())); fmsg=' '+(x.how==='trashfolder'?t.inTrashFolder:t.inRecycle); } else fmsg=' '+t.fileNotDeleted(x?x.error:'?'); }
+      workspaces=workspaces.filter(x=>x.id!==w.id); delete clipsByWs[w.id]; delete wsMarker[w.id];
+      currentWs=ALL_ID; recomputeMatch(); saveCache(); closeModal(); renderAll();
+      logUI(`user: workspace "${w.name}" sent to Suno trash${alsoFolder?' + folder '+dir:''}`);
+      toast(t.wsDeleted(w.name)+fmsg,7000);
+    }}]);
+}
+function openCleanAll(){ if(currentWs!==ALL_ID){ openWorkspace(ALL_ID); } setTimeout(openCleanTitles,100); }
+function countUgly(){ let n=0; for(const k in clipsByWs) (clipsByWs[k]||[]).forEach(c=>{ if(cleanTitle(c.title)!==c.title) n++; }); return n; }
+
+/* ============================== floating player (Spotify-like bar) ============================== */
+function toggleFloat(){ PL.float=!PL.float; try{ localStorage.setItem('sunodlaa_float',PL.float?'1':''); }catch(e){} applyFloat(); }
+function applyFloat(){
+  const card=$('#pcard'), t=T(); if(!card) return;
+  card.classList.toggle('floating',!!PL.float); document.body.classList.toggle('has-bar',!!PL.float&&!!PL.cur);
+  card.classList.toggle('nocur',!PL.cur);
+  $('#pcFloatBtn').textContent=PL.float?'⇱':'⇲'; $('#pcFloatBtn').title=PL.float?t.dockPlayer:t.floatPlayer;
+  if(PL.float){ const home=$('#floatHome'); if(card.parentElement!==home) home.appendChild(card); }
+  else { const home=$('#dockHome'); if(card.parentElement!==home) home.appendChild(card); }
+}
+function togglePanel(k){ if(PL.float){ PL.panel=(PL.panel===k)?null:k; PL.tab=k; } else PL.tab=k; renderPlayer(); }
+
 /* ============================== player ============================== */
 // Queue = the track list on screen when you pressed play (same filter and order).
-const PL={q:[],i:-1,shuffle:false,repeat:'off',cur:null,lyr:null,lyrLine:-1,tab:'lyrics',errors:0};
+const PL={q:[],i:-1,shuffle:false,repeat:'off',cur:null,lyr:null,lyrLine:-1,tab:'lyrics',errors:0,float:false,panel:null};
+try{ PL.float=localStorage.getItem('sunodlaa_float')==='1'; }catch(e){}
 try{ const s=JSON.parse(localStorage.getItem('sunodlaa_player')||'{}'); PL.shuffle=!!s.shuffle; PL.repeat=s.repeat||'off'; PL.vol=s.vol??0.9; }catch(e){ PL.vol=0.9; }
 function savePlayer(){ try{ localStorage.setItem('sunodlaa_player',JSON.stringify({shuffle:PL.shuffle,repeat:PL.repeat,vol:$('#audio').volume})); }catch(e){} }
 function findClip(id){ for(const k in clipsByWs){ const c=(clipsByWs[k]||[]).find(x=>x.id===id); if(c) return c; } return null; }
@@ -1075,7 +1532,7 @@ function renderLyrics(){
 }
 function renderPlayer(){
   const t=T(), card=$('#pcard'); if(!card) return;
-  const info=PL.cur;
+  const info=PL.cur; applyFloat();
   $('#pcEmpty').classList.toggle('hidden',!!info); $('#pcBody').classList.toggle('hidden',!info);
   $('#pcHead').textContent=t.nowPlaying;
   $('#pcEmpty').innerHTML=`<div class="muted small-t">${esc(t.playerEmpty)}</div><div class="row" style="justify-content:center"><button class="small" onclick="playAllView(false)">▶ ${esc(t.playView)}</button><button class="small" onclick="playAllView(true)">🔀 ${esc(t.shuffleView)}</button></div>`;
@@ -1093,6 +1550,8 @@ function renderPlayer(){
   $('#pcTabL').classList.toggle('on',PL.tab==='lyrics'); $('#pcTabQ').classList.toggle('on',PL.tab==='queue');
   $('#pcTabL').textContent='🎤 '+t.lyrics; $('#pcTabQ').textContent='☰ '+t.upNext(Math.max(0,PL.q.length-PL.i-1));
   $('#pcLyr').classList.toggle('hidden',PL.tab!=='lyrics'); $('#pcQueue').classList.toggle('hidden',PL.tab!=='queue');
+  $('#pcPanel').classList.toggle('open',!PL.float||!!PL.panel);
+  if(PL.float){ $('#pcTabL').classList.toggle('on',PL.panel==='lyrics'); $('#pcTabQ').classList.toggle('on',PL.panel==='queue'); }
   if(PL.tab==='queue'){
     const rows=[]; for(let j=PL.i+1;j<Math.min(PL.q.length,PL.i+40);j++){ const x=entryInfo(PL.q[j]); if(x) rows.push(`<div class="qi" onclick="jumpTo(${j})"><span class="n">${j-PL.i}</span><div class="qt"><b>${esc(x.title)}</b><span>${esc(x.sub)}</span></div>${x.local?'💾':'☁'}</div>`); }
     $('#pcQueue').innerHTML=rows.join('')||'<div class="muted small-t">'+esc(t.queueEnd)+'</div>';
@@ -1150,15 +1609,9 @@ async function doBackup(){
   const t=T(); toast(t.backupRunning,20000);
   const r=await post('/api/backup',{csv:buildCsv()}).catch(e=>({ok:false,error:''+e}));
   logUI('user: backup -> '+(r.ok?r.path:'failed '+r.error));
-  if(r.ok){ LAST_BACKUP=r.path; showNotice(t.backupDone(r.path,Math.round(r.size/1024)),r.path); renderBackupInfo(); } else toast(t.backupFail(r.error||''),8000);
+  if(r.ok){ LAST_BACKUP=r.path; showNotice(t.backupDone(r.path,r.csv,Math.round(r.size/1024)),r.path); renderBackupInfo(); } else toast(t.backupFail(r.error||''),8000);
 }
-async function doRestore(){
-  const t=T(); if(!confirm(t.restoreConfirm)) return;
-  const r=await post('/api/backup/restore').catch(e=>({ok:false,error:''+e}));
-  if(r.cancelled) return;
-  if(!r.ok){ toast(t.backupFail(r.error||''),8000); return; }
-  toast(t.restoreDone((r.restored||[]).join(', ')),6000); setTimeout(()=>location.reload(),1500);
-}
+function doRestore(){ pickRestore(); }
 let LAST_BACKUP=null;
 async function renderBackupInfo(){
   const el=$('#backupInfo'); if(!el) return; const t=T();

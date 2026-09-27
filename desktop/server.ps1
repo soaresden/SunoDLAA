@@ -308,6 +308,7 @@ function Write-Json($resp, $obj, $code = 200) {
 }
 function Write-Text($resp, $text, $ctype = 'text/html; charset=utf-8', $code = 200) {
     $bytes = [Text.Encoding]::UTF8.GetBytes($text)
+    $resp.Headers['Cache-Control'] = 'no-store'
     $resp.StatusCode = $code; $resp.ContentType = $ctype
     $resp.OutputStream.Write($bytes, 0, $bytes.Length); $resp.OutputStream.Close()
 }
@@ -649,66 +650,28 @@ function Pick-Folder($start) {
 # ---- Backup / restore (zip in desktop\backups) + show a file in Explorer ------
 $BackupDir = Join-Path $Root 'backups'
 function Make-Backup($csv) {
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
     New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
     $stamp = Get-Date -Format 'yyyy-MM-dd_HHmm'
-    $tmp = Join-Path ([IO.Path]::GetTempPath()) ('sunodlaa-backup-' + [guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Force -Path $tmp | Out-Null
-    try {
-        foreach ($n in @('library.json', 'local-index.json', 'title-aliases.json')) {
-            $src = Join-Path $CacheDir $n
-            if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination (Join-Path $tmp $n) }
-        }
-        # settings without the Suno session cookie (never put it in a backup)
-        $c = $Cfg | ConvertTo-Json -Depth 5 | ConvertFrom-Json
-        $c.clientCookie = ''
-        [IO.File]::WriteAllText((Join-Path $tmp 'settings.json'), ($c | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding($false)))
-        if ($csv) { [IO.File]::WriteAllText((Join-Path $tmp 'my-suno-library.csv'), $csv, (New-Object Text.UTF8Encoding($true))) }
-        $readme = "SUNODLAA / SunoAAWeb backup - $stamp`r`n`r`nmy-suno-library.csv : every Suno track (workspace, title, date, duration, on disk, file path, Suno id) - opens in Excel`r`nlibrary.json        : your Suno library (workspaces + tracks)`r`nlocal-index.json    : what was found on your disk`r`nsettings.json       : your settings (without your Suno sign-in)`r`n`r`nRestore: SunoAAWeb > Setup > Advanced > Restore a backup."
-        [IO.File]::WriteAllText((Join-Path $tmp 'README.txt'), $readme, (New-Object Text.UTF8Encoding($false)))
-        $zip = Join-Path $BackupDir ("SunoAAWeb-backup-$stamp.zip")
-        if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
-        [IO.Compression.ZipFile]::CreateFromDirectory($tmp, $zip)
-        $len = (Get-Item -LiteralPath $zip).Length
-        Log 'INFO' "backup written: $zip ($len bytes)"
-        return @{ ok = $true; path = $zip; size = $len }
-    } finally { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
-}
-function Pick-BackupFile {
-    Add-Type -AssemblyName System.Windows.Forms
-    $owner = New-Object System.Windows.Forms.Form
-    $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0
-    $owner.StartPosition = 'CenterScreen'; $owner.Size = New-Object System.Drawing.Size(1, 1)
-    $owner.Show(); $owner.Activate()
-    $dlg = New-Object System.Windows.Forms.OpenFileDialog
-    $dlg.Title = 'SUNODLAA - choose a SunoAAWeb backup'
-    $dlg.Filter = 'SunoAAWeb backup (*.zip)|*.zip'
-    if (Test-Path -LiteralPath $BackupDir) { $dlg.InitialDirectory = $BackupDir }
-    try { $r = $dlg.ShowDialog($owner) } finally { $owner.Close(); $owner.Dispose() }
-    if ($r -eq [System.Windows.Forms.DialogResult]::OK) { return $dlg.FileName }
-    return $null
-}
-function Restore-Backup($zip) {
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $za = [IO.Compression.ZipFile]::OpenRead($zip)
-    $got = @()
-    try {
-        foreach ($e in $za.Entries) {
-            if ($e.FullName -in @('library.json', 'local-index.json', 'title-aliases.json')) {
-                [IO.Compression.ZipFileExtensions]::ExtractToFile($e, (Join-Path $CacheDir $e.FullName), $true); $got += $e.FullName
-            } elseif ($e.FullName -eq 'settings.json') {
-                $sr = New-Object IO.StreamReader($e.Open(), [Text.Encoding]::UTF8); $txt = $sr.ReadToEnd(); $sr.Close()
-                $s = $txt | ConvertFrom-Json
-                foreach ($k in @('folderPattern', 'fileNamePattern', 'audioFormat', 'saveLrc', 'downloadDelaySec', 'language', 'libraryPath')) {
-                    if ($null -ne $s.$k -and "$($s.$k)" -ne '') { $Cfg.$k = $s.$k }
-                }
-                Save-Config $Cfg; $got += 'settings.json'
-            }
-        }
-    } finally { $za.Dispose() }
-    $script:ScanFiles = $null; $script:ScanMap = @{}
-    Log 'INFO' "backup restored from $zip : $($got -join ', ')"
-    return @{ ok = $true; path = $zip; restored = $got }
+    $parts = New-Object Collections.ArrayList
+    [void]$parts.Add('"sunodlaa_backup":1')
+    [void]$parts.Add('"createdAt":' + (ConvertTo-Json ((Get-Date).ToString('o'))))
+    # settings without the Suno session cookie (never put it in a backup)
+    $c = $Cfg | ConvertTo-Json -Depth 5 | ConvertFrom-Json
+    $c.clientCookie = ''
+    [void]$parts.Add('"settings":' + ($c | ConvertTo-Json -Depth 5 -Compress))
+    foreach ($pair in @(@('library', 'library.json'), @('localIndex', 'local-index.json'), @('titleAliases', 'title-aliases.json'), @('ignored', 'ignored.json'))) {
+        $src = Join-Path $CacheDir $pair[1]
+        $txt = 'null'
+        if (Test-Path -LiteralPath $src) { $t = [IO.File]::ReadAllText($src, [Text.Encoding]::UTF8).Trim(); if ($t) { $txt = $t } }
+        [void]$parts.Add('"' + $pair[0] + '":' + $txt)
+    }
+    $base = Join-Path $BackupDir ("SunoAAWeb-backup-$stamp")
+    [IO.File]::WriteAllText($base + '.json', '{' + ($parts -join ",`n") + '}', (New-Object Text.UTF8Encoding($false)))
+    $csvPath = $null
+    if ($csv) { $csvPath = $base + '.csv'; [IO.File]::WriteAllText($csvPath, $csv, (New-Object Text.UTF8Encoding($true))) }
+    $len = (Get-Item -LiteralPath ($base + '.json')).Length
+    Log 'INFO' "backup written: $base.json ($len bytes)"
+    return @{ ok = $true; path = $base + '.json'; csv = $csvPath; size = $len }
 }
 # Explorer: select a file (or open a folder) - only inside the music folder or the backups folder
 function Reveal-Path($p) {
@@ -726,6 +689,108 @@ function Reveal-Path($p) {
     elseif (Test-Path -LiteralPath $full -PathType Container) { Start-Process explorer.exe -ArgumentList ('"' + $full + '"') }
     else { return @{ ok = $false; error = 'not found' } }
     return @{ ok = $true }
+}
+
+# ---- Actions: Suno (trash / rename) + local files (recycle / move-rename) ------
+function Suno-Post($path, $obj) {
+    $json = $obj | ConvertTo-Json -Depth 5 -Compress
+    $bytes = [Text.Encoding]::UTF8.GetBytes($json)
+    return Invoke-RestMethod -Uri ($Cfg.apiBase + $path) -Headers (Suno-Headers) -Method Post -Body $bytes -ContentType 'application/json; charset=utf-8'
+}
+# Only these Suno write endpoints can be called (same ones suno.com's own web app uses)
+$SunoWriteAllowed = @(
+    '^/api/gen/trash$',
+    '^/api/gen/[0-9a-fA-F-]{36}/set_metadata/$',
+    '^/api/project/[0-9a-fA-F-]{36}/metadata$',
+    '^/api/project/trash$',
+    '^/api/project/[0-9a-fA-F-]{36}/clips$'
+)
+function Suno-PostRaw($path, $jsonText) {
+    $bytes = [Text.Encoding]::UTF8.GetBytes([string]$jsonText)
+    return Invoke-RestMethod -Uri ($Cfg.apiBase + $path) -Headers (Suno-Headers) -Method Post -Body $bytes -ContentType 'application/json; charset=utf-8'
+}
+# full path if it is inside the music folder, else $null
+function In-Library($p) {
+    if (-not $p -or -not $Cfg.libraryPath) { return $null }
+    $full = [IO.Path]::GetFullPath([string]$p)
+    $lib = [IO.Path]::GetFullPath([string]$Cfg.libraryPath)
+    $sep = [string][IO.Path]::DirectorySeparatorChar
+    if (-not $lib.EndsWith($sep)) { $lib += $sep }
+    if ($full.StartsWith($lib, [StringComparison]::OrdinalIgnoreCase)) { return $full }
+    return $null
+}
+# Windows Recycle Bin; if not possible, move into "<music>\_SUNODLAA trash"
+function Recycle-One($full) {
+    try {
+        Add-Type -AssemblyName Microsoft.VisualBasic
+        [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($full, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs, [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin)
+        return 'recycle'
+    } catch {
+        $bin = Join-Path $Cfg.libraryPath '_SUNODLAA trash'
+        New-Item -ItemType Directory -Force -Path $bin | Out-Null
+        $dest = Join-Path $bin ((Get-Date -Format 'yyyyMMdd-HHmmss') + ' ' + [IO.Path]::GetFileName($full))
+        Move-Item -LiteralPath $full -Destination $dest
+        return 'trashfolder'
+    }
+}
+function Recycle-Files($paths) {
+    $out = @()
+    foreach ($p in @($paths)) {
+        $full = In-Library $p
+        if (-not $full) { $out += @{ path = $p; ok = $false; error = 'outside the music folder' }; continue }
+        if (Test-Path -LiteralPath $full -PathType Container) {
+            try {
+                try { Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($full, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs, [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin); $how = 'recycle' }
+                catch { $bin = Join-Path $Cfg.libraryPath '_SUNODLAA trash'; New-Item -ItemType Directory -Force -Path $bin | Out-Null; Move-Item -LiteralPath $full -Destination (Join-Path $bin ((Get-Date -Format 'yyyyMMdd-HHmmss') + ' ' + [IO.Path]::GetFileName($full))); $how = 'trashfolder' }
+                Log 'FILE' "deleted folder ($how): $full"; $out += @{ path = $p; ok = $true; how = $how }
+            } catch { $out += @{ path = $p; ok = $false; error = "$($_.Exception.Message)" } }
+            continue
+        }
+        if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { $out += @{ path = $p; ok = $true; how = 'already gone' }; continue }
+        try {
+            $how = Recycle-One $full
+            $lrc = [IO.Path]::ChangeExtension($full, '.lrc')
+            if (Test-Path -LiteralPath $lrc) { [void](Recycle-One $lrc) }
+            Log 'FILE' "deleted ($how): $full"
+            $out += @{ path = $p; ok = $true; how = $how }
+        } catch { Log 'ERROR' "delete $full : $($_.Exception.Message)"; $out += @{ path = $p; ok = $false; error = "$($_.Exception.Message)" } }
+    }
+    return ,$out
+}
+# Move / rename one audio file (and its .lrc) inside the music folder, optionally fixing title / track tags
+function Move-Audio($it) {
+    $from = In-Library $it.from; $to = In-Library $it.to
+    if (-not $from -or -not $to) { return @{ from = $it.from; ok = $false; error = 'outside the music folder' } }
+    if (-not (Test-Path -LiteralPath $from -PathType Leaf)) { return @{ from = $it.from; ok = $false; error = 'file not found' } }
+    $same = ($from -ieq $to)
+    if (-not $same -and (Test-Path -LiteralPath $to)) { return @{ from = $it.from; ok = $false; error = 'a file with the new name already exists' } }
+    try {
+        if ($from -cne $to) {
+            New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($to)) | Out-Null
+            $lrcFrom = [IO.Path]::ChangeExtension($from, '.lrc'); $lrcTo = [IO.Path]::ChangeExtension($to, '.lrc')
+            if ($same) { $tmp = $from + '.~sunodlaa'; Move-Item -LiteralPath $from -Destination $tmp; Move-Item -LiteralPath $tmp -Destination $to }
+            else { Move-Item -LiteralPath $from -Destination $to }
+            if ((Test-Path -LiteralPath $lrcFrom) -and ($lrcFrom -cne $lrcTo)) {
+                if ($lrcFrom -ieq $lrcTo) { $t2 = $lrcFrom + '.~sunodlaa'; Move-Item -LiteralPath $lrcFrom -Destination $t2; Move-Item -LiteralPath $t2 -Destination $lrcTo }
+                elseif (-not (Test-Path -LiteralPath $lrcTo)) { Move-Item -LiteralPath $lrcFrom -Destination $lrcTo }
+            }
+            # remove the old folder if it is now empty
+            $od = [IO.Path]::GetDirectoryName($from)
+            if ($od -ine [IO.Path]::GetDirectoryName($to) -and -not (Get-ChildItem -LiteralPath $od -Force -ErrorAction SilentlyContinue)) { Remove-Item -LiteralPath $od -ErrorAction SilentlyContinue }
+        }
+        $warn = $null
+        if ($TagLibOk -and ($it.title -or $it.track)) {
+            try {
+                $tf = [TagLib.File]::Create($to)
+                if ($it.title) { $tf.Tag.Title = [string]$it.title }
+                if ($it.track) { $tf.Tag.Track = [uint32]$it.track }
+                if ($it.album) { $tf.Tag.Album = [string]$it.album }
+                $tf.Save(); $tf.Dispose()
+            } catch { $warn = "tags not updated: $($_.Exception.Message)" }
+        }
+        Log 'FILE' "moved: $from -> $to"
+        return @{ from = $it.from; to = $to; ok = $true; warn = $warn }
+    } catch { Log 'ERROR' "move $from : $($_.Exception.Message)"; return @{ from = $it.from; ok = $false; error = "$($_.Exception.Message)" } }
 }
 
 # ---- Telechargement + tag ------------------------------------------
@@ -853,11 +918,29 @@ function Fetch-Retry($u, $o) {
 
 # ---- Routeur --------------------------------------------------------
 $port = if ($Cfg.port) { [int]$Cfg.port } else { 8787 }
-$listener = New-Object System.Net.HttpListener
+# Start on the usual port. If an older SunoAAWeb window still holds it, ask it to stop
+# (so the newest version always runs); if another program holds it, try the next ports.
+function Try-Listen($pt) {
+    $l = New-Object System.Net.HttpListener
+    $l.Prefixes.Add("http://localhost:$pt/")
+    try { $l.Start(); return $l } catch { try { $l.Close() } catch {}; return $null }
+}
+$listener = Try-Listen $port
+if (-not $listener) {
+    $isOurs = $false
+    try { $r = Invoke-RestMethod -Uri "http://localhost:$port/api/config" -TimeoutSec 3; if ($null -ne $r.libraryExists) { $isOurs = $true } } catch {}
+    if ($isOurs) {
+        Write-Host "  An older SunoAAWeb window is still running: stopping it..." -ForegroundColor Yellow
+        try { Invoke-RestMethod -Uri "http://localhost:$port/api/shutdown" -Method Post -Body '{}' -ContentType 'application/json' -TimeoutSec 3 | Out-Null } catch {}
+        for ($i = 0; $i -lt 10 -and -not $listener; $i++) { Start-Sleep -Milliseconds 500; $listener = Try-Listen $port }
+    }
+    for ($pt = $port + 1; -not $listener -and $pt -le $port + 10; $pt++) { $listener = Try-Listen $pt; if ($listener) { $port = $pt } }
+}
+if (-not $listener) { Write-Host "  Cannot start: port $port is used by another program. Close it, or change ""port"" in desktop\config.json." -ForegroundColor Red; exit 1 }
 $prefix = "http://localhost:$port/"
-$listener.Prefixes.Add($prefix)
-try { $listener.Start() }
-catch { Write-Host "Cannot open $prefix : $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
+Log 'INFO' "listening on $prefix"
+try { Start-Process $prefix } catch {}
+$script:StopRequested = $false
 
 Write-Host ""
 Write-Host "  SUNODLAA - desktop" -ForegroundColor Cyan
@@ -973,16 +1056,9 @@ while ($listener.IsListening) {
                 try { Write-Json $resp (Make-Backup ([string]$b.csv)) } catch { Log 'ERROR' "backup: $($_.Exception.Message)"; Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
                 break
             }
-            '^/api/backup/restore$' {
-                try {
-                    $f = Pick-BackupFile
-                    if ($f) { Write-Json $resp (Restore-Backup $f) } else { Write-Json $resp @{ ok=$false; cancelled=$true } }
-                } catch { Log 'ERROR' "restore: $($_.Exception.Message)"; Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
-                break
-            }
             '^/api/backup/info$' {
                 $last = $null
-                if (Test-Path -LiteralPath $BackupDir) { $last = Get-ChildItem -LiteralPath $BackupDir -Filter '*.zip' | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }
+                if (Test-Path -LiteralPath $BackupDir) { $last = Get-ChildItem -LiteralPath $BackupDir -Filter '*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }
                 Write-Json $resp @{ ok=$true; dir=$BackupDir; cacheDir=$CacheDir; last=$(if ($last) { $last.FullName } else { $null }); lastAt=$(if ($last) { $last.LastWriteTime.ToString('o') } else { $null }) }
                 break
             }
@@ -990,6 +1066,95 @@ while ($listener.IsListening) {
                 $qp = [System.Web.HttpUtility]::ParseQueryString($req.Url.Query)
                 try { Write-Json $resp (Reveal-Path $qp['path']) } catch { Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
                 break
+            }
+            '^/api/suno/trash$' {
+                $b = Read-Body $req | ConvertFrom-Json
+                $ids = @($b.ids | Where-Object { $_ })
+                try {
+                    [void](Suno-Post '/api/gen/trash' @{ clip_ids = $ids; trash = (-not [bool]$b.restore) })
+                    Log 'SUNO' ("{0} {1} clip(s): {2}" -f $(if ($b.restore) { 'restored' } else { 'trashed' }), $ids.Count, ($ids -join ','))
+                    Write-Json $resp @{ ok=$true; count=$ids.Count }
+                } catch {
+                    $code = 0; if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+                    Log 'SUNO' "trash FAILED ($code): $($_.Exception.Message)"
+                    Write-Json $resp @{ ok=$false; status=$code; error="$($_.Exception.Message)" }
+                }
+                break
+            }
+            '^/api/suno/title$' {
+                $b = Read-Body $req | ConvertFrom-Json
+                try {
+                    [void](Suno-Post "/api/gen/$($b.id)/set_metadata/" @{ title = [string]$b.title })
+                    Log 'SUNO' "renamed $($b.id) -> '$($b.title)'"
+                    Write-Json $resp @{ ok=$true }
+                } catch {
+                    $code = 0; if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+                    Log 'SUNO' "rename $($b.id) FAILED ($code): $($_.Exception.Message)"
+                    Write-Json $resp @{ ok=$false; status=$code; error="$($_.Exception.Message)" }
+                }
+                break
+            }
+            '^/api/suno/post$' {
+                # { "path": "/api/project/<id>/metadata", "body": { ... } }  -> only whitelisted endpoints
+                $raw = Read-Body $req
+                $m = [regex]::Match($raw, '"path"\s*:\s*"([^"]+)"')
+                $sp = $m.Groups[1].Value
+                $okPath = $false; foreach ($rx in $SunoWriteAllowed) { if ($sp -match $rx) { $okPath = $true } }
+                if (-not $okPath) { Log 'SUNO' "refused write to $sp"; Write-Json $resp @{ ok=$false; error="not allowed: $sp" } 400; break }
+                $bm = [regex]::Match($raw, '"body"\s*:\s*(\{.*\})\s*\}\s*$', 'Singleline')
+                $body = $bm.Groups[1].Value
+                try {
+                    $r = Suno-PostRaw $sp $body
+                    Log 'SUNO' "POST $sp $body -> ok"
+                    Write-Json $resp @{ ok=$true; data=$r }
+                } catch {
+                    $code = 0; if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+                    Log 'SUNO' "POST $sp $body -> FAILED ($code) $($_.Exception.Message)"
+                    Write-Json $resp @{ ok=$false; status=$code; error="$($_.Exception.Message)" }
+                }
+                break
+            }
+            '^/api/folder/rename$' {
+                $b = Read-Body $req | ConvertFrom-Json
+                $from = In-Library $b.from; $to = In-Library $b.to
+                if (-not $from -or -not $to) { Write-Json $resp @{ ok=$false; error='outside the music folder' }; break }
+                if (-not (Test-Path -LiteralPath $from -PathType Container)) { Write-Json $resp @{ ok=$false; error='folder not found' }; break }
+                if (($from -ine $to) -and (Test-Path -LiteralPath $to)) { Write-Json $resp @{ ok=$false; error='a folder with the new name already exists' }; break }
+                try {
+                    if ($from -ieq $to) { $tmp = $from + '.~sunodlaa'; Move-Item -LiteralPath $from -Destination $tmp; Move-Item -LiteralPath $tmp -Destination $to }
+                    else { Move-Item -LiteralPath $from -Destination $to }
+                    Log 'FILE' "folder renamed: $from -> $to"; $script:ScanFiles = $null
+                    Write-Json $resp @{ ok=$true; to=$to }
+                } catch { Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
+                break
+            }
+            '^/api/file/recycle$' {
+                $b = Read-Body $req | ConvertFrom-Json
+                $res = Recycle-Files $b.paths
+                Write-Json $resp @{ ok=$true; results=@($res) }; break
+            }
+            '^/api/file/move$' {
+                $b = Read-Body $req | ConvertFrom-Json
+                $res = @(); foreach ($it in @($b.items)) { $res += (Move-Audio $it) }
+                $script:ScanFiles = $null
+                Write-Json $resp @{ ok=$true; results=$res }; break
+            }
+            '^/api/cache/file$' {
+                # small per-user lists kept next to the library cache
+                $qp = [System.Web.HttpUtility]::ParseQueryString($req.Url.Query)
+                $n = [string]$qp['name']
+                if ($n -notin @('ignored.json', 'local-index.json', 'title-aliases.json', 'library.json')) { Write-Json $resp @{ ok=$false; error='bad name' } 400; break }
+                $fp = Join-Path $CacheDir $n
+                if ($req.HttpMethod -eq 'POST') { $txt = Read-Body $req; [IO.File]::WriteAllText($fp, $txt, (New-Object Text.UTF8Encoding($false))); if ($n -eq 'local-index.json') { $script:ScanFiles = $null; $script:ScanMap = @{} }; Write-Json $resp @{ ok=$true; bytes=$txt.Length } }
+                elseif (Test-Path -LiteralPath $fp) { Write-Text $resp ([IO.File]::ReadAllText($fp, [Text.Encoding]::UTF8)) 'application/json; charset=utf-8' }
+                else { Write-Text $resp '{}' 'application/json; charset=utf-8' }
+                break
+            }
+            '^/api/shutdown$' {
+                # a newer SunoAAWeb window takes over
+                Log 'INFO' 'shutdown requested by a newer SunoAAWeb window'
+                $script:StopRequested = $true
+                Write-Json $resp @{ ok=$true }; break
             }
             '^/api/log$' {
                 $b = Read-Body $req | ConvertFrom-Json
@@ -1094,5 +1259,6 @@ while ($listener.IsListening) {
         Log 'ERROR' "$($req.HttpMethod) $path : $($_.Exception.Message)"
         try { Write-Json $resp @{ error="$($_.Exception.Message)" } 500 } catch {}
     }
+    if ($script:StopRequested) { Write-Host "  A newer SunoAAWeb window took over. This one can be closed." -ForegroundColor Yellow; break }
 }
 $listener.Stop()
