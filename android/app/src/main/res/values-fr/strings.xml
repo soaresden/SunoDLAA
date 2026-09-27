@@ -159,4 +159,5 @@
     <string name="dl_refused_free">Téléchargement refusé par Suno (offre Free). Passe en Pro ou importe le MP3.</string>
     <string name="dl_no_link">Suno n\'a pas fourni de lien</string>
     <string name="dl_error">Erreur de téléchargement : %1$s</string>
+    <string name="not_playable_here">Pas de fichier pour ce titre sur le téléphone. Sur l\'ordi : télécharge-le avec SunoAAWeb, puis ici : Réglages → Synchroniser le dossier.</string>
 </resources>

@@ -95,6 +95,13 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
     fun play(clips: List<ClipEntity>, index: Int, projectName: String? = null) {
         val c = controller ?: return
         viewModelScope.launch {
+            // Tapped a track that can't play here (no file on the phone, no Pro stream): say so instead of
+            // silently starting another song.
+            val tapped = clips.getOrNull(index)
+            if (tapped != null && tapped.localPath == null && !(repo.isProNow() && !tapped.audioUrl.isNullOrBlank())) {
+                android.widget.Toast.makeText(getApplication(), com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.not_playable_here), android.widget.Toast.LENGTH_LONG).show()
+                return@launch
+            }
             val items = clips.map { MediaItems.clip(it, projectName ?: repo.projectName(it.projectId)) }
             c.setMediaItems(items, index.coerceIn(0, (items.size - 1).coerceAtLeast(0)), 0L)
             c.prepare()

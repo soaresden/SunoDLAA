@@ -264,7 +264,18 @@ class PlaybackService : MediaLibraryService() {
                     }
                 }
                 BrowseTree.resolvePlayable(this@PlaybackService, repo, single.mediaId)
-            } else mediaItems.flatMap { BrowseTree.resolvePlayable(this@PlaybackService, repo, it.mediaId) }
+            } else {
+                // A whole list from the phone app: tracks without a playable source are dropped, so the
+                // start position must follow the TAPPED track, not its old index (otherwise another song starts).
+                val all = mediaItems.flatMap { BrowseTree.resolvePlayable(this@PlaybackService, repo, it.mediaId) }
+                val wanted = mediaItems.getOrNull(startIndex)?.mediaId
+                var idx = all.indexOfFirst { it.mediaId == wanted }
+                if (idx < 0) {
+                    val after = mediaItems.drop(startIndex + 1).map { it.mediaId }.toSet()
+                    idx = all.indexOfFirst { it.mediaId in after }.coerceAtLeast(0)
+                }
+                return@future MediaSession.MediaItemsWithStartPosition(all, idx, startPositionMs)
+            }
             MediaSession.MediaItemsWithStartPosition(resolved, startIndex.coerceIn(0, (resolved.size - 1).coerceAtLeast(0)), startPositionMs)
         }
 

@@ -163,4 +163,5 @@
     <string name="dl_refused_free">Download refused by Suno (Free plan). Upgrade to Pro or import the MP3.</string>
     <string name="dl_no_link">Suno did not provide a link</string>
     <string name="dl_error">Download error: %1$s</string>
+    <string name="not_playable_here">No file for this track on the phone. On your computer: download it with SunoAAWeb, then here: Settings → Sync folder.</string>
 </resources>
