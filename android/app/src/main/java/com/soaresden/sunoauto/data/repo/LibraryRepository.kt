@@ -113,17 +113,19 @@ class LibraryRepository(
 
     // ---- sync -------------------------------------------------------------------------------
 
-    fun requestSync() {
+    /** [force] = re-read every workspace (titles renamed on Suno don't change its "last updated" marker). */
+    fun requestSync(force: Boolean = false) {
         WorkManager.getInstance(context).enqueueUniqueWork(
-            SyncWorker.NAME, ExistingWorkPolicy.KEEP,
+            SyncWorker.NAME, if (force) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<SyncWorker>()
                 .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setInputData(androidx.work.workDataOf("force" to force))
                 .build()
         )
     }
 
     /** Full refresh: projects, every project's clips, likes, playlists. Called by [SyncWorker]. */
-    suspend fun syncAll() {
+    suspend fun syncAll(force: Boolean = false) {
         if (_syncState.value.running) return
         _syncState.value = SyncState(running = true, message = "Workspaces…")
         try {
@@ -161,7 +163,7 @@ class LibraryRepository(
             val total = projects.size.coerceAtLeast(1)
             projects.forEachIndexed { idx, proj ->
                 val marker = "p2|${proj.lastUpdatedClip}|${proj.clipCount}"
-                val unchanged = proj.syncMarker == marker && (proj.clipCount == 0 || db.projects().localClipCount(proj.id) > 0)
+                val unchanged = !force && proj.syncMarker == marker && (proj.clipCount == 0 || db.projects().localClipCount(proj.id) > 0)
                 if (unchanged) return@forEachIndexed
                 _syncState.value = SyncState(running = true, message = proj.name, progress = idx.toFloat() / total)
                 if (proj.clipCount > 0) syncProjectClips(proj.id, proj.clipCount) else db.clips().pruneProject(proj.id, emptyList())

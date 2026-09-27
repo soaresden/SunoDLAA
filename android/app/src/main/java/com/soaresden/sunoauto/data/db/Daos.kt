@@ -177,6 +177,9 @@ interface ClipDao {
     @Query("SELECT localPath FROM clips WHERE localPath LIKE 'content:%'")
     suspend fun linkedContentUris(): List<String>
 
+    @Query("UPDATE clips SET localPath = NULL WHERE localPath = :path")
+    suspend fun clearLocalByPath(path: String)
+
     @Query("UPDATE clips SET lastPlayedAt = :ts, playCount = playCount + 1 WHERE id = :id")
     suspend fun markPlayed(id: String, ts: Long = System.currentTimeMillis())
 

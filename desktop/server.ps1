@@ -1197,6 +1197,14 @@ while ($listener.IsListening) {
                 $script:StopRequested = $true
                 Write-Json $resp @{ ok=$true }; break
             }
+            '^/api/manifest$' {
+                # SUNODLAA-index.json in the music folder: file -> Suno id, read by the phone app ("Sync folder")
+                if (-not $Cfg.libraryPath -or -not (Test-Path -LiteralPath $Cfg.libraryPath)) { Write-Json $resp @{ ok=$false; code='no_library' }; break }
+                $mp = Join-Path $Cfg.libraryPath 'SUNODLAA-index.json'
+                try { Write-JsonFile $mp (Read-Body $req); Write-Json $resp @{ ok=$true; path=$mp } }
+                catch { Log 'ERROR' "manifest: $($_.Exception.Message)"; Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
+                break
+            }
             '^/api/log$' {
                 $b = Read-Body $req | ConvertFrom-Json
                 Log 'UI' ([string]$b.msg)

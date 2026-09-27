@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.soaresden.sunoauto.R
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,14 +53,18 @@ fun ClipRow(
     onDownload: () -> Unit,
     onRemoveDownload: () -> Unit,
     onPlayNext: () -> Unit,
-    subtitleOverride: String? = null
+    subtitleOverride: String? = null,
+    isPro: Boolean = false
 ) {
     var menu by remember { mutableStateOf(false) }
     val local = com.soaresden.sunoauto.data.LocalFiles.available(clip.localPath)
+    // Free: a track without a file can't play → greyed and not clickable. Pro: it streams, and ⤓ downloads it.
+    val playable = local || (isPro && !clip.audioUrl.isNullOrBlank())
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .alpha(if (playable) 1f else 0.38f)
+            .clickable(enabled = playable, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -98,6 +103,9 @@ fun ClipRow(
                 )
             }
         }
+        if (!local && isPro) IconButton(onClick = onDownload) {
+            Icon(Icons.Outlined.Download, contentDescription = stringResource(R.string.download), tint = MaterialTheme.colorScheme.primary)
+        }
         IconButton(onClick = onToggleLike) {
             Icon(
                 if (clip.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -116,7 +124,7 @@ fun ClipRow(
                     text = { Text(stringResource(R.string.remove_download)) },
                     leadingIcon = { Icon(Icons.Default.DownloadDone, null) },
                     onClick = { menu = false; onRemoveDownload() })
-                else DropdownMenuItem(
+                else if (isPro) DropdownMenuItem(
                     text = { Text(stringResource(R.string.download)) },
                     leadingIcon = { Icon(Icons.Outlined.Download, null) },
                     onClick = { menu = false; onDownload() })

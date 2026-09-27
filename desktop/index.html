@@ -859,9 +859,29 @@ async function loadCache(){
   if(Object.keys(ALIASES).length) logUI(`title aliases loaded: ${Object.keys(ALIASES).length} renamed tracks`);
   recomputeMatch();
 }
+// SUNODLAA-index.json in the music folder: every linked file with its Suno id, so the phone app
+// links files instantly and exactly ("Sync folder"), even when a folder name differs from the workspace.
+let manT=null, manLast='';
+function writeManifest(){
+  clearTimeout(manT);
+  manT=setTimeout(async()=>{
+    if(!LOCAL.length||!workspaces.length) return;
+    const lib=(CFG.libraryPath||'').replace(/[\\/]+$/,'');
+    const files=[];
+    for(const id in MATCH){ const m=MATCH[id], w=CLIPWS[id]; if(!m||!m.p.toLowerCase().startsWith(lib.toLowerCase())) continue;
+      const c=(clipsByWs[w&&w.id]||[]).find(x=>x.id===id);
+      files.push({path:m.p.slice(lib.length+1).replace(/\\/g,'/'),id,workspace:w?w.name:'',title:c?c.title:'',found:m.k}); }
+    files.sort((a,b)=>a.path.localeCompare(b.path));
+    const body={generatedBy:'SunoAAWeb',generatedAt:new Date().toISOString(),count:files.length,files};
+    const sig=JSON.stringify(files); if(sig===manLast) return; manLast=sig;
+    const r=await post('/api/manifest',body).catch(()=>null);
+    if(r&&r.ok) logUI(`manifest written: ${files.length} files -> ${r.path}`);
+  },4000);
+}
 let saveT=null;
 function saveCache(now){
   clearTimeout(saveT);
+  writeManifest();
   const go=()=>post('/api/cache/library',{v:2,savedAt:syncedAt||new Date().toISOString(),account:(ACC&&ACC.label)||'',workspaces,clips:clipsByWs,markers:wsMarker}).catch(()=>{});
   if(now) return go(); saveT=setTimeout(go,1500);
 }
@@ -924,7 +944,7 @@ function applyScan(r,fresh){
   if(!r) return; const files=r.files||(r.index&&r.index.files)||[];
   if(!fresh && !files.length) return;
   LOCAL=files; scannedAt=fresh?new Date().toISOString():((r.index&&r.index.scannedAt)||null);
-  recomputeMatch(); renderAll();
+  recomputeMatch(); renderAll(); if(fresh) writeManifest();
 }
 const stripIdx=s=>(s||'').replace(/^\s*\d+(?:[-_ .]+\d+)*\s*(?:[-_.]\s*)?/,'');
 function trackNo(p){ const b=(p||'').split(/[\\/]/).pop(); const m=b.match(/^\s*(\d+)(?:[-_ .]+(\d+))?/); return m?+(m[2]||m[1]):null; }
@@ -1159,7 +1179,7 @@ async function runJob(items,what){
       if(r.code==='not_authorized'&&job.bad>=3&&job.ok===0){ job.stop=true; job.fails.push({title:'—',ws:'',error:T().stopRefused}); } }
     if(job.i%3===0){ renderStats(); renderWorkspaces(); renderClips(); }
   }
-  job.running=false; renderAll();
+  job.running=false; renderAll(); writeManifest();
   logUI(`download job end: ${job.ok} ok, ${job.bad} failed, ${job.skip} already there${job.stop?' (stopped)':''}`);
   toast(T().jobDone(job.ok,job.bad),6000);
 }

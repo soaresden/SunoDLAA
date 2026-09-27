@@ -194,7 +194,8 @@ fun LibraryScreen(vm: LibraryViewModel, player: PlayerViewModel, onOpenProject: 
                         onToggleLike = { vm.toggleLike(clip.id) },
                         onDownload = { vm.download(listOf(clip.id)) },
                         onRemoveDownload = { vm.removeDownload(clip.id) },
-                        onPlayNext = { player.addNext(clip) }
+                        onPlayNext = { player.addNext(clip) },
+                        isPro = vm.isPro.collectAsStateWithLifecycle().value
                     )
                 }
             }

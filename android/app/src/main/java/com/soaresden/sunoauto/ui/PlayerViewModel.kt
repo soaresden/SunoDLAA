@@ -92,13 +92,13 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Play [clips] starting at [index]. Items are built from the DB rows (local file if downloaded). */
-    fun play(clips: List<ClipEntity>, index: Int, projectName: String? = null) {
+    fun play(clips: List<ClipEntity>, index: Int, projectName: String? = null, tapped: Boolean = true) {
         val c = controller ?: return
         viewModelScope.launch {
             // Tapped a track that can't play here (no file on the phone, no Pro stream): say so instead of
             // silently starting another song.
-            val tapped = clips.getOrNull(index)
-            if (tapped != null && tapped.localPath == null && !(repo.isProNow() && !tapped.audioUrl.isNullOrBlank())) {
+            val t = clips.getOrNull(index)
+            if (tapped && t != null && t.localPath == null && !(repo.isProNow() && !t.audioUrl.isNullOrBlank())) {
                 android.widget.Toast.makeText(getApplication(), com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.not_playable_here), android.widget.Toast.LENGTH_LONG).show()
                 return@launch
             }
@@ -113,7 +113,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         if (clips.isEmpty()) return
         val c = controller ?: return
         c.shuffleModeEnabled = true
-        play(clips.shuffled(), 0, projectName)
+        play(clips.shuffled(), 0, projectName, tapped = false)
     }
 
     fun addNext(clip: ClipEntity) {

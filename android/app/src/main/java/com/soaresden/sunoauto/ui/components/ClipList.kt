@@ -52,6 +52,7 @@ fun ClipList(
         return
     }
     val projects by vm.projects.collectAsStateWithLifecycle()
+    val isPro by vm.isPro.collectAsStateWithLifecycle()
     val nameById = projects.associate { it.id to it.name }
     LazyColumn(contentPadding = PaddingValues(bottom = bottomPadding + 8.dp)) {
         item {
@@ -59,7 +60,7 @@ fun ClipList(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(onClick = { player.play(clips, 0, projectName) }) {
+                Button(onClick = { player.play(clips, 0, projectName, tapped = false) }) {
                     Icon(Icons.Default.PlayArrow, null); Text(stringResource(R.string.play_n, clips.size))
                 }
                 OutlinedButton(onClick = { player.playShuffled(clips, projectName) }) {
@@ -80,6 +81,7 @@ fun ClipList(
                 onDownload = { vm.download(listOf(clip.id)) },
                 onRemoveDownload = { vm.removeDownload(clip.id) },
                 onPlayNext = { player.addNext(clip) },
+                isPro = isPro,
                 subtitleOverride = if (showProjectSubtitle) listOfNotNull(
                     clip.durationSec?.let(::fmtDuration), nameById[clip.projectId] ?: clip.tags?.take(40)
                 ).joinToString(" · ") else null

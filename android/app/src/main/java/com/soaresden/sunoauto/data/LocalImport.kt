@@ -31,7 +31,9 @@ object LocalImport {
     private fun norm(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "")
 
     data class Result(val linked: Int, val scanned: Int, val unmatched: Int, val workspaces: Int)
-    private data class Found(val uri: Uri, val name: String, val parent: String)
+    private data class Found(val uri: Uri, val name: String, val parent: String, val rel: String)
+    /** Written by SunoAAWeb in the music folder: every file it knows, with its Suno id. */
+    const val MANIFEST = "SUNODLAA-index.json"
 
     suspend fun run(context: Context, db: AppDatabase, treeUri: Uri, pattern: String?, onProgress: (Int, Int) -> Unit): Result {
         val resolver = context.contentResolver
@@ -41,9 +43,41 @@ object LocalImport {
         // 1. collect, keep only files inside a recognized workspace folder
         val all = ArrayList<Found>()
         collect(resolver, treeUri, all)
+
+        // 0a. links to files that no longer exist (renamed / moved / deleted on the computer) are dropped,
+        //     so those tracks get linked again to their new file below
+        val present = all.map { it.uri.toString() }.toHashSet()
+        if (all.isNotEmpty()) for (u in db.clips().linkedContentUris()) if (u !in present) db.clips().clearLocalByPath(u)
+
+        // 0b. SunoAAWeb's manifest: exact "file → Suno id" for every file it matched on the computer
+        //     (Suno id in the tags, name or title), whatever the folder is called. No need to open each file.
+        val idsAll = db.clips().allIds().toHashSet()
+        var linkedByManifest = 0
+        val handled = HashSet<String>()
+        all.firstOrNull { it.name.equals(MANIFEST, ignoreCase = true) }?.let { mf ->
+            val base = mf.rel.substringBeforeLast('/', "")
+            val map = HashMap<String, String>()
+            runCatching {
+                resolver.openInputStream(mf.uri)?.use { input ->
+                    val arr = org.json.JSONObject(input.readBytes().toString(Charsets.UTF_8)).getJSONArray("files")
+                    for (i in 0 until arr.length()) { val o = arr.getJSONObject(i); map[o.getString("path").lowercase()] = o.getString("id").lowercase() }
+                }
+            }.onFailure { Log.w(TAG, "manifest unreadable: ${it.message}") }
+            val linkedNow = db.clips().linkedContentUris().toHashSet()
+            for (f in all) {
+                val key = (if (base.isEmpty()) f.rel else f.rel.removePrefix("$base/")).lowercase()
+                val id = map[key] ?: continue
+                if (id !in idsAll) continue
+                handled.add(f.uri.toString())
+                if (f.uri.toString() in linkedNow) continue
+                db.clips().setLocalPath(id, f.uri.toString(), null); linkedByManifest++
+            }
+            Log.i(TAG, "manifest: ${map.size} entries, $linkedByManifest newly linked")
+        }
         val byWorkspace = LinkedHashMap<String, MutableList<Found>>()   // projectId -> files
         for (f in all) {
             if (f.name.substringAfterLast('.', "").lowercase() !in AUDIO_EXT) continue
+            if (f.uri.toString() in handled) continue
             val pid = projectByName[workspaceKey(f.parent, pattern)] ?: continue
             byWorkspace.getOrPut(pid) { ArrayList() }.add(f)
         }
@@ -52,7 +86,7 @@ object LocalImport {
         val idsById = db.clips().allIds().toHashSet()
         val clipsById = HashMap<String, ClipEntity?>()
         val alreadyLinked = db.clips().linkedContentUris().toHashSet()
-        var done = 0; var linked = 0; var unmatched = 0
+        var done = 0; var linked = handled.size; var unmatched = 0
 
         // 2. match per workspace
         for ((pid, files) in byWorkspace) {
@@ -86,7 +120,7 @@ object LocalImport {
         }
         db.clips().recomputeOriginals()
         Log.i(TAG, "linked=$linked scanned=$total unmatched=$unmatched workspaces=${byWorkspace.size}")
-        return Result(linked, total, unmatched, byWorkspace.size)
+        return Result(linked, total + handled.size, unmatched, byWorkspace.size)
     }
 
     /** Folder name → normalized workspace key: strip the user's prefix (or the default) then normalize. */
@@ -114,9 +148,9 @@ object LocalImport {
                 if (it.moveToFirst()) it.getString(0) else null
             }
         }.getOrNull() ?: ""
-        val stack = ArrayDeque<Pair<String, String>>().apply { add(rootId to rootName) }
+        val stack = ArrayDeque<Triple<String, String, String>>().apply { add(Triple(rootId, rootName, "")) }
         while (stack.isNotEmpty()) {
-            val (parentId, parentName) = stack.removeLast()
+            val (parentId, parentName, parentRel) = stack.removeLast()
             val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId)
             runCatching {
                 resolver.query(
@@ -129,8 +163,9 @@ object LocalImport {
                 )?.use { c ->
                     while (c.moveToNext()) {
                         val docId = c.getString(0); val name = c.getString(1) ?: ""; val mime = c.getString(2) ?: ""
-                        if (mime == DocumentsContract.Document.MIME_TYPE_DIR) stack.add(docId to name)
-                        else out.add(Found(DocumentsContract.buildDocumentUriUsingTree(tree, docId), name, parentName))
+                        val rel = if (parentRel.isEmpty()) name else "$parentRel/$name"
+                        if (mime == DocumentsContract.Document.MIME_TYPE_DIR) stack.add(Triple(docId, name, rel))
+                        else out.add(Found(DocumentsContract.buildDocumentUriUsingTree(tree, docId), name, parentName, rel))
                     }
                 }
             }.onFailure { Log.w(TAG, "walk failed under $parentName: ${it.message}") }

@@ -38,7 +38,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 }
             }
             try {
-                app.repo.syncAll()
+                app.repo.syncAll(inputData.getBoolean("force", false))
                 Result.success()
             } catch (e: CancellationException) {
                 throw e

@@ -86,7 +86,8 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
     fun projectClips(id: String): Flow<List<ClipEntity>> = repo.observeProjectClips(id)
     fun playlistClips(id: String): Flow<List<ClipEntity>> = repo.observePlaylistClips(id)
 
-    fun sync() = repo.requestSync()
+    /** The Sync button: full refresh (catches titles renamed on Suno or in SunoAAWeb). */
+    fun sync() = repo.requestSync(force = true)
     fun toggleLike(id: String) = viewModelScope.launch { repo.toggleLike(id) }
     fun download(ids: List<String>) = viewModelScope.launch { repo.enqueueDownload(ids) }
     fun downloadProject(id: String) = viewModelScope.launch { repo.enqueueProjectDownload(id) }
