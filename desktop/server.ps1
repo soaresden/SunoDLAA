@@ -19,7 +19,7 @@ function Load-Config {
     }
     return [pscustomobject]@{
         port          = 8787
-        libraryPath   = (Join-Path $Root 'downloads')
+        libraryPath   = ''
         clientCookie  = ''      # cookie __client de suno.com (F12 > Application > Cookies)
         deviceId      = [guid]::NewGuid().ToString()
         apiBase       = 'https://studio-api.prod.suno.com'
@@ -31,15 +31,16 @@ function Save-Config($cfg) { $cfg | ConvertTo-Json -Depth 5 | Set-Content $Confi
 $Cfg = Load-Config
 # Remplit toute cle manquante (config.json partiel) avec sa valeur par defaut.
 $defaults = @{
-    port=8787; libraryPath=(Join-Path $Root 'downloads'); clientCookie='';
+    port=8787; libraryPath=''; clientCookie='';
     deviceId=[guid]::NewGuid().ToString(); apiBase='https://studio-api.prod.suno.com';
     clerkBase='https://auth.suno.com'; folderPattern='Suno - {workspace}'; language='en'
     fileNamePattern='<Disc#:2>-<Track#:3> <Title>'; audioFormat='mp3'
+    saveLrc=$true; downloadDelaySec=3
 }
 $changed = $false
 foreach ($k in $defaults.Keys) {
     if (-not ($Cfg.PSObject.Properties.Name -contains $k) -or $null -eq $Cfg.$k -or $Cfg.$k -eq '') {
-        if ($k -eq 'clientCookie') { if (-not ($Cfg.PSObject.Properties.Name -contains $k)) { $Cfg | Add-Member -NotePropertyName $k -NotePropertyValue '' -Force; $changed=$true }; continue }
+        if ($k -in @('clientCookie', 'libraryPath')) { if (-not ($Cfg.PSObject.Properties.Name -contains $k)) { $Cfg | Add-Member -NotePropertyName $k -NotePropertyValue '' -Force; $changed=$true }; continue }
         $Cfg | Add-Member -NotePropertyName $k -NotePropertyValue $defaults[$k] -Force; $changed = $true
     }
 }
@@ -109,10 +110,18 @@ function Clerk-Post($path) {
     $h = @{ 'Authorization' = $Cfg.clientCookie; 'Cookie' = "__client=$($Cfg.clientCookie)" }
     return Invoke-RestMethod -Uri $url -Headers $h -Method Post -Body ''
 }
+$script:AccountLabel = $null
 function Get-SessionId {
     $r = Clerk-Get '/v1/client'
     $sid = $r.response.last_active_session_id
     if (-not $sid) { throw "No active session (__client cookie expired or anonymous?)" }
+    try {
+        $sess = @($r.response.sessions) | Where-Object { $_.id -eq $sid } | Select-Object -First 1
+        $u = $sess.user
+        $name = $u.username; if (-not $name) { $name = (@($u.first_name, $u.last_name) | Where-Object { $_ }) -join ' ' }
+        $mail = $null; if ($u.email_addresses) { $mail = @($u.email_addresses)[0].email_address }
+        $script:AccountLabel = (@($name, $mail) | Where-Object { $_ }) -join ' - '
+    } catch {}
     return $sid
 }
 function Get-Jwt {
@@ -232,7 +241,7 @@ function Write-Text($resp, $text, $ctype = 'text/html; charset=utf-8', $code = 2
 $script:ScanMap = @{}
 function Scan-Library {
     $map = @{}
-    if (-not (Test-Path $Cfg.libraryPath)) { $script:ScanMap = $map; return $map }
+    if (-not $Cfg.libraryPath -or -not (Test-Path -LiteralPath $Cfg.libraryPath)) { $script:ScanMap = $map; return $map }
     Get-ChildItem -LiteralPath $Cfg.libraryPath -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.mp3', '.wav' } | ForEach-Object {
         $id = $null
         if ($TagLibOk) {
@@ -258,7 +267,7 @@ function Scan-Library {
 $WsFolderRegex = '^\s*suno\s*[-\u2013\u2014]\s*'
 function Folder-Plan {
     $plan = @()
-    if (-not (Test-Path -LiteralPath $Cfg.libraryPath)) { return ,$plan }
+    if (-not $Cfg.libraryPath -or -not (Test-Path -LiteralPath $Cfg.libraryPath)) { return ,$plan }
     $existing = @{}
     Get-ChildItem -LiteralPath $Cfg.libraryPath -Directory -ErrorAction SilentlyContinue | ForEach-Object { $existing[$_.Name.ToLower()] = $true }
     Get-ChildItem -LiteralPath $Cfg.libraryPath -Directory -ErrorAction SilentlyContinue | ForEach-Object {
@@ -325,6 +334,61 @@ function Stream-File($req, $resp, $file) {
     } finally { $fs.Dispose() }
 }
 
+# ---- Paroles synchronisees -> .lrc -------------------------------------
+# /api/gen/{id}/aligned_lyrics/v2/ renvoie aligned_lyrics (lignes) et/ou aligned_words (mots).
+# On ne cree le .lrc que si Suno fournit un vrai minutage.
+function Get-AlignedLyrics($id) {
+    return Invoke-RestMethod -Uri ($Cfg.apiBase + "/api/gen/$id/aligned_lyrics/v2/") -Headers (Suno-Headers) -Method Get
+}
+function Build-Lrc($data) {
+    $inv = [Globalization.CultureInfo]::InvariantCulture
+    $lines = New-Object System.Collections.ArrayList
+    if ($data.aligned_lyrics) {
+        foreach ($l in @($data.aligned_lyrics)) {
+            $t = (([string]$l.text) -replace '\s+', ' ').Trim()
+            if ($t -and $null -ne $l.start_s -and $t -notmatch '^\[.*\]$') { [void]$lines.Add(@([double]$l.start_s, $t)) }
+        }
+    }
+    if ($lines.Count -eq 0 -and $data.aligned_words) {
+        $cur = ''; $start = $null
+        foreach ($w in @($data.aligned_words)) {
+            $txt = [string]$w.word
+            if ($null -eq $start -and $txt.Trim()) { $start = [double]$w.start_s }
+            $cur += $txt + ' '
+            if ($txt -match "`n") {
+                $t = ($cur -replace '\s+', ' ').Trim()
+                if ($t -and $null -ne $start -and $t -notmatch '^\[.*\]$') { [void]$lines.Add(@($start, $t)) }
+                $cur = ''; $start = $null
+            }
+        }
+        $t = ($cur -replace '\s+', ' ').Trim()
+        if ($t -and $null -ne $start -and $t -notmatch '^\[.*\]$') { [void]$lines.Add(@($start, $t)) }
+    }
+    if ($lines.Count -eq 0) { return $null }
+    $sb = New-Object Text.StringBuilder
+    foreach ($l in $lines) {
+        $sec = [double]$l[0]; $m = [int][Math]::Floor($sec / 60); $rest = $sec - 60 * $m
+        [void]$sb.AppendLine([string]::Format($inv, '[{0:00}:{1:00.00}]{2}', $m, $rest, $l[1]))
+    }
+    return $sb.ToString()
+}
+
+# ---- Selecteur de dossier Windows natif --------------------------------
+function Pick-Folder($start) {
+    Add-Type -AssemblyName System.Windows.Forms
+    $owner = New-Object System.Windows.Forms.Form
+    $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0
+    $owner.StartPosition = 'CenterScreen'; $owner.Size = New-Object System.Drawing.Size(1, 1)
+    $owner.Show(); $owner.Activate()
+    $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dlg.Description = 'SUNODLAA - choose the folder for your Suno music'
+    $dlg.ShowNewFolderButton = $true
+    if ($start -and (Test-Path -LiteralPath $start)) { $dlg.SelectedPath = $start }
+    try { $r = $dlg.ShowDialog($owner) } finally { $owner.Close(); $owner.Dispose() }
+    if ($r -eq [System.Windows.Forms.DialogResult]::OK) { return $dlg.SelectedPath }
+    return $null
+}
+
 # ---- Telechargement + tag ------------------------------------------
 # Lien de telechargement officiel (bouton "Download" du site) : mp3 ou wav selon l'offre.
 function Resolve-Download($id, $fmt) {
@@ -354,6 +418,7 @@ function Download-Clip($body) {
     $lyrics    = $body.lyrics
     $createdAt = $body.createdAt
 
+    if (-not $Cfg.libraryPath -or -not (Test-Path -LiteralPath $Cfg.libraryPath)) { return @{ ok = $false; code = 'no_library'; error = 'Choose your music folder first (Setup, step 2).' } }
     $format = if ($Cfg.audioFormat -eq 'wav') { 'wav' } else { 'mp3' }
     # 1) lien officiel de Suno (respecte l'offre du compte) ; 2) en MP3, lien direct du clip
     $url = $null; $why = $null
@@ -362,8 +427,9 @@ function Download-Clip($body) {
     }
     if (-not $url -and $format -eq 'mp3' -and $audioUrl) { $url = $audioUrl }
     if (-not $url) {
-        if ($why -eq 'not_authorized') { $why = "Suno refused the $($format.ToUpper()) download on this account (plan without downloads)" }
-        return @{ ok = $false; error = $(if ($why) { $why } else { 'No download link from Suno' }) }
+        $code = 'no_link'
+        if ($why -eq 'not_authorized') { $code = 'not_authorized'; $why = "Suno refused the $($format.ToUpper()) download on this account (plan without downloads)" }
+        return @{ ok = $false; code = $code; format = $format; error = $(if ($why) { $why } else { 'No download link from Suno' }) }
     }
 
     $folderName = Folder-Name $workspace
@@ -378,8 +444,8 @@ function Download-Clip($body) {
     } catch {
         if ($url -ne $audioUrl -and $format -eq 'mp3' -and $audioUrl) {
             try { Invoke-WebRequest -Uri $audioUrl -OutFile $out -UseBasicParsing -TimeoutSec 300 }
-            catch { return @{ ok = $false; error = "Download refused: $($_.Exception.Message)" } }
-        } else { return @{ ok = $false; error = "Download refused: $($_.Exception.Message)" } }
+            catch { return @{ ok = $false; code = 'refused'; error = "Download refused: $($_.Exception.Message)" } }
+        } else { return @{ ok = $false; code = 'refused'; error = "Download refused: $($_.Exception.Message)" } }
     }
 
     if ($TagLibOk) {
@@ -415,7 +481,20 @@ function Download-Clip($body) {
             return @{ ok = $true; path = $out; warn = "File OK but tags partial: $($_.Exception.Message)" }
         }
     }
-    return @{ ok = $true; path = $out }
+    $lrc = $false
+    if ($Cfg.saveLrc -and $clipId) {
+        try {
+            $txt = Build-Lrc (Get-AlignedLyrics $clipId)
+            if ($txt) {
+                $lrcPath = [IO.Path]::ChangeExtension($out, '.lrc')
+                [IO.File]::WriteAllText($lrcPath, $txt, (New-Object Text.UTF8Encoding($true)))
+                $lrc = $true
+            }
+        } catch {}
+    }
+    $delay = 0; try { $delay = [double]$Cfg.downloadDelaySec } catch {}
+    if ($delay -gt 0) { Start-Sleep -Milliseconds ([int]($delay * 1000)) }
+    return @{ ok = $true; path = $out; lrc = $lrc }
 }
 
 # ---- Routeur --------------------------------------------------------
@@ -464,11 +543,15 @@ while ($listener.IsListening) {
                     if ($b.language -in @('en','fr')) { $Cfg.language = $b.language }
                     if ($null -ne $b.fileNamePattern -and $b.fileNamePattern) { $Cfg.fileNamePattern = $b.fileNamePattern }
                     if ($b.audioFormat -in @('mp3','wav')) { $Cfg.audioFormat = $b.audioFormat }
+                    if ($null -ne $b.saveLrc) { $Cfg.saveLrc = [bool]$b.saveLrc }
+                    if ($null -ne $b.downloadDelaySec) { $Cfg.downloadDelaySec = [Math]::Max(0, [Math]::Min(30, [double]$b.downloadDelaySec)) }
                     Save-Config $Cfg
                 }
                 Write-Json $resp @{
                     port=$Cfg.port; libraryPath=$Cfg.libraryPath; folderPattern=$Cfg.folderPattern; language=$Cfg.language
                     folderExample=(Folder-Name 'Lucie'); fileNamePattern=$Cfg.fileNamePattern; fileExample=(File-Example); audioFormat=$Cfg.audioFormat
+                    saveLrc=[bool]$Cfg.saveLrc; downloadDelaySec=$Cfg.downloadDelaySec
+                    libraryExists=[bool]($Cfg.libraryPath -and (Test-Path -LiteralPath $Cfg.libraryPath))
                     hasCookie=[bool]$Cfg.clientCookie; deviceId=$Cfg.deviceId; taglib=$TagLibOk
                 }; break
             }
@@ -509,7 +592,7 @@ while ($listener.IsListening) {
                 $qp = [System.Web.HttpUtility]::ParseQueryString($req.Url.Query)
                 $id = $qp['id']
                 try {
-                    $data = Invoke-RestMethod -Uri ($Cfg.apiBase + "/api/gen/$id/aligned_lyrics/v2") -Headers (Suno-Headers) -Method Get
+                    $data = Get-AlignedLyrics $id
                     Write-Json $resp $data
                 } catch { Write-Json $resp @{ error="$($_.Exception.Message)" } 502 }
                 break
@@ -518,6 +601,21 @@ while ($listener.IsListening) {
                 $b = Read-Body $req | ConvertFrom-Json
                 $r = Download-Clip $b
                 Write-Json $resp $r
+                break
+            }
+            '^/api/folder/pick$' {
+                try {
+                    $p = Pick-Folder $Cfg.libraryPath
+                    if ($p) { $Cfg.libraryPath = $p; $script:ScanMap = @{}; Save-Config $Cfg; Write-Json $resp @{ ok=$true; path=$p } }
+                    else { Write-Json $resp @{ ok=$false; cancelled=$true } }
+                } catch { Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
+                break
+            }
+            '^/api/account$' {
+                try {
+                    $b = Invoke-RestMethod -Uri ($Cfg.apiBase + '/api/billing/info/') -Headers (Suno-Headers) -Method Get
+                    Write-Json $resp @{ ok=$true; pro=[bool]$b.is_active; credits=$b.total_credits_left; label=$script:AccountLabel }
+                } catch { Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)"; label=$script:AccountLabel } }
                 break
             }
             '^/api/folders/preview$' {

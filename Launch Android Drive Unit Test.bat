@@ -57,6 +57,34 @@ if not exist "%DHU%" goto :dlfail
 :havedhu
 echo   [OK] Desktop Head Unit: %DHU%
 
+rem ---- 2b. Car screen to simulate --------------------------------------------
+echo.
+echo   Car screen to simulate:
+echo     1. Mazda MX-5 2024+  - 8.8 inch widescreen, 1280x480  [default]
+echo     2. Classic 7 inch    - 800x480, older Mazda / most cars
+echo     3. Large Full HD     - 1920x1080
+choice /c 123 /n /t 15 /d 1 /m "   Your choice 1-3, automatic 1 in 15 s: "
+set "SCREEN=%errorlevel%"
+set "RES=1280x720" & set "MH=240" & set "DPI=160" & set "CTRL=true" & set "NAME=Mazda MX-5 2024+ 1280x480"
+if "%SCREEN%"=="2" (set "RES=800x480" & set "MH=" & set "DPI=160" & set "CTRL=true" & set "NAME=7 inch 800x480")
+if "%SCREEN%"=="3" (set "RES=1920x1080" & set "MH=" & set "DPI=240" & set "CTRL=false" & set "NAME=Full HD 1920x1080")
+set "INI=%TOOLS%\sunodlaa-screen.ini"
+> "%INI%" echo [general]
+>>"%INI%" echo touch = true
+>>"%INI%" echo touchpad = false
+>>"%INI%" echo controller = %CTRL%
+>>"%INI%" echo instrumentcluster = false
+>>"%INI%" echo resolution = %RES%
+if defined MH >>"%INI%" echo marginheight = %MH%
+>>"%INI%" echo dpi = %DPI%
+>>"%INI%" echo framerate = 30
+>>"%INI%" echo.
+>>"%INI%" echo [sensors]
+>>"%INI%" echo location = true
+>>"%INI%" echo night_mode = true
+>>"%INI%" echo driving_status = true
+echo   [OK] Screen: %NAME%
+
 rem ---- 3. Phone ------------------------------------------------------------
 echo.
 echo   Checklist on the phone - only needed once:
@@ -76,7 +104,7 @@ rem ---- 4. Start --------------------------------------------------------------
 for %%F in ("%DHU%") do set "DHUDIR=%%~dpF"
 set "DHUDIR=%DHUDIR:~0,-1%"
 echo   [..] Starting the Desktop Head Unit - pick SUNODLAA on the car screen.
-start "Desktop Head Unit" /d "%DHUDIR%" "%DHU%"
+start "Desktop Head Unit" /d "%DHUDIR%" "%DHU%" -c "%INI%"
 goto :end
 
 rem ------------------------------------------------------------------------------

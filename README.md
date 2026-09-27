@@ -47,8 +47,13 @@ A small local web app (double-click to start, nothing to install):
 - **Proper ID3 tags on every file**: title, artist, album (= workspace), cover art, lyrics,
   year, and the **Suno track ID** (in `TSRC`) so the file stays linked to Suno forever.
 - **Originals highlighted in gold** and pinned first — covers are grouped under the song they come from.
-- Built-in player with **synced lyrics** (karaoke) when Suno provides word timings.
-- **One-click sign-in**: a login window opens, you sign in to Suno, done. No cookie copy-pasting.
+- **Synced lyrics as `.lrc`** next to each song when Suno has the timings (karaoke in MediaMonkey and most players),
+  plus a built-in player with live lyrics.
+- **Guided first run**: a 3-step setup — sign in (a login window opens, you sign in, done: no token or cookie
+  to hunt for), pick your folder with the normal Windows folder picker, pick a naming style with a live preview.
+- **One big button: “Download everything missing”** across all workspaces, with progress, a stop button,
+  a clear list of what failed and why, and a pause between downloads so Suno doesn't block you.
+  Stop any time — the next run picks up where it left off.
 - **English or French**, chosen in Settings and remembered.
 
 ### 📱 Android & Android Auto — listen your way
@@ -75,8 +80,8 @@ Two launchers sit at the root of the repository:
 ### SunoAAWeb (Windows)
 1. Download this repository (Code → Download ZIP) and unzip it.
 2. Double-click **`Launch SunoAAWeb.bat`**. Your browser opens on `http://localhost:8787`.
-3. ⚙️ **Settings** → pick your **language**, **Sign in**, choose your **library folder** and **folder format**.
-4. Pick a workspace → tick tracks (or **Queue missing**) → **Download all**.
+3. Follow the 3-step setup (language at the top): **Connect to Suno** → **Choose a folder** → **naming style**.
+4. **Download everything missing** — or open a workspace and download just that one, or tick tracks.
 
 Requirements: Windows 10/11 with Edge or Chrome. PowerShell and the tagging library are built in / bundled.
 
@@ -92,6 +97,10 @@ Run **`Launch Android Drive Unit Test.bat`** — **no Android Studio needed**:
   and can fetch Google's latest one if yours is too old;
 - on first run it downloads Google's official **Desktop Head Unit** (≈7 MB, checksum-verified)
   into `%LOCALAPPDATA%\SUNODLAA\dhu`, after asking you.
+
+The launcher asks which car screen to simulate: **Mazda MX-5 2024+ (8.8" widescreen, 1280×480)**
+by default, a classic 7" 800×480, or a large Full HD screen — so the image is sharp instead of an
+enlarged 800×480.
 
 On the phone, once:
 1. Android Auto → Settings → tap *Version* 10× to unlock developer mode.
