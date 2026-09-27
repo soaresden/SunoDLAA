@@ -86,7 +86,7 @@ Two launchers sit at the root of the repository:
 Requirements: Windows 10/11 with Edge or Chrome. PowerShell and the tagging library are built in / bundled.
 
 ### Android
-1. Install [`releases/SUNODLAA-v0.16.2.apk`](releases/) (allow unknown sources).
+1. Install [`releases/SUNODLAA-v0.16.3.apk`](releases/) (allow unknown sources).
 2. Sign in to Suno, then pick the folder that holds your MP3s (the one the desktop fills).
 3. **Android Auto without the Play Store**: Android Auto → Settings → tap *Version* 10× →
    ⋮ → Developer settings → enable **Unknown sources**.

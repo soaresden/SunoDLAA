@@ -7,6 +7,7 @@ package com.soaresden.sunoauto.player
 object MediaIds {
     const val ROOT = "[root]"
     const val PROJECTS = "[projects]"
+    const val PROJECTS_RECENT = "[projects_recent]"
     const val LIKED = "[liked]"
     const val PLAYLISTS = "[playlists]"
     const val DOWNLOADED = "[downloaded]"

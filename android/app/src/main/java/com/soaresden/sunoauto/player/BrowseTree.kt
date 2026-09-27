@@ -33,12 +33,18 @@ object BrowseTree {
             MediaItems.folder(MediaIds.ALL, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_all), playable = true),
             MediaItems.folder(MediaIds.ALL_ALPHA, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_all_alpha), playable = true),
             MediaItems.folder(MediaIds.PROJECTS, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_projects)),
+            MediaItems.folder(MediaIds.PROJECTS_RECENT, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_projects_recent)),
             MediaItems.folder(MediaIds.LIKED, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_liked), playable = true),
             MediaItems.folder(MediaIds.DOWNLOADED, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_downloaded), playable = true),
             MediaItems.folder(MediaIds.RECENT, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_recent), playable = true),
             MediaItems.folder(MediaIds.PLAYLISTS, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_playlists)),
         )
-        parentId == MediaIds.PROJECTS -> repo.projectRows().map { MediaItems.project(it.project, it.coverUrl, it.oldestAt?.let { d -> com.soaresden.sunoauto.ui.components.fmtDate(d) }) }
+        // A→Z so Android Auto's "A•Z" letter jump lands on the right workspace
+        parentId == MediaIds.PROJECTS -> repo.projectRows().sortedWith(compareBy({ alphaKey(it.project.name) }, { it.project.name }))
+            .map { MediaItems.project(it.project, it.coverUrl, it.oldestAt?.let { d -> com.soaresden.sunoauto.ui.components.fmtDate(d) }) }
+        // most recent activity first (the order of the phone app)
+        parentId == MediaIds.PROJECTS_RECENT -> repo.projectRows()
+            .map { MediaItems.project(it.project, it.coverUrl, it.oldestAt?.let { d -> com.soaresden.sunoauto.ui.components.fmtDate(d) }) }
         parentId == MediaIds.PLAYLISTS -> repo.playlists().map { MediaItems.playlist(it) }
         // Track lists: show EVERYTHING (incl. 🫥), so originals stay visible; playback is filtered separately.
         else -> listFor(repo, parentId).map { MediaItems.clip(it, repo.projectName(it.projectId)).withParent(parentId) }
@@ -67,6 +73,11 @@ object BrowseTree {
             .filter { isPlayableSource(it, isPro) }
             .map { MediaItems.clip(it, repo.projectName(it.projectId)).withParent(parent) }
     }
+
+    /** Case- and accent-insensitive sort key; names starting with "!" stay first, like in Windows Explorer. */
+    private fun alphaKey(name: String): String =
+        java.text.Normalizer.normalize(name.trim(), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "").lowercase()
 
     private fun MediaItem.withParent(parent: String): MediaItem =
         buildUpon().setRequestMetadata(
