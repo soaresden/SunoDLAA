@@ -107,6 +107,32 @@
   .karaoke.show{display:flex} .karaoke .line{font-size:26px;line-height:1.7;max-width:800px;color:var(--muted)}
   .karaoke .w.on{color:var(--fuchsia);font-weight:700} .karaoke .close{position:absolute;top:16px;right:20px}
   .toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:50;display:none;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  .stat.loc b{color:var(--cobalt)}
+  .syncrow{display:flex;gap:18px;flex-wrap:wrap}
+  .wstools{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 4px 8px}
+  .wstools input[type=text]{flex:1;min-width:120px;padding:6px 8px}
+  .wstools select{padding:6px}
+  .chk{display:flex;align-items:center;gap:4px;cursor:pointer}
+  .ws-item .sub{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ws-item.all .ph{background:linear-gradient(135deg,var(--turq),var(--cobalt));display:grid;place-items:center;color:#fff;font-size:20px}
+  .ws-item.orph .ph{background:linear-gradient(135deg,var(--cobalt),var(--muted));display:grid;place-items:center;color:#fff;font-size:20px}
+  .ws-sep{height:1px;background:var(--border);margin:6px 4px}
+  .badge.loc{background:#E6EEFF;color:var(--cobalt)}
+  .seg{display:flex;gap:4px;flex-wrap:wrap}
+  .seg button{padding:5px 10px;font-size:12px;border-radius:999px}
+  .seg button.on{background:var(--ink);color:#fff}
+  .wshead{display:flex;gap:12px;align-items:center;margin:2px 0 10px}
+  .wshead img,.wshead .ph{width:52px;height:52px;border-radius:12px;object-fit:cover;background:linear-gradient(135deg,var(--fuchsia),var(--turq));flex:none}
+  .wshead h2{margin:0;font-size:18px}
+  .clip .sub2{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .clip .sub2 .ws{color:var(--cobalt);font-weight:600}
+  .clip .heart{color:var(--fuchsia)}
+  .more{text-align:center;margin:10px}
+  .localonly{margin-top:16px;border-top:1px dashed var(--border);padding-top:8px}
+  .localonly summary{font-weight:700;color:var(--cobalt)}
+  .lfile{display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:10px;font-size:13px}
+  .lfile:hover{background:var(--bg2)} .lfile .fn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lfile .dir{color:var(--muted);font-size:11px}
   @media (max-width:1000px){ .cols{grid-template-columns:1fr} .col.ws,.col.job{border:none} }
 </style>
 </head>
@@ -200,17 +226,35 @@
       <div class="stat"><b id="nWs">–</b><span id="lWs"></span></div>
       <div class="stat have"><b id="nHave">–</b><span id="lHave"></span></div>
       <div class="stat miss"><b id="nMiss">–</b><span id="lMiss"></span></div>
+      <div class="stat loc"><b id="nLocal">–</b><span id="lLocal"></span></div>
     </div>
     <button class="go big" id="btnEverything" onclick="downloadEverything()"></button>
-    <button class="small" id="btnRecheck" onclick="analyze(true)"></button>
-    <div class="analyzing hidden" id="analyzing"><span id="anText"></span><div class="bar"><i id="anBar"></i></div></div>
+    <button class="small" id="btnRecheck" onclick="refreshAll()"></button>
+    <div class="analyzing" id="syncBox">
+      <div class="syncrow"><span id="syncSuno"></span><span id="syncDisk"></span></div>
+      <div class="bar hidden" id="syncBarBox"><i id="syncBar"></i></div>
+    </div>
   </div>
   <div class="cols">
-    <div class="col ws"><div class="ptitle" id="tWs"></div><div id="wsList"></div></div>
+    <div class="col ws">
+      <div class="ptitle" id="tWs"></div>
+      <div class="wstools">
+        <input type="text" id="wsSearch" oninput="F.wsQ=this.value;renderWorkspaces()">
+        <select id="wsSort" onchange="F.wsSort=this.value;savePrefs();renderWorkspaces()"></select>
+        <label class="small-t muted chk"><input type="checkbox" id="wsIncomplete" onchange="F.incomplete=this.checked;savePrefs();renderWorkspaces()"> <span id="lblIncomplete"></span></label>
+      </div>
+      <div id="wsList"></div>
+    </div>
     <div class="col">
+      <div id="wsHead"></div>
       <div class="toolbar">
-        <input type="text" id="search" oninput="renderClips()">
-        <button class="small" id="btnWsMissing" onclick="downloadWorkspaceMissing()"></button>
+        <input type="text" id="search" oninput="F.limit=300;renderClips()">
+        <select id="sortSel" onchange="F.sort=this.value;savePrefs();renderClips()"></select>
+      </div>
+      <div class="toolbar">
+        <div class="seg" id="filterSeg"></div>
+        <span class="spacer"></span>
+        <button class="small" id="btnWsMissing" onclick="downloadViewMissing()"></button>
         <button class="small" id="btnSelected" onclick="downloadSelected()"></button>
       </div>
       <div id="clipList"></div>
@@ -275,10 +319,23 @@ const I18N = {
     finish:"Open my library →", finishNeed:"Finish steps 1 and 2 first",
     freeBanner:"Your Suno account is on the Free plan: Suno doesn't allow downloads, so they will be refused. Everything else works, and the big download button will be ready the day you upgrade.",
     tracks:"tracks", workspaces:"workspaces", onDisk:"on your disk", missing:"missing",
-    everything:n=>n?`⬇ Download everything missing (${n})`:"✅ Everything is downloaded", recheck:"↻ Re-check",
-    analyzing:(a,b)=>`Checking your library… ${a}/${b} workspaces`, notAnalyzed:"⬇ Download everything missing",
-    wsTitle:"Workspaces", search:"🔎 Filter tracks…",
-    wsMissing:n=>`⬇ Missing in this workspace (${n})`, selected:n=>`⬇ Selected (${n})`,
+    everything:n=>n?`⬇ Download everything missing (${n})`:"✅ Everything is downloaded", recheck:"↻ Re-check all", recheckTip:"Reload every workspace from Suno and re-scan your disk",
+    notAnalyzed:"⬇ Download everything missing", localOnlyStat:"only on disk",
+    syncList:"Suno: reading your workspaces…", syncing:(a,b)=>`Suno: updating ${a}/${b} changed workspaces…`, syncedAt:x=>`☁ Suno up to date (${x})`, syncErr:e=>`☁ Suno error: ${e}`,
+    scanning:(a,b)=>b?`💾 Scanning your disk… ${a}/${b} files`:"💾 Listing your workspace folders…", scannedAt:(n,x)=>`💾 ${n} files on disk (scanned ${x})`, scanErr:e=>`💾 Disk scan error: ${e}`,
+    wsTitle:"Workspaces", search:"🔎 Filter by title or style…", wsSearch:"🔎 Find…", onlyIncomplete:"incomplete only",
+    wsSortAZ:"A → Z", wsSortRecent:"Latest song first", wsSortMiss:"Most missing first",
+    allTracks:"All tracks", allSub:n=>`${n} workspaces together`, orphans:"Folders unknown to Suno", orphansSub:"files in “Suno - …” folders with no workspace",
+    orphansHint:"These files are in a workspace folder whose name matches no Suno workspace (renamed or deleted on Suno?).",
+    badgeTip:"on disk / on Suno", localOnlyTip:"files in this folder that match no Suno track", noWs:"No workspace matches.",
+    fAll:"All", fHave:"✅ On disk", fMiss:"🫥 Missing", fFav:"♥ Favorites",
+    sortNew:"Newest first", sortOld:"Oldest first", sortAZ:"Title A → Z", sortLong:"Longest first",
+    nTracks:n=>`${n} tracks`, totalDur:h=>`${h} h of music`, original:"Original (source of covers)",
+    matchedId:"On your disk (Suno id found in the file tags)", matchedTitle:"On your disk — found by title (no Suno id in this file's tags)", notOnDisk:"Not on your disk",
+    showMore:n=>`Show more (${n} left)`,
+    localOnlyTitle:n=>`📁 ${n} file(s) in this folder not linked to a Suno track`, localOnlyHint:"No Suno id in their tags and no track with the same title in this workspace. Old versions, edits, or songs deleted on Suno.",
+    stopRefused:"Stopped: Suno refuses downloads for this account.", noLyrics:"No Suno lyrics for a file that isn't linked to Suno.",
+    wsMissing:n=>`⬇ Missing here (${n})`, selected:n=>`⬇ Selected (${n})`,
     pickWs:"Pick a workspace on the left.", noTracks:"No tracks.",
     jobTitle:"Downloads", jobIdle:"Nothing running. Use the big button above, a workspace's “Missing” button, or tick tracks.",
     jobStep:(i,n)=>`${i} / ${n}`, cOk:n=>`✅ ${n} done`, cBad:n=>`❌ ${n} failed`, cSkip:n=>`⏭ ${n} already there`,
@@ -326,10 +383,23 @@ const I18N = {
     finish:"Ouvrir ma bibliothèque →", finishNeed:"Termine d'abord les étapes 1 et 2",
     freeBanner:"Ton compte Suno est en offre Free : Suno n'autorise pas le téléchargement, les demandes seront refusées. Tout le reste marche, et le gros bouton de téléchargement sera prêt le jour où tu passes Pro.",
     tracks:"titres", workspaces:"workspaces", onDisk:"sur ton disque", missing:"manquants",
-    everything:n=>n?`⬇ Télécharger tout ce qui manque (${n})`:"✅ Tout est téléchargé", recheck:"↻ Revérifier",
-    analyzing:(a,b)=>`Vérification de ta bibliothèque… ${a}/${b} workspaces`, notAnalyzed:"⬇ Télécharger tout ce qui manque",
-    wsTitle:"Workspaces", search:"🔎 Filtrer les titres…",
-    wsMissing:n=>`⬇ Manquants de ce workspace (${n})`, selected:n=>`⬇ Cochés (${n})`,
+    everything:n=>n?`⬇ Télécharger tout ce qui manque (${n})`:"✅ Tout est téléchargé", recheck:"↻ Tout revérifier", recheckTip:"Recharger tous les workspaces depuis Suno et réanalyser ton disque",
+    notAnalyzed:"⬇ Télécharger tout ce qui manque", localOnlyStat:"seulement sur le disque",
+    syncList:"Suno : lecture de tes workspaces…", syncing:(a,b)=>`Suno : mise à jour ${a}/${b} workspaces modifiés…`, syncedAt:x=>`☁ Suno à jour (${x})`, syncErr:e=>`☁ Erreur Suno : ${e}`,
+    scanning:(a,b)=>b?`💾 Analyse du disque… ${a}/${b} fichiers`:"💾 Recherche des dossiers de workspace…", scannedAt:(n,x)=>`💾 ${n} fichiers sur le disque (analysé ${x})`, scanErr:e=>`💾 Erreur d'analyse du disque : ${e}`,
+    wsTitle:"Workspaces", search:"🔎 Filtrer par titre ou style…", wsSearch:"🔎 Chercher…", onlyIncomplete:"incomplets seulement",
+    wsSortAZ:"A → Z", wsSortRecent:"Dernier titre en premier", wsSortMiss:"Plus de manquants d'abord",
+    allTracks:"Tous les titres", allSub:n=>`${n} workspaces réunis`, orphans:"Dossiers inconnus de Suno", orphansSub:"fichiers dans des dossiers « Suno - … » sans workspace",
+    orphansHint:"Ces fichiers sont dans un dossier de workspace dont le nom ne correspond à aucun workspace Suno (renommé ou supprimé sur Suno ?).",
+    badgeTip:"sur le disque / sur Suno", localOnlyTip:"fichiers de ce dossier qui ne correspondent à aucun titre Suno", noWs:"Aucun workspace ne correspond.",
+    fAll:"Tous", fHave:"✅ Sur le disque", fMiss:"🫥 Manquants", fFav:"♥ Favoris",
+    sortNew:"Plus récents d'abord", sortOld:"Plus anciens d'abord", sortAZ:"Titre A → Z", sortLong:"Plus longs d'abord",
+    nTracks:n=>`${n} titres`, totalDur:h=>`${String(h).replace('.',',')} h de musique`, original:"Originale (source des covers)",
+    matchedId:"Sur ton disque (ID Suno trouvé dans les tags du fichier)", matchedTitle:"Sur ton disque — retrouvé par le titre (pas d'ID Suno dans les tags de ce fichier)", notOnDisk:"Pas sur ton disque",
+    showMore:n=>`Afficher plus (${n} restants)`,
+    localOnlyTitle:n=>`📁 ${n} fichier(s) de ce dossier non reliés à un titre Suno`, localOnlyHint:"Pas d'ID Suno dans leurs tags et aucun titre du même nom dans ce workspace. Anciennes versions, montages, ou titres supprimés sur Suno.",
+    stopRefused:"Arrêté : Suno refuse les téléchargements pour ce compte.", noLyrics:"Pas de paroles Suno pour un fichier non relié à Suno.",
+    wsMissing:n=>`⬇ Manquants ici (${n})`, selected:n=>`⬇ Cochés (${n})`,
     pickWs:"Choisis un workspace à gauche.", noTracks:"Aucun titre.",
     jobTitle:"Téléchargements", jobIdle:"Rien en cours. Utilise le gros bouton en haut, le bouton « Manquants » d'un workspace, ou coche des titres.",
     jobStep:(i,n)=>`${i} / ${n}`, cOk:n=>`✅ ${n} faits`, cBad:n=>`❌ ${n} en échec`, cSkip:n=>`⏭ ${n} déjà là`,
@@ -355,9 +425,11 @@ const post=(path,body)=>api(path,{method:'POST',headers:{'Content-Type':'applica
 
 /* ============================== state ============================== */
 let CFG={}, AUTH={ok:false}, ACC=null;
-let workspaces=[], clipsByWs={}, localIds={}, currentWs=null, selected=new Set();
-let analyzing=false, analyzed=false, customMode=false;
-let job=null, player={clip:null}, alignedWords=null;
+let workspaces=[], clipsByWs={}, wsMarker={}, currentWs=null, selected=new Set();
+let LOCAL=[], MATCH={}, LOCAL_ONLY={}, CLIPWS={}, LOCAL_VIEW=[];
+let libLoaded=false, syncing=false, syncProg=null, syncErr=null, syncedAt=null, scanProg=null, scanErr=null, scannedAt=null;
+let F={filter:'all', sort:'new', wsSort:'az', wsQ:'', incomplete:false, limit:300};
+let customMode=false, job=null, player={clip:null}, alignedWords=null;
 const PRESETS={
   mm:{folder:'Suno - {workspace}', file:'<Disc#:2>-<Track#:3> <Title>'},
   simple:{folder:'{workspace}', file:'<Title>'}
@@ -378,23 +450,14 @@ function applyLang(){
   $('#lblQuality').textContent=t.quality; $('#lblLrc').textContent=t.lrc;
   $('#advSum').textContent=t.advSum; $('#lblDelay').textContent=t.delay; $('#lblDelayHint').textContent=t.delayHint;
   $('#btnRenameFolders').textContent=t.renameFolders; $('#lblRenameHint').textContent=t.renameHint;
-  $('#lTracks').textContent=t.tracks; $('#lWs').textContent=t.workspaces; $('#lHave').textContent=t.onDisk; $('#lMiss').textContent=t.missing;
-  $('#btnRecheck').textContent=t.recheck; $('#tWs').textContent=t.wsTitle; $('#search').placeholder=t.search;
+  $('#lTracks').textContent=t.tracks; $('#lWs').textContent=t.workspaces; $('#lHave').textContent=t.onDisk; $('#lMiss').textContent=t.missing; $('#lLocal').textContent=t.localOnlyStat;
+  $('#btnRecheck').textContent=t.recheck; $('#btnRecheck').title=t.recheckTip; $('#tWs').textContent=t.wsTitle; $('#search').placeholder=t.search;
+  $('#wsSearch').placeholder=t.wsSearch; $('#lblIncomplete').textContent=t.onlyIncomplete; $('#wsIncomplete').checked=!!F.incomplete;
+  $('#wsSort').innerHTML=[['az',t.wsSortAZ],['recent',t.wsSortRecent],['miss',t.wsSortMiss]].map(([k,n])=>`<option value="${k}" ${F.wsSort===k?'selected':''}>${esc(n)}</option>`).join('');
   $('#tJob').textContent=t.jobTitle; $('#jobIdle').textContent=t.jobIdle; $('#btnStop').textContent=t.stop; $('#lblLyrics').textContent=t.lyrics;
   $('#freeBanner').textContent=t.freeBanner;
-  renderSetup(); renderAccount(); renderStats(); renderWorkspaces(); renderClips(); renderJob();
+  renderSetup(); renderAccount(); renderAll();
 }
-
-/* ============================== boot ============================== */
-(async function(){
-  applyLang();
-  CFG=await api('/api/config');
-  if(CFG.language && CFG.language!==LANG){ LANG=CFG.language; try{localStorage.setItem('sunodlaa_lang',LANG);}catch(e){} }
-  AUTH=await api('/api/auth').catch(()=>({ok:false}));
-  if(AUTH.ok) loadAccount();
-  applyLang();
-  if(AUTH.ok && CFG.libraryExists) openLibrary(); else showSetup();
-})();
 
 /* ============================== account ============================== */
 async function loadAccount(){ ACC=await api('/api/account').catch(()=>null); renderAccount(); renderSetup(); }
@@ -476,14 +539,14 @@ async function afterAuth(){ AUTH=await api('/api/auth'); delete $('#s1Status').d
 async function pickFolder(){
   const st=$('#s2Status'); st.textContent='…'; st.className='status';
   const r=await post('/api/folder/pick').catch(()=>({ok:false,error:'x'}));
-  if(r.ok){ CFG=await api('/api/config'); st.textContent=''; workspaces=[]; clipsByWs={}; analyzed=false; }
+  if(r.ok){ CFG=await api('/api/config'); st.textContent=''; LOCAL=[]; libLoaded=false; }
   else if(r.cancelled){ st.textContent=''; }
   else { st.className='status bad'; st.textContent=T().pickFailed; $('#s2Type').open=true; }
   renderSetup();
 }
 async function saveLibPath(){
   const v=$('#libInput').value.trim().replace(/^"|"$/g,''); if(!v) return;
-  CFG=await post('/api/config',{libraryPath:v}); workspaces=[]; clipsByWs={}; analyzed=false;
+  CFG=await post('/api/config',{libraryPath:v}); LOCAL=[]; libLoaded=false;
   const st=$('#s2Status'); if(!CFG.libraryExists){ st.className='status bad'; st.textContent=T().folderMissing; } else st.textContent='';
   renderSetup();
 }
@@ -493,128 +556,332 @@ async function applyFolders(){
   if(!ren.length){ toast(t.foldersNone); return; }
   const ex=ren.slice(0,8).map(p=>`${p.from}  →  ${p.to}`).join('\n')+(ren.length>8?`\n… (+${ren.length-8})`:'');
   if(!confirm(t.foldersConfirm(ren.length,ex,conf.length))) return;
-  const r=await post('/api/folders/apply'); localIds={}; analyzed=false;
+  const r=await post('/api/folders/apply'); LOCAL=[]; libLoaded=false;
   toast(t.foldersDone(r.renamed||0,r.skipped||0,(r.errors||[]).length),6000);
 }
 
 /* ============================== library ============================== */
-function openLibrary(){
+// Suno side comes from cache\library.json first (instant), then only the workspaces
+// that changed on Suno are fetched again. Disk side comes from the background scan.
+const ALL_ID='*', ORPH_ID='?';
+const norm=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const collator=new Intl.Collator(undefined,{sensitivity:'base',numeric:true});
+function logUI(m){ post('/api/log',{msg:m}).catch(()=>{}); }
+function locale(){ return LANG==='fr'?'fr-FR':'en-GB'; }
+function fmtDate(iso,time){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return '';
+  return d.toLocaleDateString(locale(),{day:'numeric',month:'short',year:'numeric'})+(time?' '+d.toLocaleTimeString(locale(),{hour:'2-digit',minute:'2-digit'}):''); }
+function fmtMonth(iso){ if(!iso) return ''; const d=new Date(iso); return isNaN(d)?'':d.toLocaleDateString(locale(),{month:'short',year:'numeric'}); }
+function fmtDur(s){ s=Math.round(+s||0); if(!s) return ''; return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function ago(iso){ if(!iso) return ''; const rtf=new Intl.RelativeTimeFormat(LANG,{numeric:'auto'}); const s=(new Date(iso)-Date.now())/1000;
+  for(const [u,v] of [['year',31536000],['month',2592000],['day',86400],['hour',3600],['minute',60]]) if(Math.abs(s)>=v) return rtf.format(Math.round(s/v),u);
+  return rtf.format(0,'minute'); }
+function slim(c){ const m=c.metadata||{}; return {id:c.id,title:c.title||'',created_at:c.created_at||'',duration:m.duration||c.duration||0,tags:m.tags||'',prompt:m.prompt||'',
+  cover:m.cover_clip_id||'',image_url:c.image_url||'',image_large_url:c.image_large_url||'',audio_url:c.audio_url||'',is_liked:!!c.is_liked,display_name:c.display_name||''}; }
+function slimWs(w){ return {id:w.id,name:w.name||'',image_url:w.image_url||'',clip_count:w.clip_count||0,marker:JSON.stringify(w.last_updated_clip??null)+'|'+(w.clip_count||0)}; }
+function wsById(id){ return workspaces.find(w=>w.id===id); }
+function nClips(){ let n=0; for(const k in clipsByWs) n+=(clipsByWs[k]||[]).length; return n; }
+function savePrefs(){ try{ localStorage.setItem('sunodlaa_view',JSON.stringify({sort:F.sort,wsSort:F.wsSort,incomplete:F.incomplete,filter:F.filter})); }catch(e){} }
+try{ Object.assign(F,JSON.parse(localStorage.getItem('sunodlaa_view')||'{}')); }catch(e){}
+
+async function openLibrary(){
   if(!(AUTH.ok&&CFG.libraryExists)){ showSetup(); return; }
   $('#setup').classList.add('hidden'); $('#library').classList.remove('hidden');
   $('#btnSetup').classList.remove('hidden'); $('#btnLibrary').classList.add('hidden');
-  if(!workspaces.length) loadLibrary(); else if(!analyzed) analyze(); else renderAll();
+  if(!libLoaded){
+    libLoaded=true;
+    await loadCache();
+    if(!currentWs) currentWs=ALL_ID;
+    renderAll();
+    startDiskScan();
+    syncSuno(false);
+  } else renderAll();
 }
-function renderAll(){ renderStats(); renderWorkspaces(); renderClips(); renderJob(); }
-async function loadLibrary(){
-  workspaces=[]; let page=1,total=null;
-  $('#wsList').innerHTML='<div class="empty">…</div>';
-  while(true){
-    const d=await api('/api/suno?path=/api/project/me&page='+page).catch(e=>({error:''+e}));
-    if(d.error){ $('#wsList').innerHTML='<div class="empty">'+esc(d.error)+'</div>'; return; }
-    const items=d.projects||[]; workspaces=workspaces.concat(items); total=d.num_total_results??total;
-    if(!items.length||(total!=null&&workspaces.length>=total)) break; page++;
-  }
-  renderWorkspaces(); analyze();
+function renderAll(){ renderStats(); renderSync(); renderWorkspaces(); renderClips(); renderJob(); }
+async function refreshAll(){ logUI('user: re-check everything'); startDiskScan(); syncSuno(true); }
+
+async function loadCache(){
+  const d=await api('/api/cache/library').catch(()=>({}));
+  if(d && d.v===2 && Array.isArray(d.workspaces)){
+    workspaces=d.workspaces; clipsByWs=d.clips||{}; wsMarker=d.markers||{}; syncedAt=d.savedAt||null;
+    logUI(`library cache loaded: ${workspaces.length} workspaces, ${nClips()} tracks (saved ${d.savedAt})`);
+  } else logUI('no library cache yet: first full load from Suno');
+  recomputeMatch();
+}
+let saveT=null;
+function saveCache(now){
+  clearTimeout(saveT);
+  const go=()=>post('/api/cache/library',{v:2,savedAt:syncedAt||new Date().toISOString(),account:(ACC&&ACC.label)||'',workspaces,clips:clipsByWs,markers:wsMarker}).catch(()=>{});
+  if(now) return go(); saveT=setTimeout(go,1500);
 }
 async function fetchClips(ws){
   const out=[]; let page=1;
   while(true){
     const d=await api('/api/suno?path=/api/project/'+ws.id+'&page='+page);
     if(d.error) throw new Error(d.error);
-    const pc=d.project_clips||[]; pc.forEach(x=>{ if(x.clip) out.push(x.clip); });
+    const pc=d.project_clips||[]; pc.forEach(x=>{ if(x.clip) out.push(slim(x.clip)); });
     if(pc.length<20) break; page++;
   }
   return out;
 }
-async function scanLocal(){ const r=await api('/api/scan'); localIds={}; if(r.ids) Object.keys(r.ids).forEach(id=>localIds[id]=true); }
-async function analyze(refetch){
-  if(analyzing) return; analyzing=true; analyzed=false; if(refetch) clipsByWs={};
-  const box=$('#analyzing'); box.classList.remove('hidden'); renderStats();
-  await scanLocal();
-  for(let i=0;i<workspaces.length;i++){
-    $('#anText').textContent=T().analyzing(i,workspaces.length); $('#anBar').style.width=(100*i/Math.max(1,workspaces.length))+'%';
-    const w=workspaces[i];
-    if(!clipsByWs[w.id]){ try{ clipsByWs[w.id]=await fetchClips(w); }catch(e){ clipsByWs[w.id]=[]; } }
-    if(i%5===0){ renderStats(); renderWorkspaces(); }
+async function syncSuno(force){
+  if(syncing) return; syncing=true; syncErr=null; const t0=Date.now(); let fetched=0, errors=0;
+  syncProg={i:0,n:0}; renderSync();
+  try{
+    const list=[]; let page=1,total=null;
+    while(true){
+      const d=await api('/api/suno?path=/api/project/me&page='+page);
+      if(d.error) throw new Error(d.error);
+      const items=d.projects||[]; list.push(...items); total=d.num_total_results??total;
+      if(!items.length||(total!=null&&list.length>=total)) break; page++;
+    }
+    const fresh=list.map(slimWs), ids=new Set(fresh.map(w=>w.id));
+    Object.keys(clipsByWs).forEach(k=>{ if(!ids.has(k)){ delete clipsByWs[k]; delete wsMarker[k]; } });
+    workspaces=fresh;
+    const todo=fresh.filter(w=>force||!clipsByWs[w.id]||wsMarker[w.id]!==w.marker);
+    // the workspace on screen first
+    todo.sort((a,b)=>(b.id===currentWs)-(a.id===currentWs));
+    syncProg={i:0,n:todo.length}; recomputeMatch(); renderAll();
+    for(const w of todo){
+      try{ clipsByWs[w.id]=await fetchClips(w); wsMarker[w.id]=w.marker; fetched++; }
+      catch(e){ errors++; logUI(`suno: workspace "${w.name}" failed: ${e.message||e}`); }
+      syncProg.i++;
+      if(syncProg.i%5===0||w.id===currentWs){ recomputeMatch(); renderAll(); } else renderSync();
+      if(syncProg.i%25===0) saveCache();
+    }
+    syncedAt=new Date().toISOString(); await saveCache(true);
+    logUI(`suno sync done: ${fresh.length} workspaces, ${todo.length} changed, ${fetched} fetched, ${errors} errors, ${nClips()} tracks, ${Math.round((Date.now()-t0)/1000)} s`);
+  }catch(e){ syncErr=''+(e.message||e); logUI('suno sync ERROR: '+syncErr); }
+  syncing=false; syncProg=null; recomputeMatch(); renderAll(); logMatch();
+}
+
+/* ---- disk ---- */
+async function startDiskScan(){
+  const prev=await api('/api/scan/result').catch(()=>null); applyScan(prev,false);
+  const s=await post('/api/scan/start').catch(()=>({}));
+  if(!s.ok){ logUI('disk scan not started: '+JSON.stringify(s)); return; }
+  scanProg={done:0,total:0}; renderSync();
+  const poll=async()=>{
+    const st=await api('/api/scan/status').catch(()=>null);
+    if(st&&st.running){ scanProg={done:st.done,total:st.total}; renderSync(); setTimeout(poll,1000); return; }
+    scanProg=null; scanErr=st&&st.error;
+    const r=await api('/api/scan/result').catch(()=>null); applyScan(r,true); renderAll(); logMatch();
+  };
+  setTimeout(poll,600);
+}
+function applyScan(r,fresh){
+  if(!r) return; const files=r.files||(r.index&&r.index.files)||[];
+  if(!fresh && !files.length) return;
+  LOCAL=files; scannedAt=fresh?new Date().toISOString():((r.index&&r.index.scannedAt)||null);
+  recomputeMatch(); renderAll();
+}
+function trackNo(p){ const b=(p||'').split(/[\\/]/).pop(); const m=b.match(/^\s*(\d+)(?:[-_ .]+(\d+))?/); return m?+(m[2]||m[1]):null; }
+// Link Suno tracks to files: 1) Suno id in the tags (TSRC/TXXX/COMM) or (id8) in the name,
+// 2) same title inside the same workspace folder (files without any id only).
+function recomputeMatch(){
+  MATCH={}; LOCAL_ONLY={}; CLIPWS={};
+  const used=new Set(), byId={}, byId8={};
+  LOCAL.forEach((f,i)=>{ if(f.id) byId[f.id]=i; else if(f.id8) (byId8[f.id8]=byId8[f.id8]||[]).push(i); });
+  for(const w of workspaces) for(const c of (clipsByWs[w.id]||[])){
+    CLIPWS[c.id]=w;
+    let i=byId[c.id]; if(i==null){ const a=byId8[c.id.slice(0,8)]; if(a&&a.length===1) i=a[0]; }
+    if(i!=null&&!used.has(i)){ MATCH[c.id]={p:LOCAL[i].p,k:'id'}; used.add(i); }
   }
-  analyzing=false; analyzed=true; box.classList.add('hidden'); renderAll();
+  const byFolder={};
+  LOCAL.forEach((f,i)=>{ if(used.has(i)||f.id) return; const k=norm(f.w); (byFolder[k]=byFolder[k]||[]).push(i); });
+  for(const w of workspaces){
+    const pool=byFolder[norm(w.name)]; if(!pool) continue;
+    const cg={}, fg={};
+    (clipsByWs[w.id]||[]).forEach(c=>{ if(MATCH[c.id]) return; const k=norm(c.title); if(k) (cg[k]=cg[k]||[]).push(c); });
+    pool.forEach(i=>{ const f=LOCAL[i]; const k=[norm(f.t),norm(f.ft)].find(k=>k&&cg[k]); if(k) (fg[k]=fg[k]||[]).push(i); });
+    for(const k in fg){
+      const C=cg[k].slice().sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||''));
+      const Fi=fg[k].slice().sort((a,b)=>((trackNo(LOCAL[a].p)??1e9)-(trackNo(LOCAL[b].p)??1e9))||collator.compare(LOCAL[a].p,LOCAL[b].p));
+      for(let j=0;j<Math.min(C.length,Fi.length);j++){ MATCH[C[j].id]={p:LOCAL[Fi[j]].p,k:'title'}; used.add(Fi[j]); }
+    }
+  }
+  const wsByNorm={}; workspaces.forEach(w=>wsByNorm[norm(w.name)]=w.id);
+  LOCAL.forEach((f,i)=>{ if(used.has(i)) return; const id=wsByNorm[norm(f.w)]||ORPH_ID; (LOCAL_ONLY[id]=LOCAL_ONLY[id]||[]).push(f); });
 }
-function wsStats(w){ const cs=clipsByWs[w.id]; if(!cs) return null; const have=cs.filter(c=>localIds[c.id]).length; return {total:cs.length,have,miss:cs.length-have}; }
+function logMatch(){
+  let byId=0,byTitle=0; for(const k in MATCH) (MATCH[k].k==='id'?byId++:byTitle++);
+  let lo=0; for(const k in LOCAL_ONLY) lo+=LOCAL_ONLY[k].length;
+  logUI(`match: ${LOCAL.length} files on disk, ${nClips()} Suno tracks -> ${byId} by id, ${byTitle} by title, ${nClips()-byId-byTitle} missing, ${lo} only on disk (${(LOCAL_ONLY[ORPH_ID]||[]).length} in folders unknown to Suno)`);
+}
+
+/* ---- stats / status ---- */
+function wsStats(w){
+  const cs=clipsByWs[w.id]; if(!cs) return null;
+  let have=0,first='',last='';
+  cs.forEach(c=>{ if(MATCH[c.id]) have++; const d=c.created_at||''; if(d&&(!first||d<first)) first=d; if(d>last) last=d; });
+  return {total:cs.length,have,miss:cs.length-have,first,last,local:(LOCAL_ONLY[w.id]||[]).length};
+}
 function renderStats(){
-  const t=T(); if(!$('#nTracks')) return; let tot=0,have=0,known=0;
+  const t=T(); if(!$('#nTracks')) return; let tot=0,have=0,known=0,lo=0;
   workspaces.forEach(w=>{ const s=wsStats(w); if(s){ tot+=s.total; have+=s.have; known++; } });
+  for(const k in LOCAL_ONLY) lo+=LOCAL_ONLY[k].length;
   $('#nTracks').textContent=known?tot:'–'; $('#nWs').textContent=workspaces.length||'–';
-  $('#nHave').textContent=known?have:'–'; $('#nMiss').textContent=known?(tot-have):'–';
-  const b=$('#btnEverything'); b.textContent=analyzed?t.everything(tot-have):t.notAnalyzed; b.disabled=!analyzed||(tot-have)===0||!!(job&&job.running);
+  $('#nHave').textContent=known?have:'–'; $('#nMiss').textContent=known?(tot-have):'–'; $('#nLocal').textContent=LOCAL.length?lo:'–';
+  const b=$('#btnEverything'), ready=known>0&&!syncing; b.textContent=ready?t.everything(tot-have):t.notAnalyzed;
+  b.disabled=!ready||(tot-have)===0||!!(job&&job.running);
+  $('#btnRecheck').disabled=syncing||!!scanProg;
 }
+function renderSync(){
+  const t=T(); if(!$('#syncSuno')) return;
+  let s1, s2;
+  if(syncProg) s1=syncProg.n?t.syncing(syncProg.i,syncProg.n):t.syncList;
+  else if(syncErr) s1=t.syncErr(syncErr);
+  else s1=syncedAt?t.syncedAt(ago(syncedAt)):'';
+  if(scanProg) s2=t.scanning(scanProg.done,scanProg.total);
+  else if(scanErr) s2=t.scanErr(scanErr);
+  else s2=scannedAt?t.scannedAt(LOCAL.length,ago(scannedAt)):'';
+  $('#syncSuno').textContent=s1; $('#syncDisk').textContent=s2;
+  const p=syncProg&&syncProg.n?syncProg.i/syncProg.n:(scanProg&&scanProg.total?scanProg.done/scanProg.total:null);
+  $('#syncBarBox').classList.toggle('hidden',!(syncProg||scanProg)); $('#syncBar').style.width=(p==null?15:100*p)+'%';
+  renderStats();
+}
+
+/* ---- workspaces column ---- */
 function renderWorkspaces(){
-  const el=$('#wsList'); if(!el) return;
-  if(!workspaces.length){ el.innerHTML='<div class="empty">…</div>'; return; }
-  el.innerHTML='';
-  workspaces.forEach(w=>{
-    const s=wsStats(w), d=document.createElement('div');
-    d.className='ws-item'+(currentWs&&currentWs.id===w.id?' active':'');
-    const img=w.image_url?`<img src="${esc(w.image_url)}">`:'<div class="ph"></div>';
-    const badge=s?`<span class="badge ${s.miss===0?'full':'part'}">${s.have}/${s.total}</span>`:`<span class="badge">${w.clip_count||0}</span>`;
-    d.innerHTML=img+`<div class="meta"><div class="name">${esc(w.name||'—')}</div></div>`+badge;
-    d.onclick=()=>openWorkspace(w); el.appendChild(d);
+  const t=T(), el=$('#wsList'); if(!el) return;
+  if(!workspaces.length){ el.innerHTML='<div class="empty">'+(syncing?'…':esc(syncErr||'…'))+'</div>'; return; }
+  const q=norm(F.wsQ);
+  let list=workspaces.map(w=>({w,s:wsStats(w)})).filter(x=>(!q||norm(x.w.name).includes(q))&&(!F.incomplete||!x.s||x.s.miss>0));
+  if(F.wsSort==='recent') list.sort((a,b)=>((b.s&&b.s.last)||'').localeCompare((a.s&&a.s.last)||''));
+  else if(F.wsSort==='miss') list.sort((a,b)=>((b.s&&b.s.miss)||0)-((a.s&&a.s.miss)||0)||collator.compare(a.w.name,b.w.name));
+  else list.sort((a,b)=>collator.compare(a.w.name,b.w.name));
+  let tot=0,have=0; workspaces.forEach(w=>{ const s=wsStats(w); if(s){ tot+=s.total; have+=s.have; } });
+  const rows=[];
+  rows.push(`<div class="ws-item all ${currentWs===ALL_ID?'active':''}" onclick="openWorkspace('${ALL_ID}')"><div class="ph">♫</div><div class="meta"><div class="name">${esc(t.allTracks)}</div><div class="sub">${esc(t.allSub(workspaces.length))}</div></div><span class="badge ${tot&&have===tot?'full':'part'}">${have}/${tot}</span></div>`);
+  rows.push('<div class="ws-sep"></div>');
+  list.forEach(({w,s})=>{
+    const img=w.image_url?`<img loading="lazy" src="${esc(w.image_url)}">`:'<div class="ph"></div>';
+    const range=s&&s.first?(fmtMonth(s.first)===fmtMonth(s.last)?fmtMonth(s.first):`${fmtMonth(s.first)} → ${fmtMonth(s.last)}`):'';
+    const badge=s?`<span class="badge ${s.miss===0?'full':'part'}" title="${esc(t.badgeTip)}">${s.have}/${s.total}</span>`:`<span class="badge">${w.clip_count||0}</span>`;
+    const loc=s&&s.local?`<span class="badge loc" title="${esc(t.localOnlyTip)}">+${s.local}</span>`:'';
+    rows.push(`<div class="ws-item ${currentWs===w.id?'active':''}" onclick="openWorkspace('${w.id}')">${img}<div class="meta"><div class="name">${esc(w.name||'—')}</div><div class="sub">${esc(range)}</div></div>${loc}${badge}</div>`);
+  });
+  const orph=LOCAL_ONLY[ORPH_ID]||[];
+  if(orph.length){ rows.push('<div class="ws-sep"></div>'); rows.push(`<div class="ws-item orph ${currentWs===ORPH_ID?'active':''}" onclick="openWorkspace('${ORPH_ID}')"><div class="ph">📁</div><div class="meta"><div class="name">${esc(t.orphans)}</div><div class="sub">${esc(t.orphansSub)}</div></div><span class="badge loc">${orph.length}</span></div>`); }
+  if(!list.length) rows.push('<div class="empty">'+esc(t.noWs)+'</div>');
+  el.innerHTML=rows.join('');
+}
+async function openWorkspace(id){
+  currentWs=id; selected=new Set(); F.limit=300; $('#search').value='';
+  const w=wsById(id);
+  logUI(`user: open ${id===ALL_ID?'All tracks':id===ORPH_ID?'folders unknown to Suno':'workspace "'+(w&&w.name)+'"'} (${w&&clipsByWs[id]?clipsByWs[id].length+' tracks in cache':'not loaded yet'})`);
+  renderWorkspaces(); renderClips();
+  if(w && !clipsByWs[id]){
+    try{ clipsByWs[id]=await fetchClips(w); wsMarker[id]=w.marker; recomputeMatch(); saveCache(); }
+    catch(e){ logUI(`workspace "${w.name}" failed: ${e.message||e}`); if(currentWs===id) $('#clipList').innerHTML='<div class="empty">'+esc(''+e)+'</div>'; return; }
+    renderAll();
+  }
+  $('.col:nth-child(2)') && ($('.col:nth-child(2)').scrollTop=0);
+}
+
+/* ---- tracks column ---- */
+function viewClips(){
+  if(currentWs===ALL_ID){ const a=[]; workspaces.forEach(w=>a.push(...(clipsByWs[w.id]||[]))); return a; }
+  return clipsByWs[currentWs]||null;
+}
+function originalsOf(cs){ const o=new Set(); cs.forEach(c=>{ if(c.cover) o.add(c.cover); }); return o; }
+function filtered(cs){
+  const q=norm($('#search').value);
+  return cs.filter(c=>{
+    if(F.filter==='have'&&!MATCH[c.id]) return false;
+    if(F.filter==='miss'&&MATCH[c.id]) return false;
+    if(F.filter==='fav'&&!c.is_liked) return false;
+    return !q||norm(c.title).includes(q)||norm(c.tags).includes(q);
   });
 }
-async function openWorkspace(w){
-  currentWs=w; selected=new Set(); renderWorkspaces();
-  if(!clipsByWs[w.id]){ $('#clipList').innerHTML='<div class="empty">…</div>'; try{ clipsByWs[w.id]=await fetchClips(w); }catch(e){ $('#clipList').innerHTML='<div class="empty">'+esc(''+e)+'</div>'; return; } }
-  renderClips(); renderWorkspaces(); renderStats();
-}
-function originalsOf(cs){ const o=new Set(); cs.forEach(c=>{ const x=c.metadata&&c.metadata.cover_clip_id; if(x) o.add(x); }); return o; }
 function renderClips(){
   const t=T(), el=$('#clipList'); if(!el) return;
   const bm=$('#btnWsMissing'), bs=$('#btnSelected');
-  if(!currentWs||!clipsByWs[currentWs.id]){ el.innerHTML='<div class="empty">'+esc(t.pickWs)+'</div>'; bm.classList.add('hidden'); bs.classList.add('hidden'); return; }
-  const cs=clipsByWs[currentWs.id], orig=originalsOf(cs), q=($('#search').value||'').toLowerCase();
-  const miss=cs.filter(c=>!localIds[c.id]).length;
+  $('#search').placeholder=t.search;
+  $('#sortSel').innerHTML=[['new',t.sortNew],['old',t.sortOld],['az',t.sortAZ],['long',t.sortLong]].map(([k,n])=>`<option value="${k}" ${F.sort===k?'selected':''}>${esc(n)}</option>`).join('');
+  const head=$('#wsHead');
+  if(currentWs===ORPH_ID){
+    bm.classList.add('hidden'); bs.classList.add('hidden'); $('#filterSeg').innerHTML='';
+    head.innerHTML=`<div class="wshead"><div class="ph" style="display:grid;place-items:center;color:#fff">📁</div><div><h2>${esc(t.orphans)}</h2><div class="muted small-t">${esc(t.orphansHint)}</div></div></div>`;
+    el.innerHTML=localFilesHtml(LOCAL_ONLY[ORPH_ID]||[],true); return;
+  }
+  const cs=viewClips();
+  const w=wsById(currentWs);
+  if(!cs){ head.innerHTML=''; el.innerHTML='<div class="empty">'+(currentWs&&w?'…':esc(t.pickWs))+'</div>'; bm.classList.add('hidden'); bs.classList.add('hidden'); $('#filterSeg').innerHTML=''; return; }
+  // header
+  let first='',last='',dur=0; cs.forEach(c=>{ const d=c.created_at||''; if(d&&(!first||d<first)) first=d; if(d>last) last=d; dur+=+c.duration||0; });
+  const nHave=cs.filter(c=>MATCH[c.id]).length, nFav=cs.filter(c=>c.is_liked).length;
+  const img=w&&w.image_url?`<img src="${esc(w.image_url)}">`:'<div class="ph"></div>';
+  const range=first?`${fmtDate(first)} → ${fmtDate(last)}`:'';
+  head.innerHTML=`<div class="wshead">${img}<div><h2>${esc(w?w.name:t.allTracks)}</h2><div class="muted small-t">${esc([t.nTracks(cs.length),range,dur?t.totalDur(Math.round(dur/3600*10)/10):''].filter(Boolean).join(' · '))}</div></div></div>`;
+  $('#filterSeg').innerHTML=[['all',t.fAll,cs.length],['have',t.fHave,nHave],['miss',t.fMiss,cs.length-nHave],['fav',t.fFav,nFav]]
+    .map(([k,n,c])=>`<button class="${F.filter===k?'on':''}" onclick="F.filter='${k}';F.limit=300;savePrefs();renderClips()">${esc(n)} <span class="muted">${c}</span></button>`).join('');
+  const miss=cs.filter(c=>!MATCH[c.id]).length;
   bm.classList.remove('hidden'); bm.textContent=t.wsMissing(miss); bm.disabled=!miss||!!(job&&job.running);
   bs.classList.toggle('hidden',!selected.size); bs.textContent=t.selected(selected.size); bs.disabled=!!(job&&job.running);
-  let list=cs.filter(c=>!q||(c.title||'').toLowerCase().includes(q)||((c.metadata&&c.metadata.tags)||'').toLowerCase().includes(q));
-  list.sort((a,b)=>{ const ao=orig.has(a.id)?0:1,bo=orig.has(b.id)?0:1; return ao!==bo?ao-bo:(b.created_at||'').localeCompare(a.created_at||''); });
-  if(!list.length){ el.innerHTML='<div class="empty">'+esc(t.noTracks)+'</div>'; return; }
-  el.innerHTML='';
-  list.forEach(c=>{
-    const has=!!localIds[c.id], o=orig.has(c.id), d=document.createElement('div');
-    d.className='clip'+(o?' orig':'');
-    const img=c.image_url?`<img src="${esc(c.image_url)}">`:'<div class="ph"></div>';
-    d.innerHTML=`<input type="checkbox" ${selected.has(c.id)?'checked':''} ${has?'disabled':''} onchange="toggleSel('${c.id}',this.checked)">`+
-      `<span class="avail">${has?'✅':'🫥'}</span>`+img+
-      `<div class="t"><div class="title">${o?'<span class="star">★ </span>':''}${esc(c.title||'—')}</div><div class="tags">${esc((c.metadata&&c.metadata.tags)||'')}</div></div>`+
-      `<button class="small" onclick="play('${c.id}')">▶</button>`;
-    el.appendChild(d);
+  const orig=originalsOf(cs);
+  let list=filtered(cs);
+  const by={new:(a,b)=>(b.created_at||'').localeCompare(a.created_at||''),old:(a,b)=>(a.created_at||'').localeCompare(b.created_at||''),
+    az:(a,b)=>collator.compare(a.title||'',b.title||''),long:(a,b)=>(+b.duration||0)-(+a.duration||0)}[F.sort]||((a,b)=>0);
+  list.sort(by);
+  const rows=[];
+  if(!list.length) rows.push('<div class="empty">'+esc(F.filter==='miss'&&cs.length?t.nothingMissing:t.noTracks)+'</div>');
+  list.slice(0,F.limit).forEach(c=>{
+    const m=MATCH[c.id], o=orig.has(c.id);
+    const av=m?(m.k==='id'?'✅':'☑️'):'🫥', avT=m?(m.k==='id'?t.matchedId:t.matchedTitle)+'\n'+m.p:t.notOnDisk;
+    const im=c.image_url?`<img loading="lazy" src="${esc(c.image_url)}">`:'<div class="ph"></div>';
+    const wsn=currentWs===ALL_ID&&CLIPWS[c.id]?`<span class="ws">${esc(CLIPWS[c.id].name)}</span> · `:'';
+    const sub=[fmtDate(c.created_at,true),fmtDur(c.duration),c.tags].filter(Boolean).join(' · ');
+    rows.push(`<div class="clip${o?' orig':''}"><input type="checkbox" ${selected.has(c.id)?'checked':''} ${m?'disabled':''} onchange="toggleSel('${c.id}',this.checked)">`+
+      `<span class="avail" title="${esc(avT)}">${av}</span>${im}`+
+      `<div class="t"><div class="title">${o?'<span class="star" title="'+esc(t.original)+'">★ </span>':''}${c.is_liked?'<span class="heart">♥ </span>':''}${esc(c.title||'—')}</div><div class="sub2">${wsn}${esc(sub)}</div></div>`+
+      `<button class="small" onclick="play('${c.id}')">▶</button></div>`);
   });
+  if(list.length>F.limit) rows.push(`<div class="more"><button class="small" onclick="F.limit+=300;renderClips()">${esc(t.showMore(list.length-F.limit))}</button></div>`);
+  if(currentWs!==ALL_ID){ const lo=LOCAL_ONLY[currentWs]||[]; if(lo.length) rows.push(`<details class="localonly"><summary>${esc(t.localOnlyTitle(lo.length))}</summary><div class="muted small-t" style="margin:6px 0">${esc(t.localOnlyHint)}</div>${localFilesHtml(lo,false)}</details>`); }
+  el.innerHTML=rows.join('');
+}
+function localFilesHtml(files,withDir){
+  LOCAL_VIEW=files.slice().sort((a,b)=>collator.compare(a.p,b.p));
+  if(!LOCAL_VIEW.length) return '<div class="empty">—</div>';
+  return LOCAL_VIEW.map((f,i)=>{ const name=f.p.split(/[\\/]/).pop(); return `<div class="lfile"><button class="small" onclick="playLocal(${i})">▶</button><div class="fn" title="${esc(f.p)}">${esc(name)}${withDir?`<div class="dir">${esc(f.w)}</div>`:''}</div></div>`; }).join('');
 }
 function toggleSel(id,on){ on?selected.add(id):selected.delete(id); renderClips(); }
 
 /* ============================== download job ============================== */
 function trackNumbers(cs){ const r={}; cs.slice().sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||'')).forEach((c,i)=>r[c.id]=i+1); return r; }
-function itemsFor(w,filter){ const cs=clipsByWs[w.id]||[], nums=trackNumbers(cs); return cs.filter(filter).map(c=>({clip:c,ws:w.name||'Misc',track:nums[c.id]})); }
+function makeItems(cs){ const nums={}; return cs.map(c=>{ const w=CLIPWS[c.id]||{id:'',name:'Misc'}; if(!nums[w.id]) nums[w.id]=trackNumbers(clipsByWs[w.id]||[]); return {clip:c,ws:w.name||'Misc',track:nums[w.id][c.id]||1}; }); }
 function confirmStart(n){ const t=T(); let m=t.confirmAll(n); if(ACC&&ACC.ok&&!ACC.pro) m+=t.confirmFree; return confirm(m); }
 function downloadEverything(){
-  const items=[]; workspaces.forEach(w=>items.push(...itemsFor(w,c=>!localIds[c.id])));
-  if(!items.length){ toast(T().nothingMissing); return; }
-  if(confirmStart(items.length)) runJob(items);
+  const cs=[]; workspaces.forEach(w=>cs.push(...(clipsByWs[w.id]||[]).filter(c=>!MATCH[c.id])));
+  if(!cs.length){ toast(T().nothingMissing); return; }
+  if(confirmStart(cs.length)) runJob(makeItems(cs),'everything missing');
 }
-function downloadWorkspaceMissing(){ if(!currentWs) return; const items=itemsFor(currentWs,c=>!localIds[c.id]); if(!items.length){ toast(T().nothingMissing); return; } if(confirmStart(items.length)) runJob(items); }
-function downloadSelected(){ if(!currentWs||!selected.size) return; const items=itemsFor(currentWs,c=>selected.has(c.id)&&!localIds[c.id]); selected=new Set(); if(items.length) runJob(items); }
-async function runJob(items){
+function downloadViewMissing(){
+  const cs=(viewClips()||[]).filter(c=>!MATCH[c.id]);
+  if(!cs.length){ toast(T().nothingMissing); return; }
+  if(confirmStart(cs.length)) runJob(makeItems(cs),'missing in '+(currentWs===ALL_ID?'All tracks':((wsById(currentWs)||{}).name)));
+}
+function downloadSelected(){
+  const cs=(viewClips()||[]).filter(c=>selected.has(c.id)&&!MATCH[c.id]); selected=new Set();
+  if(cs.length) runJob(makeItems(cs),'selection');
+}
+async function runJob(items,what){
   job={items,i:0,ok:0,bad:0,skip:0,fails:[],running:true,stop:false}; renderAll();
+  logUI(`download job start: ${items.length} tracks (${what})`);
   for(job.i=0; job.i<items.length; job.i++){
     if(job.stop) break;
     const it=items[job.i], c=it.clip; renderJob();
-    if(localIds[c.id]){ job.skip++; continue; }
+    if(MATCH[c.id]){ job.skip++; continue; }
     const body={clipId:c.id,audioUrl:c.audio_url,title:c.title,artist:c.display_name||'Suno',workspace:it.ws,disc:1,track:it.track,
-      tags:(c.metadata&&c.metadata.tags)||'',imageUrl:c.image_large_url||c.image_url||'',lyrics:(c.metadata&&c.metadata.prompt)||'',createdAt:c.created_at||''};
+      tags:c.tags||'',imageUrl:c.image_large_url||c.image_url||'',lyrics:c.prompt||'',createdAt:c.created_at||''};
     let r; try{ r=await post('/api/download',body); }catch(e){ r={ok:false,error:''+e}; }
-    if(r.ok){ job.ok++; localIds[c.id]=true; } else { job.bad++; job.fails.push({title:c.title||c.id,ws:it.ws,error:errText(r)}); }
+    if(r.ok){ job.ok++; MATCH[c.id]={p:r.path,k:'id'}; LOCAL.push({p:r.path,id:c.id,id8:c.id.slice(0,8),t:c.title,ft:c.title,w:it.ws}); }
+    else { job.bad++; job.fails.push({title:c.title||c.id,ws:it.ws,error:errText(r)});
+      if(r.code==='not_authorized'&&job.bad>=3&&job.ok===0){ job.stop=true; job.fails.push({title:'—',ws:'',error:T().stopRefused}); } }
     if(job.i%3===0){ renderStats(); renderWorkspaces(); renderClips(); }
   }
   job.running=false; renderAll();
+  logUI(`download job end: ${job.ok} ok, ${job.bad} failed, ${job.skip} already there${job.stop?' (stopped)':''}`);
   toast(T().jobDone(job.ok,job.bad),6000);
 }
 function stopJob(){ if(job&&job.running){ job.stop=true; $('#jobNow').textContent=T().stopping; } }
@@ -635,21 +902,39 @@ function renderJob(){
 /* ============================== player ============================== */
 function findClip(id){ for(const k in clipsByWs){ const c=(clipsByWs[k]||[]).find(x=>x.id===id); if(c) return c; } return null; }
 function play(id){
-  const t=T(), c=findClip(id); if(!c) return; player.clip=c; const a=$('#audio'), has=!!localIds[id];
-  a.src=has?('/api/play?id='+id):(c.audio_url||'');
-  $('#pName').textContent=c.title||'—'; $('#pSub').textContent=has?t.localFile:(c.audio_url?t.sunoStream:t.noSource);
+  const t=T(), c=findClip(id); if(!c) return; player.clip=c; const a=$('#audio'), m=MATCH[id];
+  a.src=m?('/api/play?path='+encodeURIComponent(m.p)):(c.audio_url||'');
+  $('#pName').textContent=c.title||'—';
+  $('#pSub').textContent=[m?t.localFile:(c.audio_url?t.sunoStream:t.noSource),(CLIPWS[id]||{}).name,fmtDate(c.created_at,true)].filter(Boolean).join(' · ');
+  $('#player').classList.add('show'); alignedWords=null; a.play().catch(()=>{});
+}
+function playLocal(i){
+  const t=T(), f=LOCAL_VIEW[i]; if(!f) return; player.clip=null; const a=$('#audio');
+  a.src='/api/play?path='+encodeURIComponent(f.p);
+  $('#pName').textContent=f.p.split(/[\\/]/).pop(); $('#pSub').textContent=t.localFile+' · '+f.w;
   $('#player').classList.add('show'); alignedWords=null; a.play().catch(()=>{});
 }
 async function openKaraoke(){
-  const c=player.clip; if(!c) return; $('#karaoke').classList.add('show'); $('#karaokeLine').textContent='…';
+  const c=player.clip; if(!c){ toast(T().noLyrics); return; } $('#karaoke').classList.add('show'); $('#karaokeLine').textContent='…';
   try{ const d=await api('/api/lyrics?id='+c.id); const w=d.aligned_words||[];
     if(w.length){ alignedWords=w.map(x=>({t:esc(x.word||''),s:x.start_s||0,e:x.end_s||0})); $('#karaokeLine').innerHTML=alignedWords.map((x,i)=>`<span class="w" id="kw${i}">${x.t}</span>`).join(' '); }
-    else $('#karaokeLine').innerHTML=esc((c.metadata&&c.metadata.prompt)||'—').replace(/\n/g,'<br>');
+    else $('#karaokeLine').innerHTML=esc(c.prompt||'—').replace(/\n/g,'<br>');
   }catch(e){ $('#karaokeLine').textContent='—'; }
 }
 function closeKaraoke(){ $('#karaoke').classList.remove('show'); }
 $('#audio').addEventListener('timeupdate',()=>{ if(!alignedWords) return; const t=$('#audio').currentTime;
   alignedWords.forEach((w,i)=>{ const s=document.getElementById('kw'+i); if(s) s.classList.toggle('on',t>=w.s&&t<=w.e); }); });
+/* ============================== boot ============================== */
+(async function(){
+  applyLang();
+  CFG=await api('/api/config');
+  if(CFG.language && CFG.language!==LANG){ LANG=CFG.language; try{localStorage.setItem('sunodlaa_lang',LANG);}catch(e){} }
+  AUTH=await api('/api/auth').catch(()=>({ok:false}));
+  if(AUTH.ok) loadAccount();
+  applyLang();
+  if(AUTH.ok && CFG.libraryExists) openLibrary(); else showSetup();
+})();
+
 </script>
 </body>
 </html>

@@ -60,14 +60,16 @@ echo   [OK] Desktop Head Unit: %DHU%
 rem ---- 2b. Car screen to simulate --------------------------------------------
 echo.
 echo   Car screen to simulate:
-echo     1. Mazda MX-5 2024+  - 8.8 inch widescreen, 1280x480  [default]
-echo     2. Classic 7 inch    - 800x480, older Mazda / most cars
-echo     3. Large Full HD     - 1920x1080
-choice /c 123 /n /t 15 /d 1 /m "   Your choice 1-3, automatic 1 in 15 s: "
+echo     1. Mazda MX-5 2024+   - 8.8 inch widescreen, 1280x480  [default]
+echo     2. Dacia Sandero 2017 - Media Nav 7 inch touch screen, 800x480
+echo     3. Classic 7 inch     - 800x480 with rotary knob, older Mazda
+echo     4. Large Full HD      - 1920x1080
+choice /c 1234 /n /t 15 /d 1 /m "   Your choice 1-4, automatic 1 in 15 s: "
 set "SCREEN=%errorlevel%"
 set "RES=1280x720" & set "MH=240" & set "DPI=160" & set "CTRL=true" & set "NAME=Mazda MX-5 2024+ 1280x480"
-if "%SCREEN%"=="2" (set "RES=800x480" & set "MH=" & set "DPI=160" & set "CTRL=true" & set "NAME=7 inch 800x480")
-if "%SCREEN%"=="3" (set "RES=1920x1080" & set "MH=" & set "DPI=240" & set "CTRL=false" & set "NAME=Full HD 1920x1080")
+if "%SCREEN%"=="2" (set "RES=800x480" & set "MH=" & set "DPI=140" & set "CTRL=false" & set "NAME=Dacia Sandero 2017 Media Nav 800x480")
+if "%SCREEN%"=="3" (set "RES=800x480" & set "MH=" & set "DPI=160" & set "CTRL=true" & set "NAME=7 inch 800x480")
+if "%SCREEN%"=="4" (set "RES=1920x1080" & set "MH=" & set "DPI=240" & set "CTRL=false" & set "NAME=Full HD 1920x1080")
 set "INI=%TOOLS%\sunodlaa-screen.ini"
 > "%INI%" echo [general]
 >>"%INI%" echo touch = true

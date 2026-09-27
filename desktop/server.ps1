@@ -11,6 +11,21 @@ Add-Type -AssemblyName System.Web
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
+# ---- Log (desktop\logs\sunoaaweb.log) + cache (desktop\cache) ------------
+$LogDir = Join-Path $Root 'logs';  New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+$CacheDir = Join-Path $Root 'cache'; New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
+$LogFile = Join-Path $LogDir 'sunoaaweb.log'
+$IndexPath = Join-Path $CacheDir 'local-index.json'
+$LibraryCachePath = Join-Path $CacheDir 'library.json'
+function Log($level, $msg) {
+    try {
+        if ((Test-Path -LiteralPath $LogFile) -and (Get-Item -LiteralPath $LogFile).Length -gt 5MB) { Move-Item -Force -LiteralPath $LogFile -Destination ($LogFile + '.1') }
+        $line = '{0} [{1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'), $level, $msg
+        [IO.File]::AppendAllText($LogFile, $line + "`r`n", (New-Object Text.UTF8Encoding($false)))
+    } catch {}
+}
+Log 'INFO' "==== SunoAAWeb start - PowerShell $($PSVersionTable.PSVersion) - $([Environment]::OSVersion.VersionString)"
+
 # ---- Config ---------------------------------------------------------
 $ConfigPath = Join-Path $Root 'config.json'
 function Load-Config {
@@ -279,7 +294,7 @@ function Sanitize($s) {
     return ($s -replace '[\\/:*?"<>|]', '_').Trim()
 }
 function Read-Body($req) {
-    $sr = New-Object IO.StreamReader($req.InputStream, $req.ContentEncoding)
+    $sr = New-Object IO.StreamReader($req.InputStream, (New-Object Text.UTF8Encoding($false)))
     $b = $sr.ReadToEnd(); $sr.Close(); return $b
 }
 function Write-Json($resp, $obj, $code = 200) {
@@ -297,30 +312,212 @@ function Write-Text($resp, $text, $ctype = 'text/html; charset=utf-8', $code = 2
     $resp.OutputStream.Write($bytes, 0, $bytes.Length); $resp.OutputStream.Close()
 }
 
-# ---- Scan bibliotheque locale (id Suno depuis TSRC) -----------------
+# ---- Scan bibliotheque locale (en arriere-plan, avec index en cache) -------
+# Only the workspace folders ("Suno - ...", or the folder pattern) are scanned.
+# For each audio file we read only the ID3 frame headers (a few KB, no cover
+# art), keep TSRC / TXXX / COMM (Suno id), TIT2 (title) and TALB (album).
+# Results are stored in cache\local-index.json: next scans only re-read files
+# whose size or date changed.
 $script:ScanMap = @{}
-function Scan-Library {
-    $map = @{}
-    if (-not $Cfg.libraryPath -or -not (Test-Path -LiteralPath $Cfg.libraryPath)) { $script:ScanMap = $map; return $map }
-    Get-ChildItem -LiteralPath $Cfg.libraryPath -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.mp3', '.wav' } | ForEach-Object {
-        $id = $null
-        if ($TagLibOk) {
-            try {
-                $tf = [TagLib.File]::Create($_.FullName)
-                $id = $tf.Tag.ISRC
-                $tf.Dispose()
-            } catch {}
+$script:ScanFiles = $null
+$script:ScanState = [hashtable]::Synchronized(@{ running=$false; done=0; total=0; error=$null; finishedAt=$null; startedAt=$null; result=$null; folders=0 })
+$script:ScanJob = $null
+
+$ScanScript = {
+    param($lib, $indexPath, $state, $logFile, $patPrefix, $patSuffix)
+    function L($m) { try { [IO.File]::AppendAllText($logFile, ('{0} [SCAN] {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'), $m) + "`r`n", (New-Object Text.UTF8Encoding($false))) } catch {} }
+    $uuidRx = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+    function Dec([byte[]]$b, [int]$off, [int]$enc) {
+        if ($off -ge $b.Length) { return '' }
+        $n = $b.Length - $off
+        switch ($enc) {
+            0 { $t = [Text.Encoding]::GetEncoding(28591).GetString($b, $off, $n) }
+            1 { $t = [Text.Encoding]::Unicode.GetString($b, $off, $n)
+                if ($n -ge 2 -and $b[$off] -eq 0xFE -and $b[$off+1] -eq 0xFF) { $t = [Text.Encoding]::BigEndianUnicode.GetString($b, $off, $n) } }
+            2 { $t = [Text.Encoding]::BigEndianUnicode.GetString($b, $off, $n) }
+            default { $t = [Text.Encoding]::UTF8.GetString($b, $off, $n) }
         }
-        if (-not $id) {
-            # fallback : "(id8)" ou "[id]" dans le nom
-            if ($_.BaseName -match '\(([0-9a-fA-F-]{8,})\)') { $id = $Matches[1] }
-            elseif ($_.BaseName -match '\[([0-9a-fA-F-]{8,})\]') { $id = $Matches[1] }
-        }
-        if ($id) { $map[$id] = $_.FullName }
+        return ($t -replace "[\uFEFF\uFFFE]", '')
     }
-    $script:ScanMap = $map
-    return $map
+    function Clean($t) { return (($t -split "`0" | Where-Object { $_ -ne '' }) -join ' ').Trim() }
+    function Read-Exact($fs, [int]$n) {
+        $buf = New-Object byte[] $n; $got = 0
+        while ($got -lt $n) { $r = $fs.Read($buf, $got, $n - $got); if ($r -le 0) { break }; $got += $r }
+        if ($got -lt $n) { return $null }
+        return ,$buf
+    }
+    # Parse an ID3v2 tag starting at the current stream position.
+    function Read-Id3($fs, $info) {
+        $h = Read-Exact $fs 10
+        if (-not $h -or [int]$h[0] -ne 0x49 -or [int]$h[1] -ne 0x44 -or [int]$h[2] -ne 0x33) { return }
+        $ver = [int]$h[3]; $flags = [int]$h[5]
+        $size = ([int]$h[6] -shl 21) -bor ([int]$h[7] -shl 14) -bor ([int]$h[8] -shl 7) -bor [int]$h[9]
+        $start = $fs.Position; $end = $start + $size
+        if ($flags -band 0x40) {
+            $e = Read-Exact $fs 4; if (-not $e) { return }
+            if ($ver -eq 4) { $es = ([int]$e[0] -shl 21) -bor ([int]$e[1] -shl 14) -bor ([int]$e[2] -shl 7) -bor [int]$e[3]; $fs.Position = $start + $es }
+            else { $es = ([int]$e[0] -shl 24) -bor ([int]$e[1] -shl 16) -bor ([int]$e[2] -shl 8) -bor [int]$e[3]; $fs.Position = $start + 4 + $es }
+        }
+        $hl = 10; if ($ver -eq 2) { $hl = 6 }
+        $guard = 0
+        while (($fs.Position + $hl) -le $end -and $guard -lt 400) {
+            $guard++
+            $fh = Read-Exact $fs $hl; if (-not $fh) { break }
+            if ([int]$fh[0] -eq 0) { break }
+            if ($ver -eq 2) {
+                $fid = [Text.Encoding]::ASCII.GetString($fh, 0, 3)
+                $fsz = ([int]$fh[3] -shl 16) -bor ([int]$fh[4] -shl 8) -bor [int]$fh[5]
+                $fid = switch ($fid) { 'TT2' {'TIT2'} 'TAL' {'TALB'} 'TRC' {'TSRC'} 'TXX' {'TXXX'} 'COM' {'COMM'} 'WXX' {'WXXX'} default {$fid} }
+            } else {
+                $fid = [Text.Encoding]::ASCII.GetString($fh, 0, 4)
+                if ($ver -eq 4) { $fsz = ([int]$fh[4] -shl 21) -bor ([int]$fh[5] -shl 14) -bor ([int]$fh[6] -shl 7) -bor [int]$fh[7] }
+                else { $fsz = ([int]$fh[4] -shl 24) -bor ([int]$fh[5] -shl 16) -bor ([int]$fh[6] -shl 8) -bor [int]$fh[7] }
+            }
+            if ($fsz -lt 0 -or ($fs.Position + $fsz) -gt $end) { break }
+            if ($fid -in @('TSRC','TIT2','TALB','TXXX','COMM','WXXX','WOAS') -and $fsz -gt 0 -and $fsz -lt 65536) {
+                $d = Read-Exact $fs $fsz; if (-not $d) { break }
+                switch ($fid) {
+                    'TSRC' { $info.tsrc = Clean (Dec $d 1 $d[0]) }
+                    'TIT2' { $info.title = Clean (Dec $d 1 $d[0]) }
+                    'TALB' { $info.album = Clean (Dec $d 1 $d[0]) }
+                    'COMM' { $t = Dec $d 4 $d[0]; if ($t -match $uuidRx) { if (-not $info.other) { $info.other = $Matches[0] } } }
+                    'WOAS' { $t = [Text.Encoding]::ASCII.GetString($d); if ($t -match $uuidRx) { if (-not $info.other) { $info.other = $Matches[0] } } }
+                    default { $t = Dec $d 1 $d[0]; if ($t -match $uuidRx) { if (-not $info.other) { $info.other = $Matches[0] } } }
+                }
+            } else {
+                $fs.Position = $fs.Position + $fsz
+            }
+        }
+    }
+    function Read-Tags($path) {
+        $info = @{ tsrc=$null; title=$null; album=$null; other=$null }
+        $fs = $null
+        try {
+            $fs = New-Object IO.FileStream($path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite, 8192)
+            $h = Read-Exact $fs 12
+            if (-not $h) { return $info }
+            $sig = [Text.Encoding]::ASCII.GetString($h, 0, 4)
+            if ($sig.StartsWith('ID3')) { $fs.Position = 0; Read-Id3 $fs $info }
+            elseif ($sig -eq 'RIFF' -and [Text.Encoding]::ASCII.GetString($h, 8, 4) -eq 'WAVE') {
+                $n = 0
+                while (($fs.Position + 8) -le $fs.Length -and $n -lt 64) {
+                    $n++
+                    $ch = Read-Exact $fs 8; if (-not $ch) { break }
+                    $cid = [Text.Encoding]::ASCII.GetString($ch, 0, 4)
+                    $csz = [BitConverter]::ToUInt32($ch, 4)
+                    $next = $fs.Position + $csz + ($csz % 2)
+                    if ($cid -eq 'id3 ' -or $cid -eq 'ID3 ') { Read-Id3 $fs $info; break }
+                    $fs.Position = $next
+                }
+            }
+        } catch {} finally { if ($fs) { $fs.Dispose() } }
+        return $info
+    }
+
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        $state.error = $null; $state.done = 0; $state.total = 0
+        $prev = @{}
+        if (Test-Path -LiteralPath $indexPath) {
+            try {
+                $old = [IO.File]::ReadAllText($indexPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+                foreach ($f in @($old.files)) { if ($f.p) { $prev[[string]$f.p] = $f } }
+            } catch { L "index unreadable, full rescan: $($_.Exception.Message)" }
+        }
+        $wsRx = '^\s*suno\s*[-\u2013\u2014]\s*'
+        $dirs = @()
+        foreach ($d in (Get-ChildItem -LiteralPath $lib -Directory -ErrorAction SilentlyContinue)) {
+            $ws = $null
+            if ($d.Name -match $wsRx) { $ws = ($d.Name -replace $wsRx, '').Trim() }
+            elseif (($patPrefix -or $patSuffix) -and $d.Name.StartsWith($patPrefix, [StringComparison]::OrdinalIgnoreCase) -and $d.Name.EndsWith($patSuffix, [StringComparison]::OrdinalIgnoreCase) -and $d.Name.Length -gt ($patPrefix.Length + $patSuffix.Length)) {
+                $ws = $d.Name.Substring($patPrefix.Length, $d.Name.Length - $patPrefix.Length - $patSuffix.Length).Trim()
+            }
+            if ($ws) { $dirs += ,@($d.FullName, $ws) }
+        }
+        $state.folders = $dirs.Count
+        L ("start: {0} workspace folders in {1} ({2} files in previous index)" -f $dirs.Count, $lib, $prev.Count)
+        $exts = @('.mp3', '.wav', '.m4a', '.flac', '.ogg', '.opus', '.aac')
+        $list = New-Object Collections.ArrayList
+        foreach ($d in $dirs) {
+            foreach ($f in (Get-ChildItem -LiteralPath $d[0] -Recurse -File -ErrorAction SilentlyContinue)) {
+                if ($exts -contains $f.Extension.ToLower()) { [void]$list.Add(@($f, $d[1])) }
+            }
+        }
+        $state.total = $list.Count
+        L ("listing done: {0} audio files ({1} ms)" -f $list.Count, $sw.ElapsedMilliseconds)
+        $out = New-Object Collections.ArrayList
+        $reused = 0; $read = 0; $withId = 0
+        foreach ($it in $list) {
+            $f = $it[0]; $ws = $it[1]
+            $mt = $f.LastWriteTimeUtc.Ticks
+            $o = $prev[$f.FullName]
+            if ($o -and [long]$o.len -eq $f.Length -and [long]$o.mt -eq $mt) {
+                $e = [ordered]@{ p=$f.FullName; len=$f.Length; mt=$mt; id=$o.id; id8=$o.id8; t=$o.t; ft=$o.ft; al=$o.al; w=$ws }
+                $reused++
+            } else {
+                $tg = Read-Tags $f.FullName
+                $read++
+                $id = $null
+                if ($tg.tsrc -and $tg.tsrc -match ('^' + $uuidRx + '$')) { $id = $tg.tsrc.ToLower() }
+                elseif ($tg.other) { $id = $tg.other.ToLower() }
+                elseif ($f.BaseName -match $uuidRx) { $id = $Matches[0].ToLower() }
+                $id8 = $null
+                if ($id) { $id8 = $id.Substring(0, 8) }
+                elseif ($f.BaseName -match '[\(\[]([0-9a-fA-F]{8})[\)\]]\s*$') { $id8 = $Matches[1].ToLower() }
+                elseif ($tg.tsrc -and $tg.tsrc -match '^[0-9a-fA-F]{8}') { $id8 = $tg.tsrc.Substring(0, 8).ToLower() }
+                $ft = $f.BaseName -replace '\s*[\(\[][0-9a-fA-F]{8}[\)\]]\s*$', ''
+                $ft = ($ft -replace '^\s*\d+(?:[-_ .]+\d+)*\s*(?:[-_.]\s*)?', '').Trim()
+                if (-not $ft) { $ft = $f.BaseName }
+                $e = [ordered]@{ p=$f.FullName; len=$f.Length; mt=$mt; id=$id; id8=$id8; t=$tg.title; ft=$ft; al=$tg.album; w=$ws }
+            }
+            if ($e.id) { $withId++ }
+            [void]$out.Add($e)
+            $state.done = $state.done + 1
+        }
+        $json = ConvertTo-Json -InputObject @{ version=1; library=$lib; scannedAt=(Get-Date).ToString('o'); files=@($out) } -Depth 4 -Compress
+        [IO.File]::WriteAllText($indexPath, $json, (New-Object Text.UTF8Encoding($false)))
+        $state.result = $out
+        L ("done: {0} files ({1} with Suno id, {2} re-read, {3} from cache) in {4} ms" -f $out.Count, $withId, $read, $reused, $sw.ElapsedMilliseconds)
+    } catch {
+        $state.error = "$($_.Exception.Message)"
+        L "ERROR $($_.Exception.Message)"
+    } finally {
+        $state.finishedAt = (Get-Date).ToString('o')
+        $state.running = $false
+    }
 }
+
+function Start-ScanJob {
+    Sync-ScanResult
+    if ($script:ScanState.running) { return @{ ok=$true; running=$true; already=$true } }
+    if (-not $Cfg.libraryPath -or -not (Test-Path -LiteralPath $Cfg.libraryPath)) { return @{ ok=$false; code='no_library' } }
+    $fp = [string]$Cfg.folderPattern; $pre = ''; $suf = ''
+    $i = $fp.IndexOf('{workspace}')
+    if ($i -ge 0) { $pre = $fp.Substring(0, $i); $suf = $fp.Substring($i + 11) }
+    $script:ScanState.running = $true
+    $script:ScanState.startedAt = (Get-Date).ToString('o')
+    $script:ScanState.result = $null
+    $ps = [PowerShell]::Create()
+    [void]$ps.AddScript($ScanScript).AddArgument([string]$Cfg.libraryPath).AddArgument($IndexPath).AddArgument($script:ScanState).AddArgument($LogFile).AddArgument($pre).AddArgument($suf)
+    $script:ScanJob = @{ ps=$ps; handle=$ps.BeginInvoke() }
+    Log 'INFO' "scan started in background: $($Cfg.libraryPath)"
+    return @{ ok=$true; running=$true }
+}
+function Sync-ScanResult {
+    if ($script:ScanJob -and -not $script:ScanState.running) {
+        try { [void]$script:ScanJob.ps.EndInvoke($script:ScanJob.handle) } catch { Log 'ERROR' "scan: $($_.Exception.Message)" }
+        try { $script:ScanJob.ps.Dispose() } catch {}
+        $script:ScanJob = $null
+        if ($script:ScanState.result) {
+            $script:ScanFiles = @($script:ScanState.result)
+            $m = @{}
+            foreach ($f in $script:ScanFiles) { if ($f.id) { $m[[string]$f.id] = $f.p } }
+            $script:ScanMap = $m
+        }
+    }
+}
+function Scan-Library { Sync-ScanResult; return $script:ScanMap }
+
 # ---- Renommage des dossiers existants selon le format choisi -------------
 # Detecte les dossiers de workspace ("Suno -Lucie", "suno-Lucie", "Suno - Lucie"...)
 # et calcule leur nouveau nom avec folderPattern. Le reste du nom est garde tel quel.
@@ -500,7 +697,7 @@ function Download-Clip($body) {
     $out = Join-Path $dir ($base + '.' + $format)
 
     try {
-        Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 300
+        Fetch-Retry $url $out
     } catch {
         if ($url -ne $audioUrl -and $format -eq 'mp3' -and $audioUrl) {
             try { Invoke-WebRequest -Uri $audioUrl -OutFile $out -UseBasicParsing -TimeoutSec 300 }
@@ -554,7 +751,22 @@ function Download-Clip($body) {
     }
     $delay = 0; try { $delay = [double]$Cfg.downloadDelaySec } catch {}
     if ($delay -gt 0) { Start-Sleep -Milliseconds ([int]($delay * 1000)) }
+    if ($clipId) { $script:ScanMap[[string]$clipId] = $out }
+    Log 'DL' "ok $clipId -> $out (lrc: $lrc)"
     return @{ ok = $true; path = $out; lrc = $lrc }
+}
+
+# Download with 3 attempts (1 s, 2 s pauses) - not for 401/403/404 (Suno refused)
+function Fetch-Retry($u, $o) {
+    for ($a = 1; $a -le 3; $a++) {
+        try { Invoke-WebRequest -Uri $u -OutFile $o -UseBasicParsing -TimeoutSec 300; return }
+        catch {
+            $c = 0; if ($_.Exception.Response) { $c = [int]$_.Exception.Response.StatusCode }
+            if ($a -eq 3 -or $c -in @(401, 403, 404)) { throw }
+            Log 'DL' "retry $a after error: $($_.Exception.Message)"
+            Start-Sleep -Seconds $a
+        }
+    }
 }
 
 # ---- Routeur --------------------------------------------------------
@@ -579,6 +791,7 @@ while ($listener.IsListening) {
     } catch { break }
     $req = $ctx.Request; $resp = $ctx.Response
     $path = $req.Url.AbsolutePath
+    $t0 = [Diagnostics.Stopwatch]::StartNew()
     try {
         if ($req.HttpMethod -eq 'OPTIONS') {
             $resp.Headers['Access-Control-Allow-Origin'] = '*'
@@ -626,9 +839,50 @@ while ($listener.IsListening) {
                 catch { Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
                 break
             }
+            '^/api/scan/start$' {
+                Write-Json $resp (Start-ScanJob); break
+            }
+            '^/api/scan/status$' {
+                Sync-ScanResult
+                $st = $script:ScanState
+                Write-Json $resp @{ ok=$true; running=[bool]$st.running; done=$st.done; total=$st.total; folders=$st.folders; error=$st.error; finishedAt=$st.finishedAt; hasResult=[bool]($script:ScanFiles -ne $null) }; break
+            }
+            '^/api/scan/result$' {
+                Sync-ScanResult
+                if ($null -ne $script:ScanFiles) {
+                    Write-Json $resp @{ ok=$true; fresh=$true; files=@($script:ScanFiles) }
+                } elseif (Test-Path -LiteralPath $IndexPath) {
+                    # last scan saved on disk (instant display while a new scan runs)
+                    $txt = [IO.File]::ReadAllText($IndexPath, [Text.Encoding]::UTF8)
+                    $ok = $false
+                    try { $ix = $txt | ConvertFrom-Json; $ok = ([string]$ix.library -eq [string]$Cfg.libraryPath) } catch {}
+                    if ($ok) {
+                        if ($script:ScanMap.Count -eq 0) { foreach ($f in @($ix.files)) { if ($f.id) { $script:ScanMap[[string]$f.id] = $f.p } } }
+                        Write-Text $resp ('{"ok":true,"fresh":false,"index":' + $txt + '}') 'application/json; charset=utf-8'
+                    } else { Write-Json $resp @{ ok=$true; fresh=$false; files=@() } }
+                } else { Write-Json $resp @{ ok=$true; fresh=$false; files=@() } }
+                break
+            }
             '^/api/scan$' {
-                $map = Scan-Library
-                Write-Json $resp @{ ok=$true; count=$map.Count; ids=$map }; break
+                # compatibility: id -> path map (starts a scan if none ever ran)
+                Sync-ScanResult
+                if ($null -eq $script:ScanFiles -and -not $script:ScanState.running) { [void](Start-ScanJob) }
+                Write-Json $resp @{ ok=$true; count=$script:ScanMap.Count; ids=$script:ScanMap; running=[bool]$script:ScanState.running }; break
+            }
+            '^/api/cache/library$' {
+                if ($req.HttpMethod -eq 'POST') {
+                    $b = Read-Body $req
+                    [IO.File]::WriteAllText($LibraryCachePath, $b, (New-Object Text.UTF8Encoding($false)))
+                    Write-Json $resp @{ ok=$true; bytes=$b.Length }
+                } elseif (Test-Path -LiteralPath $LibraryCachePath) {
+                    Write-Text $resp ([IO.File]::ReadAllText($LibraryCachePath, [Text.Encoding]::UTF8)) 'application/json; charset=utf-8'
+                } else { Write-Text $resp '{}' 'application/json; charset=utf-8' }
+                break
+            }
+            '^/api/log$' {
+                $b = Read-Body $req | ConvertFrom-Json
+                Log 'UI' ([string]$b.msg)
+                Write-Json $resp @{ ok=$true }; break
             }
             '^/api/suno$' {
                 # proxy : /api/suno?path=/api/project/me&page=1  (le reste de la query est transmis)
@@ -644,6 +898,7 @@ while ($listener.IsListening) {
                     Write-Json $resp $data
                 } catch {
                     $code = 502; if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+                    Log 'SUNO' "error $code on $sp : $($_.Exception.Message)"
                     Write-Json $resp @{ error="$($_.Exception.Message)"; status=$code } $code
                 }
                 break
@@ -660,6 +915,7 @@ while ($listener.IsListening) {
             '^/api/download$' {
                 $b = Read-Body $req | ConvertFrom-Json
                 $r = Download-Clip $b
+                if (-not $r.ok) { Log 'DL' "FAIL $($b.clipId) '$($b.title)' [$($b.workspace)] -> $($r.code) $($r.error)" }
                 Write-Json $resp $r
                 break
             }
@@ -687,10 +943,16 @@ while ($listener.IsListening) {
             }
             '^/api/play$' {
                 $qp = [System.Web.HttpUtility]::ParseQueryString($req.Url.Query)
-                $id = $qp['id']
-                if ($script:ScanMap.Count -eq 0) { Scan-Library | Out-Null }
-                $file = $script:ScanMap[$id]
-                if ($file -and (Test-Path $file)) { Stream-File $req $resp $file }
+                $id = $qp['id']; $pp = $qp['path']
+                Sync-ScanResult
+                $file = $null
+                if ($pp) {
+                    # only files inside the library folder
+                    $full = [IO.Path]::GetFullPath($pp); $libFull = [IO.Path]::GetFullPath([string]$Cfg.libraryPath)
+                    $sep = [string][IO.Path]::DirectorySeparatorChar; if (-not $libFull.EndsWith($sep)) { $libFull += $sep }
+                    if ($full.StartsWith($libFull, [StringComparison]::OrdinalIgnoreCase)) { $file = $full }
+                } elseif ($id) { $file = $script:ScanMap[$id] }
+                if ($file -and (Test-Path -LiteralPath $file)) { Stream-File $req $resp $file }
                 else { Write-Text $resp 'no local file' 'text/plain' 404 }
                 break
             }
@@ -711,7 +973,13 @@ while ($listener.IsListening) {
                 } else { Write-Text $resp 'Not found' 'text/plain' 404 }
             }
         }
+        $quiet = $path -in @('/api/scan/status', '/api/login/check', '/api/play', '/api/log') -or -not $path.StartsWith('/api/')
+        if (-not $quiet -or $resp.StatusCode -ge 400) {
+            $extra = ''; if ($path -eq '/api/suno') { $extra = ' ' + [System.Web.HttpUtility]::ParseQueryString($req.Url.Query)['path'] }
+            Log 'HTTP' ("{0} {1}{2} -> {3} ({4} ms)" -f $req.HttpMethod, $path, $extra, $resp.StatusCode, $t0.ElapsedMilliseconds)
+        }
     } catch {
+        Log 'ERROR' "$($req.HttpMethod) $path : $($_.Exception.Message)"
         try { Write-Json $resp @{ error="$($_.Exception.Message)" } 500 } catch {}
     }
 }

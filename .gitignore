@@ -12,3 +12,5 @@ android/.kotlin/
 *.iml
 # secrets
 *cookies*.json
+desktop/logs/
+desktop/cache/
