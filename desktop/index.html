@@ -445,6 +445,8 @@
 const I18N = {
   en: {
     setup:"⚙️ Setup", library:"📚 My library",
+    dlCleanTitle:n=>`✨ ${n} messy title(s) in this download`, dlCleanHelp:"Your files will be named after these titles. Clean them first? The new titles are saved on Suno too. You can edit each suggestion or untick it.",
+    dlKeepNames:"Download without renaming", dlRenameThen:"Rename, then download",
     followLyrics:"⤓ Follow the lyrics",
     miniIsOpen:"The player is in the mini window.", miniBack:"Bring it back",
     sortLbl:"Sort:", sbNew:"Newest", sbOld:"Oldest", sbAZ:"A→Z", sbLong:"Longest", wbAZ:"A→Z", wbRecent:"Latest", wbMiss:"Missing",
@@ -544,6 +546,8 @@ const I18N = {
   },
   fr: {
     setup:"⚙️ Réglages", library:"📚 Ma bibliothèque",
+    dlCleanTitle:n=>`✨ ${n} titre(s) moche(s) dans ce téléchargement`, dlCleanHelp:"Tes fichiers vont porter ces titres. On les nettoie d'abord ? Les nouveaux titres sont aussi enregistrés sur Suno. Tu peux modifier chaque proposition ou la décocher.",
+    dlKeepNames:"Télécharger sans renommer", dlRenameThen:"Renommer puis télécharger",
     followLyrics:"⤓ Suivre les paroles",
     miniIsOpen:"Le lecteur est dans la mini-fenêtre.", miniBack:"Le remettre ici",
     sortLbl:"Trier :", sbNew:"Récents", sbOld:"Anciens", sbAZ:"A→Z", sbLong:"Durée", wbAZ:"A→Z", wbRecent:"Derniers", wbMiss:"Manquants",
@@ -1120,16 +1124,12 @@ function confirmStart(n){ const t=T(); let m=t.confirmAll(n); if(ACC&&ACC.ok&&!A
 function downloadEverything(){
   const cs=[]; workspaces.forEach(w=>cs.push(...(clipsByWs[w.id]||[]).filter(isMissing)));
   if(!cs.length){ toast(T().nothingMissing); return; }
-  if(confirmStart(cs.length)) runJob(makeItems(cs),'everything missing');
+  startDownload(cs,'everything missing',true);
 }
 function downloadViewMissing(){
   const cs=(viewClips()||[]).filter(isMissing);
   if(!cs.length){ toast(T().nothingMissing); return; }
-  if(confirmStart(cs.length)) runJob(makeItems(cs),'missing in '+(currentWs===ALL_ID?'All tracks':((wsById(currentWs)||{}).name)));
-}
-function downloadSelected(){
-  const cs=(viewClips()||[]).filter(c=>selected.has(c.id)&&!MATCH[c.id]); selected=new Set();
-  if(cs.length) runJob(makeItems(cs),'selection');
+  startDownload(cs,'missing in '+(currentWs===ALL_ID?'All tracks':((wsById(currentWs)||{}).name)),true);
 }
 async function runJob(items,what){
   job={items,i:0,ok:0,bad:0,skip:0,fails:[],running:true,stop:false}; renderAll();
@@ -1318,15 +1318,30 @@ function cleanTitle(t0){
 function openCleanTitles(){
   const t=T(), cs=(viewClips()||[]).filter(c=>cleanTitle(c.title)!==c.title);
   if(!cs.length){ toast(t.cleanNone,4000); return; }
-  openModal(t.cleanTitleT(cs.length),`<div class="small-t muted">${esc(t.cleanHelp)}</div><div class="plan">${cs.map((c,i)=>`<label class="prow"><input type="checkbox" checked data-i="${i}"><div style="flex:1;min-width:0"><div class="from">${esc(c.title)}${currentWs===ALL_ID?` <span class="muted">· ${esc((CLIPWS[c.id]||{}).name||'')}</span>`:''}</div><input type="text" class="newt" data-i="${i}" value="${esc(cleanTitle(c.title))}"></div></label>`).join('')}</div>`,
-    [{label:t.cancel,onclick:closeModal},{label:t.cleanApply,cls:'primary',onclick:async()=>{
-      const rows=[...document.querySelectorAll('#modalBody .prow')].map(r=>({on:r.querySelector('input[type=checkbox]').checked,c:cs[+r.querySelector('.newt').dataset.i],v:r.querySelector('.newt').value.trim()})).filter(x=>x.on&&x.v&&x.v!==x.c.title);
-      let ok=0,bad=0,i=0;
-      for(const x of rows){ i++; $('#modalBtns').textContent=`${i} / ${rows.length}…`; const r=await applyTitle(x.c,x.v); if(r.ok) ok++; else bad++; await new Promise(z=>setTimeout(z,300)); }
-      closeModal(); saveCache(); recomputeMatch(); renderAll(); renderPlayer();
-      logUI(`user: clean titles -> ${ok} renamed on Suno, ${bad} failed`);
-      toast(t.cleanDone(ok,bad),6000);
-    }}]);
+  openCleanModal(cs,null);
+}
+// cs = tracks with a messy title. then = function to call afterwards (before a download), or null.
+function openCleanModal(cs,then){
+  const t=T();
+  const readRows=()=>[...document.querySelectorAll('#modalBody .prow')].map(r=>({on:r.querySelector('input[type=checkbox]').checked,c:cs[+r.querySelector('.newt').dataset.i],v:r.querySelector('.newt').value.trim()})).filter(x=>x.on&&x.v&&x.v!==x.c.title);
+  const apply=async()=>{
+    const rows=readRows(); let ok=0,bad=0,i=0;
+    for(const x of rows){ i++; $('#modalBtns').textContent=`${i} / ${rows.length}…`; const r=await applyTitle(x.c,x.v); if(r.ok) ok++; else bad++; await new Promise(z=>setTimeout(z,300)); }
+    closeModal(); saveCache(); recomputeMatch(); renderAll(); renderPlayer();
+    logUI(`user: clean titles${then?' before download':''} -> ${ok} renamed on Suno, ${bad} failed`);
+    toast(t.cleanDone(ok,bad),5000);
+    if(then) then();
+  };
+  const buttons=then
+    ?[{label:t.cancel,onclick:closeModal},{label:t.dlKeepNames,onclick:()=>{ closeModal(); logUI('user: download without renaming'); then(); }},{label:t.dlRenameThen,cls:'primary',onclick:apply}]
+    :[{label:t.cancel,onclick:closeModal},{label:t.cleanApply,cls:'primary',onclick:apply}];
+  openModal(then?t.dlCleanTitle(cs.length):t.cleanTitleT(cs.length),`<div class="small-t muted">${esc(then?t.dlCleanHelp:t.cleanHelp)}</div><div class="plan">${cs.map((c,i)=>`<label class="prow"><input type="checkbox" checked data-i="${i}"><div style="flex:1;min-width:0"><div class="from">${esc(c.title)} <span class="muted">· ${esc((CLIPWS[c.id]||{}).name||'')}</span></div><input type="text" class="newt" data-i="${i}" value="${esc(cleanTitle(c.title))}"></div></label>`).join('')}</div>`,buttons);
+}
+// Before any download: offer to clean messy titles first (the file name comes from the title)
+function startDownload(cs,what,ask){
+  const go=()=>{ const fresh=cs.map(c=>findClip(c.id)||c); if(!ask||confirmStart(fresh.length)) runJob(makeItems(fresh),what); };
+  const ugly=cs.filter(c=>cleanTitle(c.title)!==c.title);
+  if(ugly.length) openCleanModal(ugly,go); else go();
 }
 
 /* ============================== restore a backup (.json) ============================== */
@@ -1364,7 +1379,7 @@ function renderBatchBar(){
 }
 function downloadSelected(){
   const cs=selClips().filter(isMissing); selected=new Set();
-  if(cs.length) runJob(makeItems(cs),'selection'); else renderClips();
+  if(cs.length) startDownload(cs,'selection',false); else renderClips();
 }
 function batchIgnore(){
   const cs=selClips().filter(c=>!MATCH[c.id]); const allIgn=cs.every(c=>IGNORED[c.id]);

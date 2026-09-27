@@ -42,7 +42,48 @@ function Load-Config {
         folderPattern = 'Suno - {workspace}'   # {workspace} = nom du workspace
     }
 }
-function Save-Config($cfg) { $cfg | ConvertTo-Json -Depth 5 | Set-Content $ConfigPath -Encoding UTF8 }
+# ---- Readable JSON files: 4-space indent, "key": value, Windows line ends ----
+Add-Type -TypeDefinition @'
+using System.Text;
+public static class SunoJson {
+    public static string Pretty(string json) {
+        if (json == null) return "null";
+        var sb = new StringBuilder(json.Length + json.Length / 2);
+        int ind = 0; bool inStr = false;
+        for (int i = 0; i < json.Length; i++) {
+            char c = json[i];
+            if (inStr) {
+                if (c == '\\' && i + 5 < json.Length && json[i + 1] == 'u') {
+                    string hex = json.Substring(i + 2, 4);
+                    if (hex == "003c") { sb.Append('<'); i += 5; continue; }
+                    if (hex == "003e") { sb.Append('>'); i += 5; continue; }
+                    if (hex == "0026") { sb.Append('&'); i += 5; continue; }
+                    if (hex == "0027") { sb.Append('\''); i += 5; continue; }
+                }
+                sb.Append(c);
+                if (c == '\\' && i + 1 < json.Length) { sb.Append(json[++i]); }
+                else if (c == '"') inStr = false;
+                continue;
+            }
+            switch (c) {
+                case '"': inStr = true; sb.Append(c); break;
+                case '{': case '[':
+                    int j = i + 1; while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
+                    if (j < json.Length && (json[j] == '}' || json[j] == ']')) { sb.Append(c).Append(json[j]); i = j; break; }
+                    sb.Append(c).Append("\r\n"); ind++; sb.Append(' ', ind * 4); break;
+                case '}': case ']':
+                    sb.Append("\r\n"); ind--; sb.Append(' ', ind * 4); sb.Append(c); break;
+                case ',': sb.Append(",\r\n").Append(' ', ind * 4); break;
+                case ':': sb.Append(": "); break;
+                default: if (!char.IsWhiteSpace(c)) sb.Append(c); break;
+            }
+        }
+        return sb.ToString();
+    }
+}
+'@
+function Write-JsonFile($path, $jsonText) { [IO.File]::WriteAllText($path, [SunoJson]::Pretty([string]$jsonText), (New-Object Text.UTF8Encoding($false))) }
+function Save-Config($cfg) { Write-JsonFile $ConfigPath ($cfg | ConvertTo-Json -Depth 5 -Compress) }
 $Cfg = Load-Config
 # Remplit toute cle manquante (config.json partiel) avec sa valeur par defaut.
 $defaults = @{
@@ -476,7 +517,7 @@ $ScanScript = {
             $state.done = $state.done + 1
         }
         $json = ConvertTo-Json -InputObject @{ version=1; library=$lib; scannedAt=(Get-Date).ToString('o'); files=@($out) } -Depth 4 -Compress
-        [IO.File]::WriteAllText($indexPath, $json, (New-Object Text.UTF8Encoding($false)))
+        [IO.File]::WriteAllText($indexPath, [SunoJson]::Pretty($json), (New-Object Text.UTF8Encoding($false)))
         $state.result = $out
         L ("done: {0} files ({1} with Suno id, {2} re-read, {3} from cache) in {4} ms" -f $out.Count, $withId, $read, $reused, $sw.ElapsedMilliseconds)
     } catch {
@@ -666,7 +707,7 @@ function Make-Backup($csv) {
         [void]$parts.Add('"' + $pair[0] + '":' + $txt)
     }
     $base = Join-Path $BackupDir ("SunoAAWeb-backup-$stamp")
-    [IO.File]::WriteAllText($base + '.json', '{' + ($parts -join ",`n") + '}', (New-Object Text.UTF8Encoding($false)))
+    Write-JsonFile ($base + '.json') ('{' + ($parts -join ',') + '}')
     $csvPath = $null
     if ($csv) { $csvPath = $base + '.csv'; [IO.File]::WriteAllText($csvPath, $csv, (New-Object Text.UTF8Encoding($true))) }
     $len = (Get-Item -LiteralPath ($base + '.json')).Length
@@ -1037,7 +1078,7 @@ while ($listener.IsListening) {
             '^/api/cache/library$' {
                 if ($req.HttpMethod -eq 'POST') {
                     $b = Read-Body $req
-                    [IO.File]::WriteAllText($LibraryCachePath, $b, (New-Object Text.UTF8Encoding($false)))
+                    Write-JsonFile $LibraryCachePath $b
                     Write-Json $resp @{ ok=$true; bytes=$b.Length }
                 } elseif (Test-Path -LiteralPath $LibraryCachePath) {
                     Write-Text $resp ([IO.File]::ReadAllText($LibraryCachePath, [Text.Encoding]::UTF8)) 'application/json; charset=utf-8'
@@ -1145,7 +1186,7 @@ while ($listener.IsListening) {
                 $n = [string]$qp['name']
                 if ($n -notin @('ignored.json', 'local-index.json', 'title-aliases.json', 'library.json')) { Write-Json $resp @{ ok=$false; error='bad name' } 400; break }
                 $fp = Join-Path $CacheDir $n
-                if ($req.HttpMethod -eq 'POST') { $txt = Read-Body $req; [IO.File]::WriteAllText($fp, $txt, (New-Object Text.UTF8Encoding($false))); if ($n -eq 'local-index.json') { $script:ScanFiles = $null; $script:ScanMap = @{} }; Write-Json $resp @{ ok=$true; bytes=$txt.Length } }
+                if ($req.HttpMethod -eq 'POST') { $txt = Read-Body $req; Write-JsonFile $fp $txt; if ($n -eq 'local-index.json') { $script:ScanFiles = $null; $script:ScanMap = @{} }; Write-Json $resp @{ ok=$true; bytes=$txt.Length } }
                 elseif (Test-Path -LiteralPath $fp) { Write-Text $resp ([IO.File]::ReadAllText($fp, [Text.Encoding]::UTF8)) 'application/json; charset=utf-8' }
                 else { Write-Text $resp '{}' 'application/json; charset=utf-8' }
                 break
