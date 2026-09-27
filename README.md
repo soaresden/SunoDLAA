@@ -80,11 +80,15 @@ Requirements: Windows 10/11 with Edge or Chrome. PowerShell and the tagging libr
    ⋮ → Developer settings → enable **Unknown sources**.
 
 ### Test Android Auto on your PC
-Run **`Launch Android Drive Unit Test.bat`**. It needs Android Studio installed once (for the SDK);
-the script installs the missing pieces itself (you just accept Google's license) and walks you through
-the phone side:
+Run **`Launch Android Drive Unit Test.bat`** — **no Android Studio needed**:
+- it uses the `adb` you already have (Minimal ADB, Android SDK, or anything on your PATH),
+  and can fetch Google's latest one if yours is too old;
+- on first run it downloads Google's official **Desktop Head Unit** (≈7 MB, checksum-verified)
+  into `%LOCALAPPDATA%\SUNODLAA\dhu`, after asking you.
+
+On the phone, once:
 1. Android Auto → Settings → tap *Version* 10× to unlock developer mode.
-2. Menu ⋮ → **Start head unit server**.
+2. Top-right menu → **Start head unit server**.
 3. Enable USB debugging and plug the phone in.
 
 Then pick **SUNODLAA** on the emulated car screen.

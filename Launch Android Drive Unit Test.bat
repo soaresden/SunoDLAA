@@ -4,83 +4,113 @@ title SUNODLAA - Android Auto test on PC (Desktop Head Unit)
 echo.
 echo   ============================================================
 echo    SUNODLAA - test Android Auto on this PC
-echo    (Google "Desktop Head Unit" emulator + your phone over USB)
+echo    Google "Desktop Head Unit" emulator + your phone over USB
+echo    No Android Studio needed.
 echo   ============================================================
 echo.
 
-rem ---- 1. Android SDK -------------------------------------------------
+set "TOOLS=%LOCALAPPDATA%\SUNODLAA\dhu"
+set "DHU_URL=https://dl.google.com/android/repository/desktop-head-unit-windows-x64_r02.0.zip"
+set "DHU_SHA1=680418d5aca256cce151eb7f9527294e95b6bb8a"
+set "PT_URL=https://dl.google.com/android/repository/platform-tools-latest-windows.zip"
 set "SDK=%LOCALAPPDATA%\Android\Sdk"
-if defined ANDROID_HOME if exist "%ANDROID_HOME%" set "SDK=%ANDROID_HOME%"
-if not exist "%SDK%" goto :nosdk
-echo   [OK] Android SDK: %SDK%
+if defined ANDROID_HOME set "SDK=%ANDROID_HOME%"
+if not exist "%TOOLS%" mkdir "%TOOLS%"
 
-set "ADB=%SDK%\platform-tools\adb.exe"
-set "DHU=%SDK%\extras\google\auto\desktop-head-unit.exe"
-
-rem Java for sdkmanager: use the JDK bundled with Android Studio if none is set
-if not defined JAVA_HOME if exist "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe" set "JAVA_HOME=%ProgramFiles%\Android\Android Studio\jbr"
-
-set "SDKM="
-if exist "%SDK%\cmdline-tools\latest\bin\sdkmanager.bat" set "SDKM=%SDK%\cmdline-tools\latest\bin\sdkmanager.bat"
-if not defined SDKM for /d %%D in ("%SDK%\cmdline-tools\*") do if exist "%%D\bin\sdkmanager.bat" set "SDKM=%%D\bin\sdkmanager.bat"
-
-rem ---- 2. Install what is missing ----------------------------------------
-if exist "%ADB%" goto :haveadb
-call :install "platform-tools"
-if not exist "%ADB%" goto :end
+rem ---- 1. adb : Android SDK, PATH (Minimal ADB...), usual folders, or our copy
+set "ADB="
+if exist "%SDK%\platform-tools\adb.exe" set "ADB=%SDK%\platform-tools\adb.exe"
+if not defined ADB for /f "delims=" %%A in ('where adb 2^>nul') do if not defined ADB set "ADB=%%A"
+if not defined ADB if exist "%ProgramFiles(x86)%\Minimal ADB and Fastboot\adb.exe" set "ADB=%ProgramFiles(x86)%\Minimal ADB and Fastboot\adb.exe"
+if not defined ADB if exist "%ProgramFiles%\Minimal ADB and Fastboot\adb.exe" set "ADB=%ProgramFiles%\Minimal ADB and Fastboot\adb.exe"
+if not defined ADB if exist "%TOOLS%\platform-tools\adb.exe" set "ADB=%TOOLS%\platform-tools\adb.exe"
+if defined ADB goto :haveadb
+echo   [!] adb not found.
+choice /c YN /m "   Download Google platform-tools (adb, about 7 MB) now"
+if errorlevel 2 goto :end
+call :download "%PT_URL%" "%TOOLS%\pt.zip" || goto :dlfail
+powershell -NoProfile -Command "Expand-Archive -Force '%TOOLS%\pt.zip' '%TOOLS%'" || goto :dlfail
+del "%TOOLS%\pt.zip" >nul 2>&1
+set "ADB=%TOOLS%\platform-tools\adb.exe"
+if not exist "%ADB%" goto :dlfail
 :haveadb
-echo   [OK] adb found
+echo   [OK] adb: %ADB%
 
-if exist "%DHU%" goto :havedhu
-call :install "extras;google;auto"
-if not exist "%DHU%" goto :end
+rem ---- 2. Desktop Head Unit : Android SDK copy, or our own copy, or download it
+set "DHU="
+if exist "%SDK%\extras\google\auto\desktop-head-unit.exe" set "DHU=%SDK%\extras\google\auto\desktop-head-unit.exe"
+if not defined DHU if exist "%TOOLS%\desktop-head-unit.exe" set "DHU=%TOOLS%\desktop-head-unit.exe"
+if defined DHU goto :havedhu
+echo.
+echo   [!] The Desktop Head Unit is not installed yet.
+echo       It is Google's official car-screen emulator, about 7 MB, from dl.google.com.
+echo       It is covered by the Android SDK license: https://developer.android.com/studio/terms
+choice /c YN /m "   Download it into %TOOLS%"
+if errorlevel 2 goto :end
+call :download "%DHU_URL%" "%TOOLS%\dhu.zip" || goto :dlfail
+powershell -NoProfile -Command "if ((Get-FileHash -Algorithm SHA1 -LiteralPath '%TOOLS%\dhu.zip').Hash -ne '%DHU_SHA1%') { exit 1 }"
+if errorlevel 1 goto :badhash
+powershell -NoProfile -Command "Expand-Archive -Force '%TOOLS%\dhu.zip' '%TOOLS%'" || goto :dlfail
+del "%TOOLS%\dhu.zip" >nul 2>&1
+set "DHU=%TOOLS%\desktop-head-unit.exe"
+if not exist "%DHU%" goto :dlfail
 :havedhu
-echo   [OK] Desktop Head Unit found
+echo   [OK] Desktop Head Unit: %DHU%
 
-rem ---- 3. Phone ----------------------------------------------------------
+rem ---- 3. Phone ------------------------------------------------------------
 echo.
 echo   Checklist on the phone - only needed once:
 echo     1. Android Auto installed and opened at least once
 echo     2. Android Auto settings - tap "Version" 10 times - developer mode
-echo     3. Menu - "Start head unit server"
+echo     3. Top-right menu - "Start head unit server"
 echo     4. USB debugging enabled, phone plugged in and authorized
 echo.
+:forward
 echo   Connected devices:
 "%ADB%" devices
 "%ADB%" forward tcp:5277 tcp:5277
 if errorlevel 1 goto :noforward
-echo   [OK] Port 5277 forwarded
+echo   [OK] Port 5277 forwarded to the phone
 
-rem ---- 4. Start ----------------------------------------------------------
-echo   [..] Starting the Desktop Head Unit - pick SUNODLAA in its launcher.
-start "Desktop Head Unit" /d "%SDK%\extras\google\auto" "%DHU%"
+rem ---- 4. Start --------------------------------------------------------------
+for %%F in ("%DHU%") do set "DHUDIR=%%~dpF"
+set "DHUDIR=%DHUDIR:~0,-1%"
+echo   [..] Starting the Desktop Head Unit - pick SUNODLAA on the car screen.
+start "Desktop Head Unit" /d "%DHUDIR%" "%DHU%"
 goto :end
 
-rem ------------------------------------------------------------------------
-:install
-if defined SDKM goto :doinstall
-echo.
-echo   [X] Missing SDK component: %~1
-echo       Android Studio - Settings - Languages and Frameworks - Android SDK
-echo       - "SDK Tools" tab - tick "Android SDK Command-line Tools" and
-echo       "Android Auto Desktop Head Unit Emulator" - Apply. Then run me again.
-exit /b 1
-:doinstall
-echo.
-echo   [..] Installing %~1 with sdkmanager...
-echo        Type y then Enter to accept Google's license when asked.
-call "%SDKM%" --install "%~1"
-exit /b %errorlevel%
+rem ------------------------------------------------------------------------------
+:download
+echo   [..] Downloading %~1
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest -UseBasicParsing -Uri '%~1' -OutFile '%~2'"
+if not exist "%~2" exit /b 1
+exit /b 0
 
-:nosdk
-echo   [X] Android SDK not found in %SDK%
-echo       Install Android Studio once, or set the ANDROID_HOME variable.
+:dlfail
+echo   [X] Download or extraction failed. Check your internet connection and run me again.
+goto :end
+
+:badhash
+echo   [X] The downloaded file does not match Google's checksum - deleted, nothing installed.
+del "%TOOLS%\dhu.zip" >nul 2>&1
 goto :end
 
 :noforward
 echo   [X] adb could not reach the phone.
 echo       Is it plugged in, with USB debugging allowed on the phone screen?
-goto :end
+if /i "%ADB%"=="%TOOLS%\platform-tools\adb.exe" goto :end
+echo       Your adb may also be too old for this phone - Minimal ADB often is.
+choice /c YN /m "   Retry with Google's latest adb, about 7 MB"
+if errorlevel 2 goto :end
+if exist "%TOOLS%\platform-tools\adb.exe" goto :useptadb
+call :download "%PT_URL%" "%TOOLS%\pt.zip" || goto :dlfail
+powershell -NoProfile -Command "Expand-Archive -Force '%TOOLS%\pt.zip' '%TOOLS%'" || goto :dlfail
+del "%TOOLS%\pt.zip" >nul 2>&1
+:useptadb
+set "ADB=%TOOLS%\platform-tools\adb.exe"
+if not exist "%ADB%" goto :dlfail
+echo   [OK] adb: %ADB%
+goto :forward
 
 :end
 echo.
