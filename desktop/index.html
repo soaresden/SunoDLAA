@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUNODLAA</title>
+<link rel="icon" href="assets/logo.png">
+<style>
+  :root{
+    --fuchsia:#E81E8C; --turq:#009B8E; --yellow:#FFC531; --orange:#F57C00; --cobalt:#2B6BFF; --violet:#8A2BE2;
+    --bg:#FFF9FC; --bg2:#FBEAF3; --card:#ffffff; --ink:#1B1B1F; --muted:#7A6B75;
+    --border:#EBD5E4; --gold:#E3B341; --ok:#009B8E;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{display:flex;align-items:center;gap:12px;padding:8px 16px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  header img{height:38px;width:38px;border-radius:50%}
+  header h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.5px;
+    background:linear-gradient(90deg,var(--fuchsia),var(--orange),var(--turq),var(--cobalt));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .badge{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--bg2);color:var(--muted)}
+  .badge.ok{color:#fff;background:var(--turq)} .badge.err{color:#fff;background:var(--fuchsia)}
+  .spacer{flex:1}
+  select,button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:7px 12px;background:var(--bg2);color:var(--ink)}
+  select{padding:6px 8px}
+  button:hover{filter:brightness(1.04)}
+  button.primary{background:linear-gradient(90deg,var(--fuchsia),var(--orange));color:#fff;font-weight:700}
+  button.go{background:linear-gradient(90deg,var(--turq),var(--cobalt));color:#fff;font-weight:800}
+  button.small{padding:5px 9px;font-size:12px}
+  input,textarea{font:inherit;background:#fff;color:var(--ink);border:1px solid var(--border);border-radius:10px;padding:8px}
+  .layout{display:grid;grid-template-columns:300px 1fr 300px;height:calc(100vh - 55px)}
+  .col{overflow:auto;padding:10px}
+  .col.ws{border-right:1px solid var(--border)}
+  .col.queue{border-left:1px solid var(--border);background:#fff}
+  .panel-title{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:6px 4px;font-weight:700}
+  .ws-item{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;cursor:pointer}
+  .ws-item:hover{background:var(--bg2)}
+  .ws-item.active{background:var(--bg2);outline:2px solid var(--fuchsia)}
+  .ws-item img,.ws-item .ph{width:44px;height:44px;border-radius:10px;object-fit:cover;background:linear-gradient(135deg,var(--fuchsia),var(--turq));flex:none}
+  .ws-item .meta{min-width:0}
+  .ws-item .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ws-item .sub{color:var(--muted);font-size:12px}
+  .clip{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px}
+  .clip:hover{background:var(--bg2)}
+  .clip.orig{background:linear-gradient(90deg,rgba(255,197,49,.28),transparent);outline:1px solid var(--gold)}
+  .clip img,.clip .ph{width:40px;height:40px;border-radius:8px;object-fit:cover;background:linear-gradient(135deg,var(--orange),var(--fuchsia));flex:none}
+  .clip .t{min-width:0;flex:1}
+  .clip .title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .clip .title .star{color:var(--gold)}
+  .clip .tags{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .avail{font-size:16px;flex:none;width:22px;text-align:center}
+  .clip input[type=checkbox]{width:18px;height:18px;accent-color:var(--fuchsia)}
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .toolbar input.search{flex:1;min-width:120px}
+  .qitem{display:flex;gap:6px;align-items:center;font-size:12px;padding:6px;border-radius:8px;background:var(--bg2);margin-bottom:6px}
+  .qitem .st{flex:none;width:18px;text-align:center}
+  .qitem .qt{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .qitem.done{opacity:.55} .qitem.err{outline:1px solid var(--fuchsia)}
+  #settings{display:none;padding:14px 16px;background:var(--bg2);border-bottom:1px solid var(--border)}
+  #settings.open{display:block}
+  #settings .row{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
+  #settings label{width:150px;color:var(--muted);font-size:13px;font-weight:600}
+  #settings input{flex:1;min-width:200px}
+  .hint{color:var(--muted);font-size:12px;margin-left:4px}
+  .player{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);padding:8px 16px;display:none;align-items:center;gap:12px;z-index:30}
+  .player.show{display:flex}
+  .player .pt{flex:1;min-width:0} .player .pt .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+  .player audio{height:34px}
+  .empty{color:var(--muted);text-align:center;padding:40px 10px}
+  .karaoke{position:fixed;inset:0;background:rgba(255,249,252,.97);z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
+  .karaoke.show{display:flex}
+  .karaoke .line{font-size:26px;line-height:1.7;max-width:800px;color:var(--muted)}
+  .karaoke .w{transition:color .1s} .karaoke .w.on{color:var(--fuchsia);font-weight:700}
+  .karaoke .close{position:absolute;top:16px;right:20px}
+  .toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:50;display:none;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+</style>
+</head>
+<body>
+<header>
+  <img src="assets/logo.png" alt="SUNODLAA">
+  <h1>SUNODLAA</h1>
+  <span id="authBadge" class="badge">…</span>
+  <span class="spacer"></span>
+  <select id="langSel" onchange="setLang(this.value)" title="Language">
+    <option value="en">EN</option><option value="fr">FR</option>
+  </select>
+  <button class="small" id="btnScan" onclick="rescan()">↻</button>
+  <button class="small" id="btnSettings" onclick="toggleSettings()">⚙️</button>
+</header>
+
+<div id="settings">
+  <div class="row">
+    <label id="lblConn">Suno connection</label>
+    <button class="primary" id="btnLogin" onclick="doLogin()">🔑 Sign in</button>
+    <span class="hint" id="loginStatus"></span>
+  </div>
+  <details style="margin:8px 0 8px 160px">
+    <summary class="hint" id="lblManual" style="cursor:pointer">…or paste the __client cookie manually</summary>
+    <textarea id="cfgCookie" style="width:100%;height:60px;margin-top:6px;font-family:monospace;font-size:12px"></textarea>
+    <button class="small" id="btnSaveCookie" onclick="saveConfig()" style="margin-top:4px">Save cookie</button>
+  </details>
+  <div class="row">
+    <label id="lblFolder">Library folder</label>
+    <input id="cfgLib" placeholder="D:\Music\Suno">
+  </div>
+  <div class="row">
+    <label id="lblPattern">Folder format</label>
+    <input id="cfgPattern" placeholder="Suno - {workspace}">
+    <span class="hint" id="patternEx"></span>
+  </div>
+  <div class="row">
+    <label></label>
+    <button class="primary" id="btnSave" onclick="saveConfig()">💾 Save</button>
+    <button id="btnTest" onclick="testAuth()">🔌 Test connection</button>
+    <span class="hint">TagLib: <span id="taglibState">?</span> · <code>{workspace}</code></span>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="col ws">
+    <div class="panel-title" id="ttlWs">Workspaces</div>
+    <div id="wsList"><div class="empty">…</div></div>
+  </div>
+  <div class="col clips">
+    <div class="toolbar">
+      <input class="search" id="search" oninput="renderClips()">
+      <button class="small" id="btnAll" onclick="selectAll(true)">Select all</button>
+      <button class="small" id="btnNone" onclick="selectAll(false)">Clear</button>
+      <button class="small" id="btnMissing" onclick="addMissingToQueue()">🫥 Queue missing</button>
+    </div>
+    <div id="clipList"><div class="empty" id="emptyClips">Pick a workspace on the left.</div></div>
+  </div>
+  <div class="col queue">
+    <div class="panel-title"><span id="ttlQueue">To download</span> (<span id="qCount">0</span>)</div>
+    <button class="go" id="btnDlAll" style="width:100%;margin-bottom:8px" onclick="downloadAll()">📥 Download all</button>
+    <button class="small" id="btnClearQ" style="width:100%;margin-bottom:10px" onclick="clearQueue()">🗑️ Clear queue</button>
+    <div id="queueList"><div class="empty" id="emptyQueue">Check some tracks.</div></div>
+  </div>
+</div>
+
+<div class="player" id="player">
+  <div class="pt"><div class="n" id="pName">—</div><div class="hint" id="pSub"></div></div>
+  <button class="small" id="karaokeBtn" onclick="openKaraoke()">🎤 <span id="lblLyrics">Lyrics</span></button>
+  <audio id="audio" controls></audio>
+</div>
+
+<div class="karaoke" id="karaoke">
+  <button class="close" id="btnCloseK" onclick="closeKaraoke()">✕</button>
+  <div class="line" id="karaokeLine">…</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const I18N = {
+  en: {
+    conn:"Suno connection", signin:"🔑 Sign in", loginHint:"Opens a login window — sign in, done.",
+    manual:"…or paste the __client cookie manually", saveCookie:"Save cookie",
+    folder:"Library folder", pattern:"Folder format", save:"💾 Save", test:"🔌 Test connection",
+    workspaces:"Workspaces", search:"🔎 Filter tracks…", selAll:"Select all", clear:"Clear", queueMissing:"🫥 Queue missing",
+    pickWs:"Pick a workspace on the left.", toDownload:"To download", dlAll:"📥 Download all", clearQ:"🗑️ Clear queue",
+    checkTracks:"Check some tracks.", lyrics:"Lyrics", connected:"Connected", noCookie:"No cookie", authErr:"Auth error",
+    loading:"Loading…", noWs:"No workspace.", noTracks:"No track.", scanning:"Scanning library…",
+    filesFound:n=>n+" local files found.", tracks:"tracks", since:"since", localFile:"Local file", sunoStream:"Suno stream",
+    noSource:"No playable source", opening:"Opening browser…", signInWindow:"Sign in in the window that just opened…",
+    connectedOk:"✅ Connected! Cookie captured.", timedOut:"Timed out — try again.", noBrowser:"No browser found",
+    settingsSaved:"Settings saved.", addCookie:"Add your __client cookie in Settings.", dlDone:"Downloads finished.",
+    missingQueued:"Missing tracks queued.", ex:"e.g."
+  },
+  fr: {
+    conn:"Connexion Suno", signin:"🔑 Se connecter", loginHint:"Ouvre une fenêtre de login — connecte-toi, c'est tout.",
+    manual:"…ou coller le cookie __client manuellement", saveCookie:"Enregistrer le cookie",
+    folder:"Dossier bibliothèque", pattern:"Format des dossiers", save:"💾 Enregistrer", test:"🔌 Tester la connexion",
+    workspaces:"Workspaces", search:"🔎 Filtrer les titres…", selAll:"Tout cocher", clear:"Décocher", queueMissing:"🫥 File = manquants",
+    pickWs:"Choisis un workspace à gauche.", toDownload:"À télécharger", dlAll:"📥 Tout télécharger", clearQ:"🗑️ Vider la file",
+    checkTracks:"Coche des titres.", lyrics:"Paroles", connected:"Connecté", noCookie:"Pas de cookie", authErr:"Erreur auth",
+    loading:"Chargement…", noWs:"Aucun workspace.", noTracks:"Aucun titre.", scanning:"Scan de la bibliothèque…",
+    filesFound:n=>n+" fichiers locaux trouvés.", tracks:"titres", since:"depuis", localFile:"Fichier local", sunoStream:"Flux Suno",
+    noSource:"Pas de source lisible", opening:"Ouverture du navigateur…", signInWindow:"Connecte-toi dans la fenêtre qui vient de s'ouvrir…",
+    connectedOk:"✅ Connecté ! Cookie récupéré.", timedOut:"Temps écoulé — réessaie.", noBrowser:"Navigateur introuvable",
+    settingsSaved:"Réglages enregistrés.", addCookie:"Ajoute ton cookie __client dans les réglages.", dlDone:"Téléchargements terminés.",
+    missingQueued:"Manquants ajoutés à la file.", ex:"ex :"
+  }
+};
+let LANG = 'en';
+try{ LANG = localStorage.getItem('sunodlaa_lang') || 'en'; }catch(e){}
+const T = () => I18N[LANG] || I18N.en;
+
+let CFG={}, workspaces=[], currentWs=null, clips=[], originals=new Set(), localIds={}, queue=[], alignedWords=null, currentPlay=null;
+const $ = s => document.querySelector(s);
+function toast(msg,ms=2600){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',ms);}
+async function api(path,opts){const r=await fetch(path,opts);return await r.json();}
+function esc(s){return(s==null?'':(''+s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function applyLang(){
+  const t=T();
+  $('#langSel').value=LANG;
+  $('#lblConn').textContent=t.conn; $('#btnLogin').textContent=t.signin;
+  if(!$('#loginStatus').dataset.live) $('#loginStatus').textContent=t.loginHint;
+  $('#lblManual').textContent=t.manual; $('#btnSaveCookie').textContent=t.saveCookie;
+  $('#lblFolder').textContent=t.folder; $('#lblPattern').textContent=t.pattern;
+  $('#btnSave').textContent=t.save; $('#btnTest').textContent=t.test;
+  $('#ttlWs').textContent=t.workspaces; $('#search').placeholder=t.search;
+  $('#btnAll').textContent=t.selAll; $('#btnNone').textContent=t.clear; $('#btnMissing').textContent=t.queueMissing;
+  $('#ttlQueue').textContent=t.toDownload; $('#btnDlAll').textContent=t.dlAll; $('#btnClearQ').textContent=t.clearQ;
+  $('#lblLyrics').textContent=t.lyrics;
+  if(currentWs) renderClips(); else $('#emptyClips').textContent=t.pickWs;
+  if(!queue.length) $('#emptyQueue').textContent=t.checkTracks;
+  renderWorkspaces();
+}
+function setLang(l){ LANG=l; try{localStorage.setItem('sunodlaa_lang',l);}catch(e){} applyLang(); }
+
+function toggleSettings(){ $('#settings').classList.toggle('open'); }
+async function loadConfig(){
+  CFG=await api('/api/config');
+  $('#cfgLib').value=CFG.libraryPath||''; $('#cfgPattern').value=CFG.folderPattern||'Suno - {workspace}';
+  $('#patternEx').textContent=CFG.folderExample?(T().ex+' '+CFG.folderExample):'';
+  $('#taglibState').textContent=CFG.taglib?'OK':'—';
+  if(!CFG.hasCookie){ $('#settings').classList.add('open'); toast(T().addCookie); }
+}
+async function saveConfig(){
+  const body={libraryPath:$('#cfgLib').value.trim(),folderPattern:$('#cfgPattern').value.trim()||'Suno - {workspace}'};
+  const c=$('#cfgCookie').value.trim(); if(c) body.clientCookie=c;
+  CFG=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  $('#cfgPattern').value=CFG.folderPattern; $('#patternEx').textContent=CFG.folderExample?(T().ex+' '+CFG.folderExample):'';
+  $('#cfgCookie').value=''; toast(T().settingsSaved); testAuth();
+}
+let loginPoll=null;
+async function doLogin(){
+  const st=$('#loginStatus'); st.dataset.live='1'; st.textContent=T().opening;
+  const r=await api('/api/login/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(!r.ok){ st.textContent=(r.error||T().noBrowser); return; }
+  st.textContent=T().signInWindow;
+  if(loginPoll) clearInterval(loginPoll);
+  let tries=0;
+  loginPoll=setInterval(async()=>{
+    tries++; if(tries>60){clearInterval(loginPoll); st.textContent=T().timedOut; return;}
+    let c; try{ c=await api('/api/login/check'); }catch(e){ return; }
+    if(c.ok){ clearInterval(loginPoll); st.textContent=T().connectedOk; CFG.hasCookie=true; testAuth(); }
+    else if(c.error){ st.textContent=c.error+'…'; }
+  },2500);
+}
+async function testAuth(){
+  $('#authBadge').textContent='…'; $('#authBadge').className='badge';
+  const r=await api('/api/auth');
+  if(r.ok){ $('#authBadge').textContent=T().connected; $('#authBadge').className='badge ok'; loadWorkspaces(); }
+  else { $('#authBadge').textContent=r.error==='NO_COOKIE'?T().noCookie:T().authErr; $('#authBadge').className='badge err'; }
+}
+async function rescan(){
+  toast(T().scanning);
+  const r=await api('/api/scan'); localIds={};
+  if(r.ids) Object.keys(r.ids).forEach(id=>localIds[id]=true);
+  toast(T().filesFound(r.count||0)); renderWorkspaces(); renderClips();
+}
+async function loadWorkspaces(){
+  $('#wsList').innerHTML='<div class="empty">'+T().loading+'</div>'; workspaces=[];
+  let page=1,total=null;
+  try{ while(true){
+    const d=await api('/api/suno?path=/api/project/me&page='+page);
+    if(d.error){ $('#wsList').innerHTML='<div class="empty">'+esc(d.error)+'</div>'; return; }
+    const items=d.projects||[]; workspaces=workspaces.concat(items); total=d.num_total_results??total;
+    if(!items.length||(total!=null&&workspaces.length>=total)) break; page++;
+  } }catch(e){ $('#wsList').innerHTML='<div class="empty">'+esc(''+e)+'</div>'; return; }
+  renderWorkspaces(); await rescan();
+}
+function renderWorkspaces(){
+  const el=$('#wsList'); if(!workspaces.length){ el.innerHTML='<div class="empty">'+T().noWs+'</div>'; return; }
+  el.innerHTML='';
+  workspaces.forEach(w=>{
+    const div=document.createElement('div'); div.className='ws-item'+(currentWs&&currentWs.id===w.id?' active':'');
+    const img=w.image_url?`<img src="${w.image_url}">`:`<div class="ph"></div>`;
+    div.innerHTML=img+`<div class="meta"><div class="name">${esc(w.name||'—')}</div><div class="sub">${w.clip_count||0} ${T().tracks}</div></div>`;
+    div.onclick=()=>openWorkspace(w); el.appendChild(div);
+  });
+}
+async function openWorkspace(w){
+  currentWs=w; renderWorkspaces();
+  $('#clipList').innerHTML='<div class="empty">'+T().loading+'</div>'; clips=[]; originals=new Set();
+  let page=1;
+  try{ while(true){
+    const d=await api('/api/suno?path=/api/project/'+w.id+'&page='+page);
+    if(d.error){ $('#clipList').innerHTML='<div class="empty">'+esc(d.error)+'</div>'; return; }
+    const pc=d.project_clips||[]; pc.forEach(x=>{ if(x.clip) clips.push(x.clip); });
+    if(pc.length<20) break; page++;
+  } }catch(e){ $('#clipList').innerHTML='<div class="empty">'+esc(''+e)+'</div>'; return; }
+  clips.forEach(c=>{ const cc=c.metadata&&c.metadata.cover_clip_id; if(cc) originals.add(cc); });
+  renderClips();
+}
+function sortedClips(list){
+  return list.slice().sort((a,b)=>{
+    const ao=originals.has(a.id)?0:1,bo=originals.has(b.id)?0:1; if(ao!==bo) return ao-bo;
+    return (b.created_at||'').localeCompare(a.created_at||'');
+  });
+}
+function renderClips(){
+  const el=$('#clipList'); if(!currentWs){ el.innerHTML='<div class="empty">'+T().pickWs+'</div>'; return; }
+  const q=($('#search').value||'').toLowerCase(); let list=clips;
+  if(q) list=clips.filter(c=>(c.title||'').toLowerCase().includes(q)||((c.metadata&&c.metadata.tags)||'').toLowerCase().includes(q));
+  list=sortedClips(list);
+  if(!list.length){ el.innerHTML='<div class="empty">'+T().noTracks+'</div>'; return; }
+  el.innerHTML='';
+  list.forEach(c=>{
+    const has=!!localIds[c.id], isOrig=originals.has(c.id), queued=queue.some(x=>x.id===c.id);
+    const div=document.createElement('div'); div.className='clip'+(isOrig?' orig':'');
+    const img=c.image_url?`<img src="${c.image_url}">`:`<div class="ph"></div>`;
+    const tags=(c.metadata&&c.metadata.tags)||'';
+    div.innerHTML=`<input type="checkbox" ${queued?'checked':''} onchange="toggleQueue('${c.id}',this.checked)">`+
+      `<span class="avail">${has?'✅':'🫥'}</span>`+img+
+      `<div class="t"><div class="title">${isOrig?'<span class="star">★ </span>':''}${esc(c.title||'—')}</div><div class="tags">${esc(tags)}</div></div>`+
+      `<button class="small" onclick="play('${c.id}')">▶</button>`;
+    el.appendChild(div);
+  });
+}
+function selectAll(on){
+  const q=($('#search').value||'').toLowerCase();
+  let list=q?clips.filter(c=>(c.title||'').toLowerCase().includes(q)):clips;
+  list.forEach(c=>toggleQueue(c.id,on,true)); renderClips(); renderQueue();
+}
+function addMissingToQueue(){ clips.forEach(c=>{ if(!localIds[c.id]) toggleQueue(c.id,true,true); }); renderClips(); renderQueue(); toast(T().missingQueued); }
+function clipById(id){ return clips.find(c=>c.id===id); }
+function toggleQueue(id,on,silent){
+  const c=clipById(id); if(!c) return; const i=queue.findIndex(x=>x.id===id);
+  if(on&&i<0) queue.push(c); if(!on&&i>=0) queue.splice(i,1);
+  if(!silent){ renderClips(); renderQueue(); }
+}
+function clearQueue(){ queue=[]; renderQueue(); renderClips(); }
+function renderQueue(){
+  $('#qCount').textContent=queue.length; const el=$('#queueList');
+  if(!queue.length){ el.innerHTML='<div class="empty">'+T().checkTracks+'</div>'; return; }
+  el.innerHTML='';
+  queue.forEach(c=>{ const div=document.createElement('div'); div.className='qitem'; div.id='q_'+c.id;
+    div.innerHTML=`<span class="st">•</span><span class="qt">${esc(c.title||c.id)}</span><button class="small" onclick="toggleQueue('${c.id}',false)">✕</button>`;
+    el.appendChild(div); });
+}
+async function downloadAll(){
+  if(!queue.length){ toast(T().checkTracks); return; }
+  const ws=currentWs?currentWs.name:'Misc'; let track=1;
+  for(const c of queue){
+    const row=$('#q_'+c.id); const st=row?row.querySelector('.st'):null; if(st) st.textContent='⏳';
+    const body={clipId:c.id,audioUrl:c.audio_url,title:c.title,artist:c.display_name||'Suno',workspace:ws,disc:1,track:track++,
+      tags:(c.metadata&&c.metadata.tags)||'',imageUrl:c.image_large_url||c.image_url||'',lyrics:(c.metadata&&c.metadata.prompt)||'',createdAt:c.created_at||''};
+    try{ const r=await api('/api/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(r.ok){ if(row){row.classList.add('done'); st.textContent='✅';} localIds[c.id]=true; }
+      else { if(row){row.classList.add('err'); st.textContent='❌'; row.title=r.error||'';} }
+    }catch(e){ if(row){row.classList.add('err'); st.textContent='❌';} }
+  }
+  renderClips(); toast(T().dlDone);
+}
+function play(id){
+  const c=clipById(id); if(!c) return; currentPlay=c; const a=$('#audio'); const has=!!localIds[id];
+  a.src=has?('/api/play?id='+id):(c.audio_url||'');
+  $('#pName').textContent=(originals.has(id)?'★ ':'')+(c.title||'—');
+  $('#pSub').textContent=has?T().localFile:(c.audio_url?T().sunoStream:T().noSource);
+  $('#player').classList.add('show'); alignedWords=null; a.play().catch(()=>{});
+}
+async function openKaraoke(){
+  if(!currentPlay) return; $('#karaoke').classList.add('show'); $('#karaokeLine').textContent='…';
+  try{ const d=await api('/api/lyrics?id='+currentPlay.id);
+    let words=d.aligned_words||d.words||(d.alignment&&d.alignment.words);
+    if(words&&words.length){ alignedWords=words.map(w=>({t:esc(w.word||w.text||''),s:(w.start_s??w.start??0),e:(w.end_s??w.end??0)}));
+      $('#karaokeLine').innerHTML=alignedWords.map((w,i)=>`<span class="w" id="kw${i}">${w.t}</span>`).join(' ');
+    } else { alignedWords=null; $('#karaokeLine').innerHTML=esc((currentPlay.metadata&&currentPlay.metadata.prompt)||'—').replace(/\n/g,'<br>'); }
+  }catch(e){ $('#karaokeLine').textContent='—'; }
+}
+function closeKaraoke(){ $('#karaoke').classList.remove('show'); }
+$('#audio').addEventListener('timeupdate',()=>{
+  if(!alignedWords) return; const t=$('#audio').currentTime;
+  for(let i=0;i<alignedWords.length;i++){ const sp=document.getElementById('kw'+i); if(sp) sp.classList.toggle('on', t>=alignedWords[i].s&&t<=alignedWords[i].e); }
+});
+
+(async function(){ applyLang(); await loadConfig(); applyLang(); testAuth(); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SunoAuto" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FFF9FC</item>
+        <item name="android:statusBarColor">#FFF9FC</item>
+        <item name="android:navigationBarColor">#FFF9FC</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

@@ -1,4 +1,14 @@
-*pycache*
-suno_cookies*
-downloads/*
-{api,gui,widgets,utils}
+# desktop runtime
+desktop/config.json
+desktop/downloads/
+*.log
+# android build
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/.kotlin/
+*.iml
+# secrets
+*cookies*.json

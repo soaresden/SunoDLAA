@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SUNODLAA</string>
+    <string name="node_all">Tous les titres · récents</string>
+    <string name="node_all_alpha">Tous les titres · A→Z</string>
+    <string name="node_projects">Workspaces</string>
+    <string name="node_liked">Favoris</string>
+    <string name="node_playlists">Playlists</string>
+    <string name="node_downloaded">Hors ligne</string>
+    <string name="node_recent">Récents</string>
+    <string name="action_like">Favori</string>
+    <string name="action_unlike">Retirer des favoris</string>
+    <string name="action_download">Télécharger</string>
+    <string name="downloading">Téléchargement Suno</string>
+</resources>

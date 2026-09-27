@@ -1,194 +1,117 @@
-# 🎵 Suno Downloader v2.0
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c68a5aa8-02b3-49be-af63-71c51e4f4c45" />
+<p align="center">
+  <img src="assets/logo.png" alt="SUNODLAA" width="520">
+</p>
 
-Application modulaire complète pour naviguer, écouter et télécharger vos projets Suno.
+<h3 align="center">Your Suno songs. Downloaded, organized, and in your car.</h3>
 
-## 📁 Structure du projet
+<p align="center">
+  <b>SUNODLAA</b> = <b>Suno</b> · <b>D</b>own<b>L</b>oad · <b>A</b>ndroid <b>A</b>uto<br>
+  A Windows desktop tool + an Android / Android Auto player, built to work together.
+</p>
+
+---
+
+## Why this exists
+
+I make a lot of music on Suno. Hundreds of tracks, split across workspaces — one per project,
+one per album idea, one per person I write for. And the official experience is painful:
+
+- **The Suno app can't browse your workspaces.** Your library is one endless, laggy scroll.
+  The structure you carefully built on the website simply doesn't exist on your phone.
+- **Getting your own songs out is a clicking marathon.** One track, one menu, one download,
+  one file named whatever Suno feels like. Repeat a few hundred times. At the end you still
+  have a flat folder of files with no order, no album, no cover, no way to tell covers from originals.
+- **Nothing for the car.** No Android Auto, no way to play a workspace start to finish while driving.
+
+These are **my** songs. I shouldn't need an afternoon of clicks to get them, and I should be able
+to organize them the way *I* want.
+
+So I built SUNODLAA.
+
+## What you get
+
+### 💻 Desktop — your library, in bulk, in order
+A small local web app (double-click to start, nothing to install):
+
+- **Browse every workspace** with its tracks, covers and dates.
+- **See what you already have**: ✅ on disk · 🫥 missing. One click queues everything missing.
+- **Download in bulk** into **one folder per workspace**, with a naming pattern *you* choose
+  (default `Suno - {workspace}` → `Suno - Lucie`).
+- **Proper ID3 tags on every file**: title, artist, album (= workspace), cover art, lyrics,
+  year, and the **Suno track ID** (in `TSRC`) so the file stays linked to Suno forever.
+- **Originals highlighted in gold** and pinned first — covers are grouped under the song they come from.
+- Built-in player with **synced lyrics** (karaoke) when Suno provides word timings.
+- **One-click sign-in**: a login window opens, you sign in to Suno, done. No cookie copy-pasting.
+
+### 📱 Android & Android Auto — listen your way
+- **Workspaces first**: open a workspace, play it. Or browse **All tracks** (by date or A→Z),
+  **Favorites** (synced with Suno), **Offline**, **Recent**, **Playlists**.
+- **Plays the files you own** from any folder (local, pCloud, Drive…), matched to Suno by
+  their `TSRC` ID — the same ID the desktop writes.
+- **Android Auto**: the same library on your car screen. Tracks you don't have yet are shown
+  but never break playback.
+- Lyrics and full track info on the player screen, gold originals, fast local search.
+
+**The loop:** the desktop fills your library, neatly organized → the phone and the car play it.
+
+## Quick start
+
+### Desktop (Windows)
+1. Download this repository (Code → Download ZIP) and open the `desktop` folder.
+2. Double-click **`Start.bat`**. Your browser opens on `http://localhost:8787`.
+3. ⚙️ **Settings** → **Sign in**, choose your **library folder** and **folder format**.
+4. Pick a workspace → tick tracks (or **Queue missing**) → **Download all**.
+
+Requirements: Windows 10/11 with Edge or Chrome. PowerShell and the tagging library are built in / bundled.
+
+### Android
+1. Install [`releases/SUNODLAA-v0.15.0.apk`](releases/) (allow unknown sources).
+2. Sign in to Suno, then pick the folder that holds your MP3s (the one the desktop fills).
+3. **Android Auto without the Play Store**: Android Auto → Settings → tap *Version* 10× →
+   ⋮ → Developer settings → enable **Unknown sources**.
+
+Want to test Android Auto on your PC? See [`tools/android-auto-dhu`](tools/android-auto-dhu).
+
+## Free vs Pro — the honest part
+
+Suno protects its streams. SUNODLAA does **not** try to get around that.
+
+- **Downloading** uses Suno's own download link for each track, so it works when your account
+  is allowed to download (Pro/Premier, or tracks you own). Otherwise the track stays 🫥 and the
+  reason is shown.
+- **Playback** uses **your files**. If you already have your MP3s (exported earlier, synced from
+  the cloud…), everything works on any plan: point the app at the folder and it matches them.
+
+## Repository layout
 
 ```
-suno_app/
-├── main.py                    # ▶️ Point d'entrée - Lance l'app
-├── config.py                  # ⚙️ Configuration globale
-├── requirements.txt           # 📦 Dépendances Python
-├── suno_cookies.json          # 🍪 Vos cookies (à créer)
-│
-├── api/                       # 🔌 Couche API
-│   ├── __init__.py
-│   ├── client.py              # Client API Suno (get_all_projects, etc.)
-│   └── auth.py                # Gestion authentification (AuthManager)
-│
-├── gui/                       # 🖼️ Interface graphique
-│   ├── __init__.py
-│   ├── main_window.py         # Fenêtre principale (orchestration)
-│   ├── toolbar.py             # Barre d'outils (boutons principaux)
-│   ├── projects_panel.py      # Panel gauche (liste projets)
-│   └── clips_panel.py         # Panel droit (liste clips + checkboxes)
-│
-├── widgets/                   # 🧩 Composants réutilisables
-│   ├── __init__.py
-│   ├── player.py              # Player audio (overlay)
-│   ├── lyrics_overlay.py      # Overlay paroles (double-clic)
-│   └── log_viewer.py          # Zone de logs
-│
-└── utils/                     # 🛠️ Utilitaires
-    ├── __init__.py
-    ├── formatters.py          # Formatage (dates, durées, tailles)
-    └── threading_helper.py    # Helpers threading GUI-safe
+desktop/   Local web app: Start.bat, server.ps1 (PowerShell), index.html, lib/TagLibSharp.dll
+android/   Android Studio project (Kotlin, Jetpack Compose, Media3, Room)
+releases/  Ready-to-install APK
+tools/     Android Auto desktop head unit launcher
 ```
 
-## 🚀 Installation
+## Build the Android app
 
-### 1. Installer Python
-- Python 3.8+ requis
-- Télécharger sur https://python.org
-
-### 2. Installer les dépendances
-
-```bash
-cd suno_app
-pip install -r requirements.txt
-```
-
-### 3. Créer suno_cookies.json
-
-#### Option A : Bookmarklet (recommandé)
-
-1. Va sur https://suno.com (connecté)
-2. Crée un bookmarklet avec ce code :
-
-```javascript
-javascript:(function(){const cookies={};document.cookie.split(';').forEach(c=>{const[name,value]=c.trim().split('=');cookies[name]=value});const jwt=cookies['__session']||'';const deviceId=cookies['suno_device_id']||cookies['ajs_anonymous_id']||'8f955be9-40b8-496e-9a05-c12b86abd5f8';const data={jwt_token:jwt,device_id:deviceId,exported_at:new Date().toISOString()};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='suno_cookies.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);alert('✅ Cookies exportés!')})();
-```
-
-3. Clique sur le bookmarklet → télécharge `suno_cookies.json`
-4. Place-le dans le dossier `suno_app/`
-
-#### Option B : Manuel
-
-Crée `suno_cookies.json` :
-
-```json
-{
-  "jwt_token": "TON_TOKEN_JWT_ICI",
-  "device_id": "TON_DEVICE_ID_ICI",
-  "exported_at": "2026-02-01T12:00:00Z"
-}
-```
-
-### 4. Lancer l'application
-
-```bash
-python main.py
-```
-
-## 📖 Utilisation
-
-### Interface
+Open `android/` in Android Studio (JDK 17) → Run, or:
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│ 🎵 SUNO    [🔄] [📁 COOKIES] [▶️ PLAYER]         🟢       │
-├──────────────────────────┬─────────────────────────────────┤
-│ 📁 PROJETS (137)         │ 🎵 CLIPS - Mon Projet          │
-│ ┌──────────────────────┐ │ [⬇️ TOUT] [⬇️ COCHÉS] [▶️ PLAY]│
-│ │Workspace  │#│Créé│MÀJ││ ┌───────────────────────────────┐│
-│ │My Project │5│... │...││ │P│Créé│Titre│Style│⏱│🎵│⬇️│    ││
-│ │Outlaws    │30│...│...││ │📌│...│...  │...  │3:│✓│  │    ││
-│ │...        │  │   │   ││ │  │   │     │     │42│  │✓│    ││
-│ └──────────────────────┘ │ └───────────────────────────────┘│
-├──────────────────────────┴─────────────────────────────────┤
-│ 📝 Logs                                                     │
-│ ✅ 137 projets chargés                                     │
-│ 📁 Projet sélectionné: My Project                          │
-│ ✅ 5 clips (2 pinned)                                       │
-└─────────────────────────────────────────────────────────────┘
+cd android
+./gradlew :app:assembleDebug
 ```
 
-### Actions principales
+## Under the hood
+- Auth: Suno signs in through Clerk. SUNODLAA keeps the `__client` session cookie locally and
+  exchanges it for short-lived tokens, like the website does.
+- Desktop: PowerShell `HttpListener` serves the page and proxies the API calls; TagLib-Sharp writes the tags.
+- Android: Media3 `MediaLibraryService` (phone + Android Auto), Room cache, WorkManager sync.
+- Everything stays on your machine. No server, no account, no telemetry.
 
-**Navigation :**
-- Clic sur projet → Affiche ses clips
-- Double-clic sur clip → Affiche les paroles
-- Clic sur header → Tri la colonne
+## Disclaimer
+SUNODLAA is an independent, unofficial project for personal use. It is not affiliated with or
+endorsed by Suno. It uses the same web endpoints as the Suno website, which may change at any time.
+Only download music you have the right to download.
 
-**Checkboxes :**
-- **🎵** : Ajouter à la playlist
-- **⬇️** : Marquer pour téléchargement
+---
 
-**Boutons :**
-- **⬇️ TOUT** : Télécharge tout le projet
-- **⬇️ COCHÉS** : Télécharge les clips cochés (⬇️)
-- **▶️ PLAYLIST** : Joue les clips de la playlist (🎵)
-- **▶️ PLAYER** : Ouvre le player audio
-
-**Toolbar :**
-- **🔄** : Recharge les cookies (si token expiré)
-- **📁 COOKIES** : Charge un nouveau fichier
-- **▶️ PLAYER** : Ouvre le player
-
-### Raccourcis
-
-- **Double-clic** sur clip → Overlay paroles
-- **Clic** sur checkbox → Cocher/décocher
-
-## 🔧 Architecture
-
-### Séparation des responsabilités
-
-**api/** → Communication avec Suno (aucune GUI)
-- `client.py` : Appels API (get_all_projects, get_project_clips, download_clip)
-- `auth.py` : Gestion cookies/tokens (AuthManager)
-
-**gui/** → Interface graphique (aucune logique métier)
-- `main_window.py` : Orchestration (charge projets, gère sélections)
-- `toolbar.py` : Barre d'outils
-- `projects_panel.py` : TreeView projets
-- `clips_panel.py` : TreeView clips + checkboxes
-
-**widgets/** → Composants réutilisables
-- `player.py` : Player audio overlay
-- `lyrics_overlay.py` : Popup paroles
-- `log_viewer.py` : Zone de logs
-
-**utils/** → Fonctions utilitaires
-- `formatters.py` : format_date(), format_duration(), etc.
-- `threading_helper.py` : run_in_thread() pour GUI-safe
-
-### Avantages
-
-✅ **Modulaire** : Chaque fichier < 250 lignes  
-✅ **Maintenable** : Bugs faciles à localiser  
-✅ **Testable** : Chaque module testable indépendamment  
-✅ **Extensible** : Facile d'ajouter de nouvelles fonctionnalités  
-✅ **Réutilisable** : Les widgets peuvent servir ailleurs  
-
-## 🐛 Dépannage
-
-### Erreur 401 Unauthorized
-→ Token expiré (durée : 1h)  
-→ Solution : Clique sur 🔄 ou exporte de nouveaux cookies
-
-### Fichier cookies introuvable
-→ Le fichier doit être dans le dossier `suno_app/`  
-→ Le nom doit être exactement `suno_cookies.json`
-
-### Module introuvable
-→ Lance depuis le dossier `suno_app/` : `python main.py`  
-→ Pas `python suno_app/main.py`
-
-## 📝 TODO
-
-- [ ] Implémenter lecture audio (player)
-- [ ] Implémenter téléchargement batch
-- [ ] Ajouter barre de progression téléchargement
-- [ ] Export playlist M3U
-- [ ] Recherche/filtre dans les clips
-- [ ] Thèmes de couleur
-
-## 📄 Licence
-
-Projet personnel - Utilisez à vos risques et périls
-
-## 👨‍💻 Auteur
-
-Créé avec ❤️ pour Denis
+<p align="center">Made by <b>Soaresden</b> · <a href="https://github.com/soaresden/SunoDLAA">github.com/soaresden/SunoDLAA</a></p>
