@@ -101,8 +101,52 @@
   .counts .c-ok{color:var(--ok)} .counts .c-bad{color:var(--bad)} .counts .c-skip{color:var(--muted)}
   .fail{font-size:12px;padding:6px 8px;border-radius:8px;background:#FDE3E8;margin-top:6px}
   .fail b{display:block}
-  .player{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);padding:8px 16px;display:none;align-items:center;gap:12px;z-index:30}
-  .player.show{display:flex} .player .pt{flex:1;min-width:0} .player .n{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .col.job{display:flex;flex-direction:column;gap:10px}
+  #failList{max-height:22vh;overflow:auto}
+  .col.job #jobIdle{padding:8px 6px;font-size:12px}
+  .clip.playing{background:#FFF0F7;outline:1px solid var(--fuchsia)}
+  .pc-art{height:140px}
+  .pcard{border-radius:18px;background:#fff;border:1px solid var(--border);overflow:hidden;box-shadow:0 8px 28px rgba(232,30,140,.08)}
+  .pcard .ptitle{margin:10px 12px 6px}
+  #pcEmpty{padding:6px 12px 14px;text-align:center}
+  .pc-art{height:170px;background:linear-gradient(135deg,var(--fuchsia),var(--orange),var(--turq));background-size:cover;background-position:center;position:relative}
+  .pc-art.noimg::after{content:'♫';position:absolute;inset:0;display:grid;place-items:center;font-size:64px;color:rgba(255,255,255,.85)}
+  .pc-art .kbtn{position:absolute;right:8px;top:8px;background:rgba(255,255,255,.85);padding:4px 8px}
+  .pc-info{padding:10px 12px 0}
+  .pc-t{font-weight:800;font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .pc-s{color:var(--muted);font-size:12px;margin-top:2px}
+  .src{font-size:11px;padding:2px 8px;border-radius:999px;display:inline-block;margin-top:6px}
+  .src.loc{background:#E3F6EE;color:var(--ok)} .src.cloud{background:#E6EEFF;color:var(--cobalt)}
+  .pc-seek{display:flex;align-items:center;gap:8px;padding:10px 12px 0;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .pc-seek input{flex:1}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;background:linear-gradient(90deg,var(--fuchsia) 0,var(--orange) var(--p,0%),var(--bg2) var(--p,0%));outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--fuchsia);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--fuchsia)}
+  #pcVol{--p:90%;width:90px}
+  .pc-ctrl{display:flex;justify-content:center;align-items:center;gap:8px;padding:8px 12px}
+  .pc-ctrl button{background:transparent;font-size:18px;padding:6px 8px;border-radius:50%}
+  .pc-ctrl button:hover{background:var(--bg2)}
+  .pc-ctrl button.on{color:var(--fuchsia);background:#FFF0F7}
+  .pc-ctrl .pc-play{width:52px;height:52px;font-size:22px;color:#fff;background:linear-gradient(135deg,var(--fuchsia),var(--orange));box-shadow:0 6px 18px rgba(232,30,140,.35)}
+  .pc-ctrl .pc-play:hover{background:linear-gradient(135deg,var(--fuchsia),var(--orange));filter:brightness(1.08)}
+  .pc-vol{display:flex;align-items:center;gap:6px;justify-content:center;font-size:13px;padding-bottom:6px}
+  .pc-path{padding:0 12px 8px;font-size:11px;color:var(--muted);word-break:break-all;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .pc-tabs{display:flex;border-top:1px solid var(--border)}
+  .pc-tabs button{flex:1;border-radius:0;background:#fff;font-size:12px;padding:8px}
+  .pc-tabs button.on{background:var(--bg2);font-weight:700}
+  #pcLyr,#pcQueue{max-height:32vh;overflow:auto;padding:8px 12px 12px;position:relative}
+  .ly{padding:3px 0;color:var(--muted);cursor:pointer;transition:all .2s;font-size:14px}
+  .ly.on{color:var(--ink);font-weight:800;font-size:16px}
+  .ly.static{cursor:default;white-space:normal}
+  .qi{display:flex;gap:8px;align-items:center;padding:6px 4px;border-radius:10px;cursor:pointer;font-size:13px}
+  .qi:hover{background:var(--bg2)} .qi .n{width:20px;color:var(--muted);text-align:right;font-size:11px}
+  .qi .qt{flex:1;min-width:0} .qi b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .qi span{font-size:11px;color:var(--muted)}
+  .clip .path{font-size:11px;color:var(--ok);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,Consolas,monospace}
+  .wshead .folder{font-size:12px;margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .wshead .folder code{font-size:11px;background:var(--bg2);padding:2px 6px;border-radius:6px;word-break:break-all}
+  .notice{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;border:2px solid var(--ok);padding:12px 16px;border-radius:14px;z-index:60;max-width:min(680px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.18);word-break:break-all}
+  #backupInfo{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.9} #backupInfo code{background:var(--bg2);padding:1px 6px;border-radius:6px;word-break:break-all}
   .karaoke{position:fixed;inset:0;background:rgba(255,249,252,.97);z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
   .karaoke.show{display:flex} .karaoke .line{font-size:26px;line-height:1.7;max-width:800px;color:var(--muted)}
   .karaoke .w.on{color:var(--fuchsia);font-weight:700} .karaoke .close{position:absolute;top:16px;right:20px}
@@ -143,6 +187,7 @@
   <span id="acctChip" class="chip hidden"></span>
   <span class="spacer"></span>
   <button class="small hidden" id="btnLibrary" onclick="openLibrary()"></button>
+  <button class="small" id="btnBackup" onclick="doBackup()"></button>
   <button class="small" id="btnSetup" onclick="showSetup()"></button>
 </header>
 
@@ -211,6 +256,8 @@
     <div class="step" style="margin-top:10px"><div class="body">
       <div class="row"><span id="lblDelay"></span><input type="text" id="delayInput" style="max-width:70px" onchange="saveOpts({downloadDelaySec:+this.value||0})"><span class="muted small-t" id="lblDelayHint"></span></div>
       <div class="row"><button id="btnRenameFolders" onclick="applyFolders()"></button><span class="muted small-t" id="lblRenameHint"></span></div>
+      <div class="row" style="margin-top:14px"><button id="btnBackup2" onclick="doBackup()"></button><button id="btnRestore" onclick="doRestore()"></button></div>
+      <div id="backupInfo"></div>
     </div></div>
   </details>
 
@@ -254,6 +301,7 @@
       <div class="toolbar">
         <div class="seg" id="filterSeg"></div>
         <span class="spacer"></span>
+        <button class="small" id="btnPlayView" onclick="playAllView(false)">▶</button><button class="small" id="btnShufView" onclick="playAllView(true)">🔀</button>
         <button class="small" id="btnWsMissing" onclick="downloadViewMissing()"></button>
         <button class="small" id="btnSelected" onclick="downloadSelected()"></button>
       </div>
@@ -270,15 +318,26 @@
         <div class="row"><button class="small" id="btnStop" onclick="stopJob()"></button></div>
       </div>
       <div id="failList"></div>
+      <div class="pcard" id="pcard">
+        <div class="ptitle" id="pcHead"></div>
+        <div id="pcEmpty"></div>
+        <div id="pcBody" class="hidden">
+          <div class="pc-art" id="pcArt"><button class="small kbtn" onclick="openKaraoke()" title="Karaoke">⛶</button></div>
+          <div class="pc-info"><div class="pc-t" id="pcTitle"></div><div class="pc-s" id="pcSub"></div><div id="pcSrc"></div></div>
+          <div class="pc-seek"><span id="pcCur">0:00</span><input type="range" id="pcSeek" min="0" max="1000" value="0"><span id="pcDur">0:00</span></div>
+          <div class="pc-ctrl"><button id="pcShuf" onclick="toggleShuffle()">🔀</button><button onclick="prevTrack()">⏮</button><button class="pc-play" id="pcPlay" onclick="togglePlay()">▶</button><button onclick="nextTrack(false)">⏭</button><button id="pcRep" onclick="cycleRepeat()">🔁</button></div>
+          <div class="pc-vol">🔈<input type="range" id="pcVol" min="0" max="100" oninput="this.style.setProperty('--p',this.value+'%')">🔊</div>
+          <div class="pc-path" id="pcPath"></div>
+          <div class="pc-tabs"><button id="pcTabL" onclick="setTab('lyrics')"></button><button id="pcTabQ" onclick="setTab('queue')"></button></div>
+          <div id="pcLyr"></div><div id="pcQueue" class="hidden"></div>
+        </div>
+      </div>
+      <audio id="audio" preload="metadata"></audio>
     </div>
   </div>
 </section>
 
-<div class="player" id="player">
-  <div class="pt"><div class="n" id="pName">—</div><div class="muted small-t" id="pSub"></div></div>
-  <button class="small" onclick="openKaraoke()">🎤 <span id="lblLyrics"></span></button>
-  <audio id="audio" controls></audio>
-</div>
+<div class="notice hidden" id="notice"></div>
 <div class="karaoke" id="karaoke"><button class="close" onclick="closeKaraoke()">✕</button><div class="line" id="karaokeLine">…</div></div>
 <div class="toast" id="toast"></div>
 
@@ -287,6 +346,18 @@
 const I18N = {
   en: {
     setup:"⚙️ Setup", library:"📚 My library",
+    backupBtn:"💾 Backup", backupTip:"Save your library, what's on your disk and your settings into one .zip file (plus an Excel-ready list of all your tracks)",
+    backupBtnLong:"💾 Make a backup now", restoreBtn:"♻ Restore a backup…", backupRunning:"Making the backup…",
+    backupDone:(p,kb)=>`✅ Backup saved (${kb} KB): ${p} — it contains my-suno-library.csv (opens in Excel), your library and your settings (never your Suno sign-in).`,
+    backupFail:e=>`Backup failed: ${e}`, restoreConfirm:"Restore a backup? Your saved library and settings will be replaced by the ones in the backup (your Suno sign-in is kept).",
+    restoreDone:x=>`Restored: ${x}. Reloading…`, cacheWhere:"Your library is saved automatically in", backupWhere:"Backups go to",
+    lastBackup:d=>`Last backup: ${d}`, noBackup:"No backup yet.", showInFolder:"Show in folder", openFolder:"Open", revealFail:"Can't open this in Explorer (file moved?).",
+    noFolderYet:p=>`No file yet — downloads will go to ${p}`,
+    nowPlaying:"Player", playerEmpty:"Press ▶ on a track, or play the list on screen:", playView:"Play this list", shuffleView:"Shuffle this list",
+    shuffle:"Shuffle", repeat:{off:"Repeat: off",all:"Repeat: whole list",one:"Repeat: this track"}, upNext:n=>`Up next (${n})`, queueEnd:"End of the list.",
+    noLyricsClip:"No lyrics for this track.", cantPlay:x=>`Can't play “${x}” — skipping.`, nothingToPlay:"Nothing playable in this list.",
+    yes:"yes", no:"no",
+    csv:{ws:"Workspace",title:"Title",created:"Created",dur:"Duration",onDisk:"On disk",how:"Found by",file:"File",id:"Suno id",liked:"Favorite",style:"Style",localOnly:"only on disk"},
     sTitle:"Let's set up SunoAAWeb", sIntro:"Three steps, about a minute. You can come back here any time with ⚙️ Setup.", lang:"Language",
     s1Title:"Connect to your Suno account",
     s1Text:"Click the button: a separate browser window opens on suno.com. Sign in there once (Google, Discord, e-mail…) — it's a separate window, so it doesn't know your usual session yet. As soon as you're in, SunoAAWeb notices it by itself and remembers it for next time.",
@@ -351,6 +422,18 @@ const I18N = {
   },
   fr: {
     setup:"⚙️ Réglages", library:"📚 Ma bibliothèque",
+    backupBtn:"💾 Sauvegarde", backupTip:"Enregistre ta bibliothèque, ce qu'il y a sur ton disque et tes réglages dans un seul fichier .zip (avec la liste de tous tes titres, lisible dans Excel)",
+    backupBtnLong:"💾 Faire une sauvegarde maintenant", restoreBtn:"♻ Restaurer une sauvegarde…", backupRunning:"Sauvegarde en cours…",
+    backupDone:(p,kb)=>`✅ Sauvegarde enregistrée (${kb} Ko) : ${p} — elle contient my-suno-library.csv (s'ouvre dans Excel), ta bibliothèque et tes réglages (jamais ta connexion Suno).`,
+    backupFail:e=>`Échec de la sauvegarde : ${e}`, restoreConfirm:"Restaurer une sauvegarde ? Ta bibliothèque enregistrée et tes réglages seront remplacés par ceux de la sauvegarde (ta connexion Suno est gardée).",
+    restoreDone:x=>`Restauré : ${x}. Rechargement…`, cacheWhere:"Ta bibliothèque est enregistrée automatiquement dans", backupWhere:"Les sauvegardes vont dans",
+    lastBackup:d=>`Dernière sauvegarde : ${d}`, noBackup:"Pas encore de sauvegarde.", showInFolder:"Voir dans le dossier", openFolder:"Ouvrir", revealFail:"Impossible d'ouvrir ça dans l'Explorateur (fichier déplacé ?).",
+    noFolderYet:p=>`Aucun fichier pour l'instant — les téléchargements iront dans ${p}`,
+    nowPlaying:"Lecteur", playerEmpty:"Appuie sur ▶ sur un titre, ou lance la liste affichée :", playView:"Lire cette liste", shuffleView:"Lecture aléatoire",
+    shuffle:"Aléatoire", repeat:{off:"Répéter : non",all:"Répéter : toute la liste",one:"Répéter : ce titre"}, upNext:n=>`À suivre (${n})`, queueEnd:"Fin de la liste.",
+    noLyricsClip:"Pas de paroles pour ce titre.", cantPlay:x=>`Impossible de lire « ${x} » — titre suivant.`, nothingToPlay:"Rien de lisible dans cette liste.",
+    yes:"oui", no:"non",
+    csv:{ws:"Workspace",title:"Titre",created:"Créé le",dur:"Durée",onDisk:"Sur le disque",how:"Trouvé par",file:"Fichier",id:"ID Suno",liked:"Favori",style:"Style",localOnly:"seulement sur le disque"},
     sTitle:"On configure SunoAAWeb", sIntro:"Trois étapes, environ une minute. Tu peux revenir ici à tout moment avec ⚙️ Réglages.", lang:"Langue",
     s1Title:"Connecte ton compte Suno",
     s1Text:"Clique sur le bouton : une fenêtre de navigateur séparée s'ouvre sur suno.com. Connecte-toi dedans une fois (Google, Discord, e-mail…) — c'est une fenêtre à part, elle ne connaît pas encore ta session habituelle. Dès que c'est fait, SunoAAWeb le détecte tout seul et s'en souvient pour la prochaine fois.",
@@ -429,7 +512,7 @@ let workspaces=[], clipsByWs={}, wsMarker={}, currentWs=null, selected=new Set()
 let LOCAL=[], MATCH={}, LOCAL_ONLY={}, CLIPWS={}, LOCAL_VIEW=[], ALIASES={};
 let libLoaded=false, syncing=false, syncProg=null, syncErr=null, syncedAt=null, scanProg=null, scanErr=null, scannedAt=null;
 let F={filter:'all', sort:'new', wsSort:'az', wsQ:'', incomplete:false, limit:300};
-let customMode=false, job=null, player={clip:null}, alignedWords=null;
+let customMode=false, job=null, alignedWords=null, VIEW_LIST=[];
 const PRESETS={
   mm:{folder:'Suno - {workspace}', file:'<Disc#:2>-<Track#:3> <Title>'},
   simple:{folder:'{workspace}', file:'<Title>'}
@@ -440,7 +523,8 @@ const MM_FR='<Disque n°:2>-<Piste n°:3> <Titre>';
 function setLang(l){ LANG=l; try{localStorage.setItem('sunodlaa_lang',l);}catch(e){} post('/api/config',{language:l}).catch(()=>{}); applyLang(); }
 function applyLang(){
   const t=T(); document.documentElement.lang=LANG; $('#langSel').value=LANG;
-  $('#btnSetup').textContent=t.setup; $('#btnLibrary').textContent=t.library;
+  $('#btnSetup').textContent=t.setup; $('#btnLibrary').textContent=t.library; $('#btnBackup').textContent=t.backupBtn; $('#btnBackup').title=t.backupTip;
+  $('#btnBackup2').textContent=t.backupBtnLong; $('#btnRestore').textContent=t.restoreBtn;
   $('#sTitle').textContent=t.sTitle; $('#sIntro').textContent=t.sIntro; $('#sLangLbl').textContent=t.lang+' ';
   $('#s1Title').textContent=t.s1Title; $('#s1Text').textContent=t.s1Text; $('#s1HelpSum').textContent=t.s1HelpSum;
   $('#s1HelpSteps').innerHTML=t.s1Help.map(x=>'<li>'+esc(x)+'</li>').join(''); $('#btnCookie').textContent=t.saveCookie;
@@ -452,11 +536,11 @@ function applyLang(){
   $('#btnRenameFolders').textContent=t.renameFolders; $('#lblRenameHint').textContent=t.renameHint;
   $('#lTracks').textContent=t.tracks; $('#lWs').textContent=t.workspaces; $('#lHave').textContent=t.onDisk; $('#lMiss').textContent=t.missing; $('#lLocal').textContent=t.localOnlyStat;
   $('#btnRecheck').textContent=t.recheck; $('#btnRecheck').title=t.recheckTip; $('#tWs').textContent=t.wsTitle; $('#search').placeholder=t.search;
-  $('#wsSearch').placeholder=t.wsSearch; $('#lblIncomplete').textContent=t.onlyIncomplete; $('#wsIncomplete').checked=!!F.incomplete;
+  $('#wsSearch').placeholder=t.wsSearch; $('#btnPlayView').title=t.playView; $('#btnShufView').title=t.shuffleView; $('#lblIncomplete').textContent=t.onlyIncomplete; $('#wsIncomplete').checked=!!F.incomplete;
   $('#wsSort').innerHTML=[['az',t.wsSortAZ],['recent',t.wsSortRecent],['miss',t.wsSortMiss]].map(([k,n])=>`<option value="${k}" ${F.wsSort===k?'selected':''}>${esc(n)}</option>`).join('');
-  $('#tJob').textContent=t.jobTitle; $('#jobIdle').textContent=t.jobIdle; $('#btnStop').textContent=t.stop; $('#lblLyrics').textContent=t.lyrics;
+  $('#tJob').textContent=t.jobTitle; $('#jobIdle').textContent=t.jobIdle; $('#btnStop').textContent=t.stop; 
   $('#freeBanner').textContent=t.freeBanner;
-  renderSetup(); renderAccount(); renderAll();
+  renderSetup(); renderAccount(); renderAll(); renderPlayer();
 }
 
 /* ============================== account ============================== */
@@ -471,7 +555,7 @@ function renderAccount(){
 }
 
 /* ============================== setup / wizard ============================== */
-function showSetup(){ $('#setup').classList.remove('hidden'); $('#library').classList.add('hidden'); $('#btnSetup').classList.add('hidden'); $('#btnLibrary').classList.toggle('hidden',!(AUTH.ok&&CFG.libraryExists)); renderSetup(); }
+function showSetup(){ renderBackupInfo(); $('#setup').classList.remove('hidden'); $('#library').classList.add('hidden'); $('#btnSetup').classList.add('hidden'); $('#btnLibrary').classList.toggle('hidden',!(AUTH.ok&&CFG.libraryExists)); renderSetup(); }
 function presetOf(){
   if(CFG.folderPattern===PRESETS.mm.folder && (CFG.fileNamePattern===PRESETS.mm.file||CFG.fileNamePattern===MM_FR)) return 'mm';
   if(CFG.folderPattern===PRESETS.simple.folder && CFG.fileNamePattern===PRESETS.simple.file) return 'simple';
@@ -818,7 +902,12 @@ function renderClips(){
   const nHave=cs.filter(c=>MATCH[c.id]).length, nFav=cs.filter(c=>c.is_liked).length;
   const img=w&&w.image_url?`<img src="${esc(w.image_url)}">`:'<div class="ph"></div>';
   const range=first?`${fmtDate(first)} → ${fmtDate(last)}`:'';
-  head.innerHTML=`<div class="wshead">${img}<div><h2>${esc(w?w.name:t.allTracks)}</h2><div class="muted small-t">${esc([t.nTracks(cs.length),range,dur?t.totalDur(Math.round(dur/3600*10)/10):''].filter(Boolean).join(' · '))}</div></div></div>`;
+  let folder='';
+  if(w){ const f=cs.map(c=>MATCH[c.id]).find(m=>m&&m.k); const lo=(LOCAL_ONLY[w.id]||[])[0];
+    const dir=f?f.p.replace(/[\\/][^\\/]*$/,''):(lo?lo.p.replace(/[\\/][^\\/]*$/,''):'');
+    folder=dir?`<div class="folder">📁 <code>${esc(dir)}</code>${revealBtn(dir,t.openFolder)}</div>`:`<div class="folder muted">📁 ${esc(t.noFolderYet((CFG.libraryPath||'').replace(/[\\/]+$/,'')+'\\'+(CFG.folderPattern||'Suno - {workspace}').replace('{workspace}',w.name)))}</div>`; }
+  else folder=`<div class="folder">📁 <code>${esc(CFG.libraryPath||'')}</code>${revealBtn(CFG.libraryPath,t.openFolder)}</div>`;
+  head.innerHTML=`<div class="wshead">${img}<div style="min-width:0"><h2>${esc(w?w.name:t.allTracks)}</h2><div class="muted small-t">${esc([t.nTracks(cs.length),range,dur?t.totalDur(Math.round(dur/3600*10)/10):''].filter(Boolean).join(' · '))}</div>${folder}</div></div>`;
   $('#filterSeg').innerHTML=[['all',t.fAll,cs.length],['have',t.fHave,nHave],['miss',t.fMiss,cs.length-nHave],['fav',t.fFav,nFav]]
     .map(([k,n,c])=>`<button class="${F.filter===k?'on':''}" onclick="F.filter='${k}';F.limit=300;savePrefs();renderClips()">${esc(n)} <span class="muted">${c}</span></button>`).join('');
   const miss=cs.filter(c=>!MATCH[c.id]).length;
@@ -829,6 +918,7 @@ function renderClips(){
   const by={new:(a,b)=>(b.created_at||'').localeCompare(a.created_at||''),old:(a,b)=>(a.created_at||'').localeCompare(b.created_at||''),
     az:(a,b)=>collator.compare(a.title||'',b.title||''),long:(a,b)=>(+b.duration||0)-(+a.duration||0)}[F.sort]||((a,b)=>0);
   list.sort(by);
+  VIEW_LIST=list;
   const rows=[];
   if(!list.length) rows.push('<div class="empty">'+esc(F.filter==='miss'&&cs.length?t.nothingMissing:t.noTracks)+'</div>');
   list.slice(0,F.limit).forEach(c=>{
@@ -837,10 +927,11 @@ function renderClips(){
     const im=c.image_url?`<img loading="lazy" src="${esc(c.image_url)}">`:'<div class="ph"></div>';
     const wsn=currentWs===ALL_ID&&CLIPWS[c.id]?`<span class="ws">${esc(CLIPWS[c.id].name)}</span> · `:'';
     const sub=[fmtDate(c.created_at,true),fmtDur(c.duration),c.tags].filter(Boolean).join(' · ');
-    rows.push(`<div class="clip${o?' orig':''}"><input type="checkbox" ${selected.has(c.id)?'checked':''} ${m?'disabled':''} onchange="toggleSel('${c.id}',this.checked)">`+
+    const playing=PL.cur&&PL.cur.clip&&PL.cur.clip.id===c.id;
+    rows.push(`<div class="clip${o?' orig':''}${playing?' playing':''}"><input type="checkbox" ${selected.has(c.id)?'checked':''} ${m?'disabled':''} onchange="toggleSel('${c.id}',this.checked)">`+
       `<span class="avail" title="${esc(avT)}">${av}</span>${im}`+
-      `<div class="t"><div class="title">${o?'<span class="star" title="'+esc(t.original)+'">★ </span>':''}${c.is_liked?'<span class="heart">♥ </span>':''}${esc(c.title||'—')}</div><div class="sub2">${wsn}${esc(sub)}</div></div>`+
-      `<button class="small" onclick="play('${c.id}')">▶</button></div>`);
+      `<div class="t"><div class="title">${o?'<span class="star" title="'+esc(t.original)+'">★ </span>':''}${c.is_liked?'<span class="heart">♥ </span>':''}${esc(c.title||'—')}</div><div class="sub2">${wsn}${esc(sub)}</div>${m?`<div class="path" title="${esc(m.p)}">💾 ${esc(relPath(m.p))}</div>`:''}</div>`+
+      `${m?revealBtn(m.p):''}<button class="small${playing?' primary':''}" onclick="play('${c.id}')">${playing?'♪':'▶'}</button></div>`);
   });
   if(list.length>F.limit) rows.push(`<div class="more"><button class="small" onclick="F.limit+=300;renderClips()">${esc(t.showMore(list.length-F.limit))}</button></div>`);
   if(currentWs!==ALL_ID){ const lo=LOCAL_ONLY[currentWs]||[]; if(lo.length) rows.push(`<details class="localonly"><summary>${esc(t.localOnlyTitle(lo.length))}</summary><div class="muted small-t" style="margin:6px 0">${esc(t.localOnlyHint)}</div>${localFilesHtml(lo,false)}</details>`); }
@@ -906,30 +997,181 @@ function renderJob(){
 }
 
 /* ============================== player ============================== */
+// Queue = the track list on screen when you pressed play (same filter and order).
+const PL={q:[],i:-1,shuffle:false,repeat:'off',cur:null,lyr:null,lyrLine:-1,tab:'lyrics',errors:0};
+try{ const s=JSON.parse(localStorage.getItem('sunodlaa_player')||'{}'); PL.shuffle=!!s.shuffle; PL.repeat=s.repeat||'off'; PL.vol=s.vol??0.9; }catch(e){ PL.vol=0.9; }
+function savePlayer(){ try{ localStorage.setItem('sunodlaa_player',JSON.stringify({shuffle:PL.shuffle,repeat:PL.repeat,vol:$('#audio').volume})); }catch(e){} }
 function findClip(id){ for(const k in clipsByWs){ const c=(clipsByWs[k]||[]).find(x=>x.id===id); if(c) return c; } return null; }
+function playable(c){ return !!(MATCH[c.id]||c.audio_url); }
 function play(id){
-  const t=T(), c=findClip(id); if(!c) return; player.clip=c; const a=$('#audio'), m=MATCH[id];
-  a.src=m?('/api/play?path='+encodeURIComponent(m.p)):(c.audio_url||'');
-  $('#pName').textContent=c.title||'—';
-  $('#pSub').textContent=[m?t.localFile:(c.audio_url?t.sunoStream:t.noSource),(CLIPWS[id]||{}).name,fmtDate(c.created_at,true)].filter(Boolean).join(' · ');
-  $('#player').classList.add('show'); alignedWords=null; a.play().catch(()=>{});
+  const list=(VIEW_LIST||[]).filter(playable), i=list.findIndex(c=>c.id===id);
+  if(i>=0){ PL.q=list.map(c=>({k:'clip',id:c.id})); PL.i=i; } else { PL.q=[{k:'clip',id}]; PL.i=0; }
+  if(PL.shuffle) shuffleRest();
+  startCurrent();
 }
 function playLocal(i){
-  const t=T(), f=LOCAL_VIEW[i]; if(!f) return; player.clip=null; const a=$('#audio');
-  a.src='/api/play?path='+encodeURIComponent(f.p);
-  $('#pName').textContent=f.p.split(/[\\/]/).pop(); $('#pSub').textContent=t.localFile+' · '+f.w;
-  $('#player').classList.add('show'); alignedWords=null; a.play().catch(()=>{});
+  PL.q=LOCAL_VIEW.map(f=>({k:'file',f})); PL.i=i; if(PL.shuffle) shuffleRest(); startCurrent();
 }
+function playAllView(shuffle){
+  const list=(VIEW_LIST||[]).filter(playable); if(!list.length){ toast(T().nothingToPlay); return; }
+  PL.q=list.map(c=>({k:'clip',id:c.id})); PL.i=0; PL.shuffle=!!shuffle; if(shuffle){ PL.i=Math.floor(Math.random()*PL.q.length); shuffleRest(); } savePlayer(); startCurrent();
+}
+function shuffleRest(){ const cur=PL.q[PL.i], rest=PL.q.filter((_,j)=>j!==PL.i); for(let j=rest.length-1;j>0;j--){ const k=Math.floor(Math.random()*(j+1)); [rest[j],rest[k]]=[rest[k],rest[j]]; } PL.q=[cur,...rest]; PL.i=0; }
+function entryInfo(e){
+  const t=T();
+  if(!e) return null;
+  if(e.k==='file'){ const name=e.f.p.split(/[\\/]/).pop().replace(/\.[^.]+$/,''); return {title:name,sub:e.f.w,src:e.f.p,local:true,path:e.f.p,img:'',clip:null}; }
+  const c=findClip(e.id); if(!c) return null; const m=MATCH[c.id];
+  return {title:c.title||'—',sub:[(CLIPWS[c.id]||{}).name,fmtDate(c.created_at,true)].filter(Boolean).join(' · '),
+    src:m?('/api/play?path='+encodeURIComponent(m.p)):c.audio_url,local:!!m,path:m?m.p:'',img:c.image_large_url||c.image_url||'',clip:c};
+}
+function startCurrent(){
+  const t=T(), e=PL.q[PL.i], info=entryInfo(e), a=$('#audio');
+  if(!info){ return; }
+  PL.cur=info; PL.lyr=null; PL.lyrLine=-1;
+  a.src=info.local&&e.k==='file'?('/api/play?path='+encodeURIComponent(info.path)):info.src;
+  a.volume=PL.vol; a.play().catch(()=>{});
+  renderPlayer(); renderClips(); loadLyrics(info.clip);
+  if('mediaSession' in navigator){ try{ navigator.mediaSession.metadata=new MediaMetadata({title:info.title,artist:info.sub,album:'SUNODLAA',artwork:info.img?[{src:info.img,sizes:'512x512',type:'image/jpeg'}]:[]}); }catch(x){} }
+}
+function nextTrack(auto){
+  if(!PL.q.length) return;
+  if(auto&&PL.repeat==='one'){ $('#audio').currentTime=0; $('#audio').play(); return; }
+  if(PL.i<PL.q.length-1) PL.i++; else if(PL.repeat==='all'||!auto) PL.i=0; else { renderPlayer(); return; }
+  startCurrent();
+}
+function prevTrack(){ const a=$('#audio'); if(a.currentTime>3){ a.currentTime=0; return; } if(PL.i>0){ PL.i--; startCurrent(); } else a.currentTime=0; }
+function togglePlay(){ const a=$('#audio'); if(!PL.cur) { playAllView(false); return; } a.paused?a.play():a.pause(); }
+function toggleShuffle(){ PL.shuffle=!PL.shuffle; if(PL.shuffle&&PL.q.length) shuffleRest(); savePlayer(); renderPlayer(); }
+function cycleRepeat(){ PL.repeat={off:'all',all:'one',one:'off'}[PL.repeat]; savePlayer(); renderPlayer(); }
+function jumpTo(j){ PL.i=j; startCurrent(); }
+function setTab(k){ PL.tab=k; renderPlayer(); }
+const REVEAL=[];
+const REV_IDX={};
+function revealBtn(p,label){ if(!p) return ''; if(REV_IDX[p]==null){ REV_IDX[p]=REVEAL.length; REVEAL.push(p); } return `<button class="small" title="${esc(p)}" onclick="event.stopPropagation();reveal(REVEAL[${REV_IDX[p]}])">📂${label?' '+esc(label):''}</button>`; }
+async function reveal(p){ if(!p) return; const r=await api('/api/reveal?path='+encodeURIComponent(p)).catch(()=>({ok:false})); if(!r.ok) toast(T().revealFail); }
+async function loadLyrics(c){
+  if(!c){ PL.lyr={none:true}; renderLyrics(); return; }
+  const id=c.id; PL.lyr={loading:true}; renderLyrics();
+  try{
+    const d=await api('/api/lyrics?id='+id); if(!PL.cur||!PL.cur.clip||PL.cur.clip.id!==id) return;
+    let lines=(d.aligned_lyrics||[]).filter(l=>(l.text||'').trim()).map(l=>({t:l.text,s:+l.start_s||0,e:+l.end_s||0}));
+    if(!lines.length&&(d.aligned_words||[]).length){ // build lines from words
+      let cur=null; lines=[];
+      d.aligned_words.forEach(w=>{ const txt=(w.word||''); if(!cur){ cur={t:'',s:+w.start_s||0,e:0}; lines.push(cur); } cur.t+=txt; cur.e=+w.end_s||cur.e; if(/\n/.test(txt)){ cur.t=cur.t.trim(); cur=null; } });
+    }
+    lines=lines.filter(l=>l.t.replace(/\[[^\]]*\]/g,'').trim());
+    PL.lyr=lines.length?{lines}:{text:c.prompt||''};
+  }catch(e){ PL.lyr={text:c.prompt||''}; }
+  renderLyrics();
+}
+function renderLyrics(){
+  const el=$('#pcLyr'); if(!el) return; const t=T(), L=PL.lyr;
+  if(!L||L.loading){ el.innerHTML='<div class="muted small-t">…</div>'; return; }
+  if(L.none){ el.innerHTML='<div class="muted small-t">'+esc(t.noLyrics)+'</div>'; return; }
+  if(L.lines) el.innerHTML=L.lines.map((l,i)=>`<div class="ly" id="ly${i}" onclick="$('#audio').currentTime=${l.s}">${esc(l.t)}</div>`).join('');
+  else el.innerHTML=L.text?'<div class="ly static">'+esc(L.text).replace(/\n/g,'<br>')+'</div>':'<div class="muted small-t">'+esc(t.noLyricsClip)+'</div>';
+  PL.lyrLine=-1;
+}
+function renderPlayer(){
+  const t=T(), card=$('#pcard'); if(!card) return;
+  const info=PL.cur;
+  $('#pcEmpty').classList.toggle('hidden',!!info); $('#pcBody').classList.toggle('hidden',!info);
+  $('#pcHead').textContent=t.nowPlaying;
+  $('#pcEmpty').innerHTML=`<div class="muted small-t">${esc(t.playerEmpty)}</div><div class="row" style="justify-content:center"><button class="small" onclick="playAllView(false)">▶ ${esc(t.playView)}</button><button class="small" onclick="playAllView(true)">🔀 ${esc(t.shuffleView)}</button></div>`;
+  if(!info) return;
+  $('#pcArt').style.backgroundImage=info.img?`url("${info.img}")`:'';
+  $('#pcArt').classList.toggle('noimg',!info.img);
+  $('#pcTitle').textContent=info.title; $('#pcSub').textContent=info.sub;
+  $('#pcSrc').innerHTML=info.local?`<span class="src loc">💾 ${esc(t.localFile)}</span>`:`<span class="src cloud">☁ ${esc(t.sunoStream)}</span>`;
+  $('#pcPath').innerHTML=info.path?`<span title="${esc(info.path)}">${esc(relPath(info.path))}</span> ${revealBtn(info.path,t.showInFolder)}`:`<span class="muted">${esc(t.notOnDisk)}</span>`;
+  const a=$('#audio');
+  $('#pcPlay').textContent=a.paused?'▶':'⏸';
+  $('#pcShuf').classList.toggle('on',PL.shuffle); $('#pcShuf').title=t.shuffle;
+  $('#pcRep').classList.toggle('on',PL.repeat!=='off'); $('#pcRep').textContent=PL.repeat==='one'?'🔂':'🔁'; $('#pcRep').title=t.repeat[PL.repeat];
+  $('#pcVol').value=Math.round(a.volume*100);
+  $('#pcTabL').classList.toggle('on',PL.tab==='lyrics'); $('#pcTabQ').classList.toggle('on',PL.tab==='queue');
+  $('#pcTabL').textContent='🎤 '+t.lyrics; $('#pcTabQ').textContent='☰ '+t.upNext(Math.max(0,PL.q.length-PL.i-1));
+  $('#pcLyr').classList.toggle('hidden',PL.tab!=='lyrics'); $('#pcQueue').classList.toggle('hidden',PL.tab!=='queue');
+  if(PL.tab==='queue'){
+    const rows=[]; for(let j=PL.i+1;j<Math.min(PL.q.length,PL.i+40);j++){ const x=entryInfo(PL.q[j]); if(x) rows.push(`<div class="qi" onclick="jumpTo(${j})"><span class="n">${j-PL.i}</span><div class="qt"><b>${esc(x.title)}</b><span>${esc(x.sub)}</span></div>${x.local?'💾':'☁'}</div>`); }
+    $('#pcQueue').innerHTML=rows.join('')||'<div class="muted small-t">'+esc(t.queueEnd)+'</div>';
+  }
+}
+function relPath(p){ const lib=(CFG.libraryPath||'').replace(/[\\/]+$/,''); return lib&&p.toLowerCase().startsWith(lib.toLowerCase())?'…'+p.slice(lib.length):p; }
+function fmtT(s){ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+(function wirePlayer(){
+  const a=$('#audio');
+  a.addEventListener('timeupdate',()=>{
+    const d=a.duration||0, c=a.currentTime||0;
+    if(!PL.seeking){ $('#pcSeek').value=d?Math.round(1000*c/d):0; }
+    $('#pcCur').textContent=fmtT(c); $('#pcDur').textContent=fmtT(d);
+    $('#pcSeek').style.setProperty('--p',(d?100*c/d:0)+'%');
+    const L=PL.lyr; if(L&&L.lines){ let k=-1; for(let i=0;i<L.lines.length;i++){ if(c>=L.lines[i].s-0.15) k=i; else break; }
+      if(k!==PL.lyrLine){ const o=document.getElementById('ly'+PL.lyrLine); if(o) o.classList.remove('on'); PL.lyrLine=k; const n=document.getElementById('ly'+k);
+        if(n){ n.classList.add('on'); const box=$('#pcLyr'); box.scrollTo({top:n.offsetTop-box.offsetTop-box.clientHeight/2+n.clientHeight/2,behavior:'smooth'}); } } }
+    if(alignedWords) alignedWords.forEach((w,i)=>{ const s=document.getElementById('kw'+i); if(s) s.classList.toggle('on',c>=w.s&&c<=w.e); });
+  });
+  a.addEventListener('play',()=>{ PL.errors=0; renderPlayer(); });
+  a.addEventListener('pause',renderPlayer);
+  a.addEventListener('ended',()=>nextTrack(true));
+  a.addEventListener('error',()=>{ if(!PL.cur) return; PL.errors++; logUI('player: cannot play '+(PL.cur.path||PL.cur.src||'?'));
+    toast(T().cantPlay(PL.cur.title)); if(PL.errors<5&&PL.i<PL.q.length-1) setTimeout(()=>nextTrack(false),800); });
+  const sk=$('#pcSeek');
+  sk.addEventListener('input',()=>{ PL.seeking=true; const d=a.duration||0; $('#pcCur').textContent=fmtT(d*sk.value/1000); sk.style.setProperty('--p',(sk.value/10)+'%'); });
+  sk.addEventListener('change',()=>{ const d=a.duration||0; if(d) a.currentTime=d*sk.value/1000; PL.seeking=false; });
+  $('#pcVol').addEventListener('input',e=>{ a.volume=e.target.value/100; PL.vol=a.volume; savePlayer(); });
+  document.addEventListener('keydown',e=>{ if(e.target.matches('input,textarea,select')) return;
+    if(e.code==='Space'&&PL.cur){ e.preventDefault(); togglePlay(); }
+    else if(e.key==='ArrowRight'&&e.shiftKey) nextTrack(false); else if(e.key==='ArrowLeft'&&e.shiftKey) prevTrack(); });
+  if('mediaSession' in navigator){ try{ navigator.mediaSession.setActionHandler('nexttrack',()=>nextTrack(false)); navigator.mediaSession.setActionHandler('previoustrack',prevTrack); }catch(x){} }
+})();
 async function openKaraoke(){
-  const c=player.clip; if(!c){ toast(T().noLyrics); return; } $('#karaoke').classList.add('show'); $('#karaokeLine').textContent='…';
+  const c=PL.cur&&PL.cur.clip; if(!c){ toast(T().noLyrics); return; } $('#karaoke').classList.add('show'); $('#karaokeLine').textContent='…';
   try{ const d=await api('/api/lyrics?id='+c.id); const w=d.aligned_words||[];
     if(w.length){ alignedWords=w.map(x=>({t:esc(x.word||''),s:x.start_s||0,e:x.end_s||0})); $('#karaokeLine').innerHTML=alignedWords.map((x,i)=>`<span class="w" id="kw${i}">${x.t}</span>`).join(' '); }
     else $('#karaokeLine').innerHTML=esc(c.prompt||'—').replace(/\n/g,'<br>');
   }catch(e){ $('#karaokeLine').textContent='—'; }
 }
-function closeKaraoke(){ $('#karaoke').classList.remove('show'); }
-$('#audio').addEventListener('timeupdate',()=>{ if(!alignedWords) return; const t=$('#audio').currentTime;
-  alignedWords.forEach((w,i)=>{ const s=document.getElementById('kw'+i); if(s) s.classList.toggle('on',t>=w.s&&t<=w.e); }); });
+function closeKaraoke(){ $('#karaoke').classList.remove('show'); alignedWords=null; }
+
+/* ============================== backup ============================== */
+function csvCell(v){ v=(v==null?'':''+v); return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+function buildCsv(){
+  const t=T(), rows=[[t.csv.ws,t.csv.title,t.csv.created,t.csv.dur,t.csv.onDisk,t.csv.how,t.csv.file,t.csv.id,t.csv.liked,t.csv.style]];
+  workspaces.slice().sort((a,b)=>collator.compare(a.name,b.name)).forEach(w=>(clipsByWs[w.id]||[]).slice().sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||'')).forEach(c=>{
+    const m=MATCH[c.id];
+    rows.push([w.name,c.title,(c.created_at||'').replace('T',' ').slice(0,16),fmtDur(c.duration),m?t.yes:t.no,m?(m.k==='id'?'id':'title'):'',m?m.p:'',c.id,c.is_liked?t.yes:'',c.tags]);
+  }));
+  for(const k in LOCAL_ONLY) LOCAL_ONLY[k].forEach(f=>rows.push([f.w,(f.t||f.ft),'','',t.yes,t.csv.localOnly,f.p,f.id||'','','']));
+  return rows.map(r=>r.map(csvCell).join(';')).join('\r\n');
+}
+async function doBackup(){
+  const t=T(); toast(t.backupRunning,20000);
+  const r=await post('/api/backup',{csv:buildCsv()}).catch(e=>({ok:false,error:''+e}));
+  logUI('user: backup -> '+(r.ok?r.path:'failed '+r.error));
+  if(r.ok){ LAST_BACKUP=r.path; showNotice(t.backupDone(r.path,Math.round(r.size/1024)),r.path); renderBackupInfo(); } else toast(t.backupFail(r.error||''),8000);
+}
+async function doRestore(){
+  const t=T(); if(!confirm(t.restoreConfirm)) return;
+  const r=await post('/api/backup/restore').catch(e=>({ok:false,error:''+e}));
+  if(r.cancelled) return;
+  if(!r.ok){ toast(t.backupFail(r.error||''),8000); return; }
+  toast(t.restoreDone((r.restored||[]).join(', ')),6000); setTimeout(()=>location.reload(),1500);
+}
+let LAST_BACKUP=null;
+async function renderBackupInfo(){
+  const el=$('#backupInfo'); if(!el) return; const t=T();
+  const r=await api('/api/backup/info').catch(()=>null); if(!r) return;
+  el.innerHTML=`<div>${esc(t.cacheWhere)} <code>${esc(r.cacheDir)}</code> ${revealBtn(r.cacheDir)}</div>`+
+    `<div>${esc(t.backupWhere)} <code>${esc(r.dir)}</code></div>`+
+    `<div>${r.last?esc(t.lastBackup(fmtDate(r.lastAt,true)))+` <code>${esc(r.last.split(/[\\/]/).pop())}</code> ${revealBtn(r.last)}`:esc(t.noBackup)}</div>`;
+}
+function showNotice(msg,path){
+  const n=$('#notice'); n.innerHTML=`<div>${esc(msg)}</div><div class="row">${revealBtn(path,T().showInFolder)}<button class="small" onclick="$('#notice').classList.add('hidden')">OK</button></div>`;
+  n.classList.remove('hidden'); $('#toast').style.display='none';
+}
+
 /* ============================== boot ============================== */
 (async function(){
   applyLang();

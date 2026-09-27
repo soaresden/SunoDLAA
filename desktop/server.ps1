@@ -646,6 +646,88 @@ function Pick-Folder($start) {
     return $null
 }
 
+# ---- Backup / restore (zip in desktop\backups) + show a file in Explorer ------
+$BackupDir = Join-Path $Root 'backups'
+function Make-Backup($csv) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+    $stamp = Get-Date -Format 'yyyy-MM-dd_HHmm'
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ('sunodlaa-backup-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+    try {
+        foreach ($n in @('library.json', 'local-index.json', 'title-aliases.json')) {
+            $src = Join-Path $CacheDir $n
+            if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination (Join-Path $tmp $n) }
+        }
+        # settings without the Suno session cookie (never put it in a backup)
+        $c = $Cfg | ConvertTo-Json -Depth 5 | ConvertFrom-Json
+        $c.clientCookie = ''
+        [IO.File]::WriteAllText((Join-Path $tmp 'settings.json'), ($c | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding($false)))
+        if ($csv) { [IO.File]::WriteAllText((Join-Path $tmp 'my-suno-library.csv'), $csv, (New-Object Text.UTF8Encoding($true))) }
+        $readme = "SUNODLAA / SunoAAWeb backup - $stamp`r`n`r`nmy-suno-library.csv : every Suno track (workspace, title, date, duration, on disk, file path, Suno id) - opens in Excel`r`nlibrary.json        : your Suno library (workspaces + tracks)`r`nlocal-index.json    : what was found on your disk`r`nsettings.json       : your settings (without your Suno sign-in)`r`n`r`nRestore: SunoAAWeb > Setup > Advanced > Restore a backup."
+        [IO.File]::WriteAllText((Join-Path $tmp 'README.txt'), $readme, (New-Object Text.UTF8Encoding($false)))
+        $zip = Join-Path $BackupDir ("SunoAAWeb-backup-$stamp.zip")
+        if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
+        [IO.Compression.ZipFile]::CreateFromDirectory($tmp, $zip)
+        $len = (Get-Item -LiteralPath $zip).Length
+        Log 'INFO' "backup written: $zip ($len bytes)"
+        return @{ ok = $true; path = $zip; size = $len }
+    } finally { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+}
+function Pick-BackupFile {
+    Add-Type -AssemblyName System.Windows.Forms
+    $owner = New-Object System.Windows.Forms.Form
+    $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0
+    $owner.StartPosition = 'CenterScreen'; $owner.Size = New-Object System.Drawing.Size(1, 1)
+    $owner.Show(); $owner.Activate()
+    $dlg = New-Object System.Windows.Forms.OpenFileDialog
+    $dlg.Title = 'SUNODLAA - choose a SunoAAWeb backup'
+    $dlg.Filter = 'SunoAAWeb backup (*.zip)|*.zip'
+    if (Test-Path -LiteralPath $BackupDir) { $dlg.InitialDirectory = $BackupDir }
+    try { $r = $dlg.ShowDialog($owner) } finally { $owner.Close(); $owner.Dispose() }
+    if ($r -eq [System.Windows.Forms.DialogResult]::OK) { return $dlg.FileName }
+    return $null
+}
+function Restore-Backup($zip) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $za = [IO.Compression.ZipFile]::OpenRead($zip)
+    $got = @()
+    try {
+        foreach ($e in $za.Entries) {
+            if ($e.FullName -in @('library.json', 'local-index.json', 'title-aliases.json')) {
+                [IO.Compression.ZipFileExtensions]::ExtractToFile($e, (Join-Path $CacheDir $e.FullName), $true); $got += $e.FullName
+            } elseif ($e.FullName -eq 'settings.json') {
+                $sr = New-Object IO.StreamReader($e.Open(), [Text.Encoding]::UTF8); $txt = $sr.ReadToEnd(); $sr.Close()
+                $s = $txt | ConvertFrom-Json
+                foreach ($k in @('folderPattern', 'fileNamePattern', 'audioFormat', 'saveLrc', 'downloadDelaySec', 'language', 'libraryPath')) {
+                    if ($null -ne $s.$k -and "$($s.$k)" -ne '') { $Cfg.$k = $s.$k }
+                }
+                Save-Config $Cfg; $got += 'settings.json'
+            }
+        }
+    } finally { $za.Dispose() }
+    $script:ScanFiles = $null; $script:ScanMap = @{}
+    Log 'INFO' "backup restored from $zip : $($got -join ', ')"
+    return @{ ok = $true; path = $zip; restored = $got }
+}
+# Explorer: select a file (or open a folder) - only inside the music folder or the backups folder
+function Reveal-Path($p) {
+    if (-not $p) { return @{ ok = $false } }
+    $full = [IO.Path]::GetFullPath($p)
+    $sep = [string][IO.Path]::DirectorySeparatorChar
+    $allowed = $false
+    foreach ($root in @([string]$Cfg.libraryPath, $BackupDir, $Root)) {
+        if (-not $root) { continue }
+        $r = [IO.Path]::GetFullPath($root); if (-not $r.EndsWith($sep)) { $r += $sep }
+        if ($full.StartsWith($r, [StringComparison]::OrdinalIgnoreCase) -or ($full + $sep) -ieq $r) { $allowed = $true }
+    }
+    if (-not $allowed) { return @{ ok = $false; error = 'outside the music folder' } }
+    if (Test-Path -LiteralPath $full -PathType Leaf) { Start-Process explorer.exe -ArgumentList ('/select,"' + $full + '"') }
+    elseif (Test-Path -LiteralPath $full -PathType Container) { Start-Process explorer.exe -ArgumentList ('"' + $full + '"') }
+    else { return @{ ok = $false; error = 'not found' } }
+    return @{ ok = $true }
+}
+
 # ---- Telechargement + tag ------------------------------------------
 # Lien de telechargement officiel (bouton "Download" du site) : mp3 ou wav selon l'offre.
 function Resolve-Download($id, $fmt) {
@@ -884,6 +966,29 @@ while ($listener.IsListening) {
                 $ap = Join-Path $CacheDir 'title-aliases.json'
                 if (Test-Path -LiteralPath $ap) { Write-Text $resp ([IO.File]::ReadAllText($ap, [Text.Encoding]::UTF8)) 'application/json; charset=utf-8' }
                 else { Write-Text $resp '{}' 'application/json; charset=utf-8' }
+                break
+            }
+            '^/api/backup$' {
+                $b = Read-Body $req | ConvertFrom-Json
+                try { Write-Json $resp (Make-Backup ([string]$b.csv)) } catch { Log 'ERROR' "backup: $($_.Exception.Message)"; Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
+                break
+            }
+            '^/api/backup/restore$' {
+                try {
+                    $f = Pick-BackupFile
+                    if ($f) { Write-Json $resp (Restore-Backup $f) } else { Write-Json $resp @{ ok=$false; cancelled=$true } }
+                } catch { Log 'ERROR' "restore: $($_.Exception.Message)"; Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
+                break
+            }
+            '^/api/backup/info$' {
+                $last = $null
+                if (Test-Path -LiteralPath $BackupDir) { $last = Get-ChildItem -LiteralPath $BackupDir -Filter '*.zip' | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }
+                Write-Json $resp @{ ok=$true; dir=$BackupDir; cacheDir=$CacheDir; last=$(if ($last) { $last.FullName } else { $null }); lastAt=$(if ($last) { $last.LastWriteTime.ToString('o') } else { $null }) }
+                break
+            }
+            '^/api/reveal$' {
+                $qp = [System.Web.HttpUtility]::ParseQueryString($req.Url.Query)
+                try { Write-Json $resp (Reveal-Path $qp['path']) } catch { Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)" } }
                 break
             }
             '^/api/log$' {
