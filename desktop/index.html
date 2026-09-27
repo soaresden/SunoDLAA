@@ -74,7 +74,7 @@
   .analyzing{flex-basis:100%;font-size:12px;color:var(--muted)}
   .bar{height:6px;border-radius:6px;background:var(--bg2);overflow:hidden;margin-top:6px}
   .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--fuchsia),var(--orange));transition:width .3s}
-  .cols{flex:1;display:grid;grid-template-columns:290px 1fr 320px;min-height:0;margin-top:12px;border-top:1px solid var(--border)}
+  .cols{flex:1;display:grid;grid-template-columns:320px 1fr 320px;min-height:0;margin-top:12px;border-top:1px solid var(--border)}
   .col{overflow:auto;padding:10px}
   .col.ws{border-right:1px solid var(--border)} .col.job{border-left:1px solid var(--border);background:#fff}
   .ptitle{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:6px 4px 8px;font-weight:700}
@@ -155,6 +155,17 @@
   .batchbar button{background:rgba(255,255,255,.14);color:#fff} .batchbar button.danger{background:var(--bad)} .batchbar button:disabled{opacity:.4}
   .pchead{display:flex;align-items:center;justify-content:space-between;padding-right:8px}
   .pc-panel{display:block} .pc-panel:not(.open){display:none}
+  .sortseg{align-items:center} .sortseg .muted{margin-right:2px}
+  .wstools .sortseg button{padding:4px 9px}
+  /* mini player window */
+  body.minibody{margin:0;background:var(--bg);height:100vh;overflow:hidden}
+  .pcard.mini{border:none;border-radius:0;height:100vh;display:flex;flex-direction:column;box-shadow:none}
+  .pcard.mini #pcBody{display:flex;flex-direction:column;flex:1;min-height:0}
+  .pcard.mini #pcBody.hidden{display:none}
+  .pcard.mini .pc-art{height:auto;aspect-ratio:1/1;max-height:42vh;flex:none}
+  .pcard.mini .pc-panel{flex:1;min-height:0;display:flex;flex-direction:column}
+  .pcard.mini #pcLyr,.pcard.mini #pcQueue{max-height:none;flex:1}
+  .pcard.mini .pc-path{display:none}
   /* floating bar (Spotify-like) */
   .pcard.floating{position:fixed;left:0;right:0;bottom:0;z-index:45;border-radius:0;border:none;border-top:1px solid var(--border);box-shadow:0 -8px 30px rgba(0,0,0,.08);overflow:visible}
   .pcard.floating.nocur{display:none}
@@ -203,7 +214,7 @@
   .wstools input[type=text]{flex:1;min-width:120px;padding:6px 8px}
   .wstools select{padding:6px}
   .chk{display:flex;align-items:center;gap:4px;cursor:pointer}
-  .ws-item .sub{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ws-item .sub{font-size:11px;color:var(--muted);line-height:1.35}
   .ws-item.all .ph{background:linear-gradient(135deg,var(--turq),var(--cobalt));display:grid;place-items:center;color:#fff;font-size:20px}
   .ws-item.orph .ph{background:linear-gradient(135deg,var(--cobalt),var(--muted));display:grid;place-items:center;color:#fff;font-size:20px}
   .ws-sep{height:1px;background:var(--border);margin:6px 4px}
@@ -343,7 +354,7 @@
       <div class="ptitle" id="tWs"></div>
       <div class="wstools">
         <input type="text" id="wsSearch" oninput="F.wsQ=this.value;renderWorkspaces()">
-        <select id="wsSort" onchange="F.wsSort=this.value;savePrefs();renderWorkspaces()"></select>
+        <div class="seg sortseg" id="wsSortSeg"></div>
         <label class="small-t muted chk"><input type="checkbox" id="wsIncomplete" onchange="F.incomplete=this.checked;savePrefs();renderWorkspaces()"> <span id="lblIncomplete"></span></label>
       </div>
       <div id="wsList"></div>
@@ -352,7 +363,7 @@
       <div id="wsHead"></div>
       <div class="toolbar">
         <input type="text" id="search" oninput="F.limit=300;renderClips()">
-        <select id="sortSel" onchange="F.sort=this.value;savePrefs();renderClips()"></select>
+        <div class="seg sortseg" id="sortSeg"></div>
       </div>
       <div class="toolbar">
         <label class="chk small-t" id="selAllBox"><input type="checkbox" id="selAll" onchange="selectAllView(this.checked)"> <span id="lblSelAll"></span></label>
@@ -376,8 +387,9 @@
         <div class="row"><button class="small" id="btnStop" onclick="stopJob()"></button></div>
       </div>
       <div id="failList"></div>
+      <div class="jobbox hidden" id="miniNote"></div>
       <div id="dockHome"><div class="pcard" id="pcard">
-        <div class="pchead"><div class="ptitle" id="pcHead"></div><button class="small" id="pcFloatBtn" onclick="toggleFloat()">⇲</button></div>
+        <div class="pchead"><div class="ptitle" id="pcHead"></div><span><button class="small" id="pcMiniBtn" onclick="toggleMini()">⧉</button> <button class="small" id="pcFloatBtn" onclick="toggleFloat()">⇲</button></span></div>
         <div id="pcEmpty"></div>
         <div id="pcBody" class="hidden">
           <div class="pc-art" id="pcArt"><button class="small kbtn" onclick="openKaraoke()" title="Karaoke">⛶</button></div>
@@ -407,6 +419,9 @@
 const I18N = {
   en: {
     setup:"⚙️ Setup", library:"📚 My library",
+    miniIsOpen:"The player is in the mini window.", miniBack:"Bring it back",
+    sortLbl:"Sort:", sbNew:"Newest", sbOld:"Oldest", sbAZ:"A→Z", sbLong:"Longest", wbAZ:"A→Z", wbRecent:"Latest", wbMiss:"Missing",
+    miniOpen:"Mini player: a small window that stays on top of your other windows", miniClose:"Put the player back in the page", miniUnsupported:"The mini player needs Edge or Chrome (version 116 or newer).",
     nSelected:n=>`${n} selected`, bDownload:n=>`Download (${n})`, bMove:"Move to…", bIgnore:"Don't download", bDelete:"Delete…", bClear:"Clear", selAll:"All",
     bDeleteTitle:n=>`Delete ${n} track(s)?`, delSunoN:n=>`${n} track(s) go to your Suno trash (you can restore them from suno.com).`, delFilesN:n=>`${n} file(s) go to the Windows Recycle Bin.`, bDeleted:(n,f)=>`🗑 ${n} track(s) deleted${f?`, ${f} file(s) in the Recycle Bin`:''}.`,
     moveTitle:n=>`Move ${n} track(s) to…`, moveBtn:"Move", pickTarget:"Pick a workspace.", moved:(n,w,f)=>`📁 ${n} track(s) moved to “${w}”${f?`, ${f} file(s) moved too`:''}. Use 🧹 Tidy up files to renumber.`,
@@ -502,6 +517,9 @@ const I18N = {
   },
   fr: {
     setup:"⚙️ Réglages", library:"📚 Ma bibliothèque",
+    miniIsOpen:"Le lecteur est dans la mini-fenêtre.", miniBack:"Le remettre ici",
+    sortLbl:"Trier :", sbNew:"Récents", sbOld:"Anciens", sbAZ:"A→Z", sbLong:"Durée", wbAZ:"A→Z", wbRecent:"Derniers", wbMiss:"Manquants",
+    miniOpen:"Mini-lecteur : une petite fenêtre qui reste au-dessus de tes autres fenêtres", miniClose:"Remettre le lecteur dans la page", miniUnsupported:"Le mini-lecteur demande Edge ou Chrome (version 116 ou plus).",
     nSelected:n=>`${n} sélectionné(s)`, bDownload:n=>`Télécharger (${n})`, bMove:"Déplacer vers…", bIgnore:"Ne pas télécharger", bDelete:"Supprimer…", bClear:"Désélectionner", selAll:"Tout",
     bDeleteTitle:n=>`Supprimer ${n} titre(s) ?`, delSunoN:n=>`${n} titre(s) partent dans ta corbeille Suno (récupérables depuis suno.com).`, delFilesN:n=>`${n} fichier(s) partent dans la corbeille Windows.`, bDeleted:(n,f)=>`🗑 ${n} titre(s) supprimé(s)${f?`, ${f} fichier(s) dans la corbeille`:''}.`,
     moveTitle:n=>`Déplacer ${n} titre(s) vers…`, moveBtn:"Déplacer", pickTarget:"Choisis un workspace.", moved:(n,w,f)=>`📁 ${n} titre(s) déplacé(s) vers « ${w} »${f?`, ${f} fichier(s) déplacé(s) aussi`:''}. Utilise 🧹 Ranger pour renuméroter.`,
@@ -598,7 +616,9 @@ const I18N = {
 };
 let LANG='en'; try{ LANG=localStorage.getItem('sunodlaa_lang')||'en'; }catch(e){}
 const T=()=>I18N[LANG]||I18N.en;
-const $=s=>document.querySelector(s);
+let PIP=null;   // mini-player window (Document Picture-in-Picture)
+const $=s=>document.querySelector(s)||(PIP&&PIP.document.querySelector(s));
+const gid=id=>document.getElementById(id)||(PIP&&PIP.document.getElementById(id));
 function esc(s){return(s==null?'':(''+s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function errText(r){ const e=T().err||{}, m=e[r.code]; if(!m) return r.error||'?'; return typeof m==='function'?m((r.format||'').toUpperCase()):m; }
 function toast(m,ms=3000){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',ms);}
@@ -636,7 +656,7 @@ function applyLang(){
   $('#lTracks').textContent=t.tracks; $('#lWs').textContent=t.workspaces; $('#lHave').textContent=t.onDisk; $('#lMiss').textContent=t.missing; $('#lLocal').textContent=t.localOnlyStat;
   $('#btnRecheck').textContent=t.recheck; $('#btnRecheck').title=t.recheckTip; $('#tWs').textContent=t.wsTitle; $('#search').placeholder=t.search;
   $('#wsSearch').placeholder=t.wsSearch; $('#btnPlayView').title=t.playView; $('#btnShufView').title=t.shuffleView; $('#lblIncomplete').textContent=t.onlyIncomplete; $('#wsIncomplete').checked=!!F.incomplete;
-  $('#wsSort').innerHTML=[['az',t.wsSortAZ],['recent',t.wsSortRecent],['miss',t.wsSortMiss]].map(([k,n])=>`<option value="${k}" ${F.wsSort===k?'selected':''}>${esc(n)}</option>`).join('');
+
   $('#tJob').textContent=t.jobTitle; $('#jobIdle').textContent=t.jobIdle; $('#btnStop').textContent=t.stop; 
   $('#freeBanner').textContent=t.freeBanner;
   renderSetup(); renderAccount(); renderAll(); renderPlayer();
@@ -941,6 +961,7 @@ function renderSync(){
 /* ---- workspaces column ---- */
 function renderWorkspaces(){
   const t=T(), el=$('#wsList'); if(!el) return;
+  $('#wsSortSeg').innerHTML=[['az',t.wbAZ,t.wsSortAZ],['recent',t.wbRecent,t.wsSortRecent],['miss',t.wbMiss,t.wsSortMiss]].map(([k,n,tip])=>`<button class="${F.wsSort===k?'on':''}" title="${esc(tip)}" onclick="F.wsSort='${k}';savePrefs();renderWorkspaces()">${esc(n)}</button>`).join('');
   if(!workspaces.length){ el.innerHTML='<div class="empty">'+(syncing?'…':esc(syncErr||'…'))+'</div>'; return; }
   const q=norm(F.wsQ);
   let list=workspaces.map(w=>({w,s:wsStats(w)})).filter(x=>(!q||norm(x.w.name).includes(q))&&(!F.incomplete||!x.s||x.s.miss>0));
@@ -953,7 +974,7 @@ function renderWorkspaces(){
   rows.push('<div class="ws-sep"></div>');
   list.forEach(({w,s})=>{
     const img=w.image_url?`<img loading="lazy" src="${esc(w.image_url)}">`:'<div class="ph"></div>';
-    const range=s&&s.first?(fmtMonth(s.first)===fmtMonth(s.last)?fmtMonth(s.first):`${fmtMonth(s.first)} → ${fmtMonth(s.last)}`):'';
+    const range=s&&s.first?(s.first===s.last?fmtDate(s.first,true):`${fmtDate(s.first,true)} → ${fmtDate(s.last,true)}`):'';
     const badge=s?`<span class="badge ${s.miss===0?'full':'part'}" title="${esc(t.badgeTip)}">${s.have}/${s.total}</span>`:`<span class="badge">${w.clip_count||0}</span>`;
     const loc=s&&s.local?`<span class="badge loc" title="${esc(t.localOnlyTip)}">+${s.local}</span>`:'';
     rows.push(`<div class="ws-item ${currentWs===w.id?'active':''}" onclick="openWorkspace('${w.id}')">${img}<div class="meta"><div class="name">${esc(w.name||'—')}</div><div class="sub">${esc(range)}</div></div>${loc}${badge}</div>`);
@@ -995,7 +1016,7 @@ function renderClips(){
   const t=T(), el=$('#clipList'); if(!el) return;
   const bm=$('#btnWsMissing');
   $('#search').placeholder=t.search;
-  $('#sortSel').innerHTML=[['new',t.sortNew],['old',t.sortOld],['az',t.sortAZ],['long',t.sortLong]].map(([k,n])=>`<option value="${k}" ${F.sort===k?'selected':''}>${esc(n)}</option>`).join('');
+  $('#sortSeg').innerHTML=`<span class="muted small-t">${esc(t.sortLbl)}</span>`+[['new',t.sbNew,t.sortNew],['old',t.sbOld,t.sortOld],['az',t.sbAZ,t.sortAZ],['long',t.sbLong,t.sortLong]].map(([k,n,tip])=>`<button class="${F.sort===k?'on':''}" title="${esc(tip)}" onclick="F.sort='${k}';savePrefs();renderClips()">${esc(n)}</button>`).join('');
   const head=$('#wsHead');
   if(currentWs===ORPH_ID){
     bm.classList.add('hidden'); $('#filterSeg').innerHTML='';
@@ -1444,11 +1465,33 @@ function countUgly(){ let n=0; for(const k in clipsByWs) (clipsByWs[k]||[]).forE
 function toggleFloat(){ PL.float=!PL.float; try{ localStorage.setItem('sunodlaa_float',PL.float?'1':''); }catch(e){} applyFloat(); }
 function applyFloat(){
   const card=$('#pcard'), t=T(); if(!card) return;
+  $('#pcMiniBtn').title=PIP?t.miniClose:t.miniOpen; $('#pcMiniBtn').textContent=PIP?'⧈':'⧉';
+  $('#miniNote').classList.toggle('hidden',!PIP); $('#miniNote').innerHTML=`<span class="small-t">${esc(t.miniIsOpen)}</span> <button class="small" onclick="toggleMini()">⧈ ${esc(t.miniBack)}</button>`;
+  if(PIP){ card.classList.remove('floating'); card.classList.add('mini'); document.body.classList.remove('has-bar'); $('#pcFloatBtn').classList.add('hidden'); return; }
+  card.classList.remove('mini'); $('#pcFloatBtn').classList.remove('hidden');
   card.classList.toggle('floating',!!PL.float); document.body.classList.toggle('has-bar',!!PL.float&&!!PL.cur);
   card.classList.toggle('nocur',!PL.cur);
   $('#pcFloatBtn').textContent=PL.float?'⇱':'⇲'; $('#pcFloatBtn').title=PL.float?t.dockPlayer:t.floatPlayer;
   if(PL.float){ const home=$('#floatHome'); if(card.parentElement!==home) home.appendChild(card); }
   else { const home=$('#dockHome'); if(card.parentElement!==home) home.appendChild(card); }
+}
+async function toggleMini(){
+  const t=T();
+  if(PIP){ PIP.close(); return; }
+  if(!('documentPictureInPicture' in window)){ toast(t.miniUnsupported,7000); return; }
+  try{ PIP=await documentPictureInPicture.requestWindow({width:360,height:600}); }catch(e){ toast(t.miniUnsupported,7000); PIP=null; return; }
+  const d=PIP.document; d.title='SUNODLAA';
+  document.querySelectorAll('style').forEach(st=>d.head.appendChild(st.cloneNode(true)));
+  const ic=document.querySelector('link[rel=icon]'); if(ic) d.head.appendChild(ic.cloneNode(true));
+  d.body.className='minibody';
+  // inline onclick="..." in the mini window runs there: give it the player functions
+  ['togglePlay','prevTrack','nextTrack','toggleShuffle','cycleRepeat','togglePanel','toggleFloat','toggleMini','openKaraoke','jumpTo','reveal','$','gid','savePlayer']
+    .forEach(n=>{ try{ PIP[n]=window[n]||eval(n); }catch(e){} });
+  PIP.PL=PL; PIP.REVEAL=REVEAL;
+  d.body.appendChild($('#pcard'));
+  d.addEventListener('keydown',e=>{ if(e.code==='Space'&&!e.target.matches('input')){ e.preventDefault(); togglePlay(); } });
+  PIP.addEventListener('pagehide',()=>{ const card=PIP&&PIP.document.getElementById('pcard'); PIP=null; if(card) (PL.float?$('#floatHome'):$('#dockHome')).appendChild(card); renderPlayer(); logUI('mini player closed'); });
+  PL.tab=PL.tab||'lyrics'; renderPlayer(); logUI('mini player opened');
 }
 function togglePanel(k){ if(PL.float){ PL.panel=(PL.panel===k)?null:k; PL.tab=k; } else PL.tab=k; renderPlayer(); }
 
@@ -1550,7 +1593,7 @@ function renderPlayer(){
   $('#pcTabL').classList.toggle('on',PL.tab==='lyrics'); $('#pcTabQ').classList.toggle('on',PL.tab==='queue');
   $('#pcTabL').textContent='🎤 '+t.lyrics; $('#pcTabQ').textContent='☰ '+t.upNext(Math.max(0,PL.q.length-PL.i-1));
   $('#pcLyr').classList.toggle('hidden',PL.tab!=='lyrics'); $('#pcQueue').classList.toggle('hidden',PL.tab!=='queue');
-  $('#pcPanel').classList.toggle('open',!PL.float||!!PL.panel);
+  $('#pcPanel').classList.toggle('open',!!PIP||!PL.float||!!PL.panel);
   if(PL.float){ $('#pcTabL').classList.toggle('on',PL.panel==='lyrics'); $('#pcTabQ').classList.toggle('on',PL.panel==='queue'); }
   if(PL.tab==='queue'){
     const rows=[]; for(let j=PL.i+1;j<Math.min(PL.q.length,PL.i+40);j++){ const x=entryInfo(PL.q[j]); if(x) rows.push(`<div class="qi" onclick="jumpTo(${j})"><span class="n">${j-PL.i}</span><div class="qt"><b>${esc(x.title)}</b><span>${esc(x.sub)}</span></div>${x.local?'💾':'☁'}</div>`); }
@@ -1567,7 +1610,7 @@ function fmtT(s){ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+St
     $('#pcCur').textContent=fmtT(c); $('#pcDur').textContent=fmtT(d);
     $('#pcSeek').style.setProperty('--p',(d?100*c/d:0)+'%');
     const L=PL.lyr; if(L&&L.lines){ let k=-1; for(let i=0;i<L.lines.length;i++){ if(c>=L.lines[i].s-0.15) k=i; else break; }
-      if(k!==PL.lyrLine){ const o=document.getElementById('ly'+PL.lyrLine); if(o) o.classList.remove('on'); PL.lyrLine=k; const n=document.getElementById('ly'+k);
+      if(k!==PL.lyrLine){ const o=gid('ly'+PL.lyrLine); if(o) o.classList.remove('on'); PL.lyrLine=k; const n=gid('ly'+k);
         if(n){ n.classList.add('on'); const box=$('#pcLyr'); box.scrollTo({top:n.offsetTop-box.offsetTop-box.clientHeight/2+n.clientHeight/2,behavior:'smooth'}); } } }
     if(alignedWords) alignedWords.forEach((w,i)=>{ const s=document.getElementById('kw'+i); if(s) s.classList.toggle('on',c>=w.s&&c<=w.e); });
   });
