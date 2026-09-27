@@ -166,51 +166,92 @@ function Find-Browser {
 }
 $script:LoginPort = 9222
 function Start-Login {
+    # Already open from a previous click? Just check it again.
+    if ((Get-SunoCookies).reachable) { return @{ ok=$true; reused=$true } }
     $b = Find-Browser
-    if (-not $b) { return @{ ok=$false; error="Neither Edge nor Chrome was found." } }
-    $udd = Join-Path $env:TEMP 'suno-login-profile'
-    $args = @(
+    if (-not $b) { return @{ ok=$false; code='no_browser'; error="Neither Edge nor Chrome was found." } }
+    # Dedicated profile kept between runs: once signed in, the next connection is instant.
+    $udd = Join-Path $env:LOCALAPPDATA 'SUNODLAA\login-profile'
+    New-Item -ItemType Directory -Force -Path $udd | Out-Null
+    $argList = @(
         "--user-data-dir=`"$udd`"",
         "--remote-debugging-port=$($script:LoginPort)",
+        "--remote-allow-origins=*",
         "--no-first-run", "--no-default-browser-check",
         "--new-window", "https://suno.com/"
     )
-    Start-Process -FilePath $b -ArgumentList $args | Out-Null
+    Start-Process -FilePath $b -ArgumentList $argList | Out-Null
     return @{ ok=$true; browser=(Split-Path $b -Leaf) }
 }
-function Get-CookiesCDP {
-    try { $targets = Invoke-RestMethod "http://127.0.0.1:$($script:LoginPort)/json" -TimeoutSec 3 } catch { return $null }
-    $page = $targets | Where-Object { $_.webSocketDebuggerUrl } | Select-Object -First 1
-    if (-not $page) { return $null }
+
+# One Chrome DevTools Protocol call over WebSocket; returns the "result" object or $null.
+function Cdp-Call($wsUrl, $method, $params) {
     $ws = New-Object System.Net.WebSockets.ClientWebSocket
     $ct = [Threading.CancellationToken]::None
     try {
-        $ws.ConnectAsync([Uri]$page.webSocketDebuggerUrl, $ct).Wait(5000) | Out-Null
+        if (-not $ws.ConnectAsync([Uri]$wsUrl, $ct).Wait(5000)) { return $null }
         if ($ws.State -ne [System.Net.WebSockets.WebSocketState]::Open) { return $null }
-        $msg = '{"id":1,"method":"Network.getAllCookies"}'
+        $p = @{}; if ($params) { $p = $params }
+        $msg = @{ id = 1; method = $method; params = $p } | ConvertTo-Json -Depth 6 -Compress
         $bytes = [Text.Encoding]::UTF8.GetBytes($msg)
         $ws.SendAsync([ArraySegment[byte]]::new($bytes), [System.Net.WebSockets.WebSocketMessageType]::Text, $true, $ct).Wait()
-        $buf = New-Object byte[] 4194304
-        $sb = New-Object Text.StringBuilder
-        do {
-            $seg = [ArraySegment[byte]]::new($buf)
-            $r = $ws.ReceiveAsync($seg, $ct).GetAwaiter().GetResult()
-            [void]$sb.Append([Text.Encoding]::UTF8.GetString($buf, 0, $r.Count))
-        } while (-not $r.EndOfMessage)
-        return ($sb.ToString() | ConvertFrom-Json).result.cookies
+        $buf = New-Object byte[] 1048576
+        for ($n = 0; $n -lt 50; $n++) {
+            $sb = New-Object Text.StringBuilder
+            do {
+                $t = $ws.ReceiveAsync([ArraySegment[byte]]::new($buf), $ct)
+                if (-not $t.Wait(8000)) { return $null }
+                $r = $t.Result
+                [void]$sb.Append([Text.Encoding]::UTF8.GetString($buf, 0, $r.Count))
+            } while (-not $r.EndOfMessage)
+            $o = $sb.ToString() | ConvertFrom-Json
+            if ($o.id -eq 1) { if ($o.error) { return $null }; return $o.result }
+        }
+        return $null
     } catch { return $null }
     finally { try { $ws.Dispose() } catch {} }
 }
+
+# Suno cookies from the login window. reachable=$false when that browser window is closed.
+function Get-SunoCookies {
+    $base = "http://127.0.0.1:$($script:LoginPort)"
+    try { $ver = Invoke-RestMethod "$base/json/version" -TimeoutSec 3 } catch { return @{ reachable = $false; cookies = @() } }
+    $cookies = @(); $url = $null
+    try {
+        $pages = @(Invoke-RestMethod "$base/json/list" -TimeoutSec 3) | Where-Object { $_.type -eq 'page' }
+        $sunoPage = $pages | Where-Object { $_.url -like '*suno.com*' } | Select-Object -First 1
+        if ($sunoPage) { $url = $sunoPage.url } elseif ($pages) { $url = @($pages)[0].url }
+    } catch {}
+    # 1) whole browser (current Chrome/Edge)
+    if ($ver.webSocketDebuggerUrl) {
+        $r = Cdp-Call $ver.webSocketDebuggerUrl 'Storage.getCookies' $null
+        if ($r -and $r.cookies) { $cookies = @($r.cookies) }
+    }
+    # 2) fallback: ask a page for the suno.com cookies
+    if ($cookies.Count -eq 0) {
+        $page = $pages | Where-Object { $_.webSocketDebuggerUrl } | Select-Object -First 1
+        if ($page) {
+            $r = Cdp-Call $page.webSocketDebuggerUrl 'Network.getCookies' @{ urls = @('https://suno.com/', 'https://auth.suno.com/', 'https://clerk.suno.com/') }
+            if ($r -and $r.cookies) { $cookies = @($r.cookies) }
+        }
+    }
+    $cookies = @($cookies | Where-Object { $_.domain -like '*suno.com' -or $_.domain -like '*.suno.com' -or $_.domain -eq 'suno.com' })
+    return @{ reachable = $true; cookies = $cookies; url = $url }
+}
+
 function Try-CaptureLogin {
-    $cookies = Get-CookiesCDP
-    if (-not $cookies) { return @{ ok=$false; waiting=$true; error="Browser not ready yet" } }
-    $cl  = $cookies | Where-Object { $_.name -eq '__client'     -and $_.domain -like '*suno.com*' } | Select-Object -First 1
-    $uat = $cookies | Where-Object { $_.name -eq '__client_uat' -and $_.domain -like '*suno.com*' } | Select-Object -First 1
-    if (-not $cl) { return @{ ok=$false; waiting=$true } }
-    if (-not $uat -or $uat.value -eq '0') { return @{ ok=$false; waiting=$true; error="Not signed in yet" } }
-    $Cfg.clientCookie = $cl.value; $script:Jwt=$null; $script:Sid=$null; Save-Config $Cfg
-    try { $null = Get-Jwt; return @{ ok=$true } }
-    catch { return @{ ok=$false; waiting=$true; error="Cookie captured but session invalid, try again" } }
+    $st = Get-SunoCookies
+    if (-not $st.reachable) { return @{ ok=$false; code='window_closed' } }
+    $uat = $st.cookies | Where-Object { $_.name -eq '__client_uat' } | Sort-Object { [double]$_.value } -Descending | Select-Object -First 1
+    $clients = @($st.cookies | Where-Object { $_.name -eq '__client' } | Sort-Object { if ($_.domain -like '*auth.suno.com') { 0 } else { 1 } })
+    if ($clients.Count -eq 0 -or -not $uat -or $uat.value -eq '0') {
+        return @{ ok=$false; code='not_signed_in'; url=$st.url; seen=@($st.cookies).Count }
+    }
+    foreach ($c in $clients) {
+        $Cfg.clientCookie = $c.value; $script:Jwt = $null; $script:Sid = $null
+        try { $null = Get-Jwt; Save-Config $Cfg; return @{ ok=$true; label=$script:AccountLabel } } catch {}
+    }
+    return @{ ok=$false; code='session_invalid' }
 }
 
 # ---- Helpers --------------------------------------------------------

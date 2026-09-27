@@ -245,9 +245,12 @@ const I18N = {
     setup:"⚙️ Setup", library:"📚 My library",
     sTitle:"Let's set up SunoAAWeb", sIntro:"Three steps, about a minute. You can come back here any time with ⚙️ Setup.", lang:"Language",
     s1Title:"Connect to your Suno account",
-    s1Text:"Click the button: a browser window opens on suno.com. Sign in exactly as usual (Google, Discord, e-mail…). As soon as you're in, SunoAAWeb notices it by itself — nothing to copy, no token to find.",
+    s1Text:"Click the button: a separate browser window opens on suno.com. Sign in there once (Google, Discord, e-mail…) — it's a separate window, so it doesn't know your usual session yet. As soon as you're in, SunoAAWeb notices it by itself and remembers it for next time.",
     connect:"🔑 Connect to Suno", reconnect:"🔑 Reconnect",
-    opening:"Opening a browser window…", waiting:"Waiting for you to sign in in the window that just opened…",
+    opening:"Opening a browser window…", waiting:"Window open — checking…",
+    notSignedIn:"👉 The Suno window is open but you're not signed in there yet: in that window, click “Sign in” (top left of Suno) and sign in. I'm checking every few seconds.",
+    windowClosed:"The Suno window was closed. Click “Connect to Suno” again.",
+    sessionInvalid:"Sign-in detected but Suno refused the session. In the Suno window, sign out, sign in again, and wait a few seconds.",
     connectedAs:n=>"✅ Connected"+(n?" as "+n:"")+".", noBrowser:"Edge or Chrome is needed for this step.", timedOut:"Still not connected. Click the button again, or use the manual method below.",
     s1HelpSum:"The window didn't open, or it doesn't work? Manual method",
     s1Help:["Open suno.com in Chrome or Edge and sign in.","Press F12 → “Application” tab → Cookies → https://suno.com.","Find the cookie named __client and copy its Value.","Paste it below and click Save."],
@@ -293,9 +296,12 @@ const I18N = {
     setup:"⚙️ Réglages", library:"📚 Ma bibliothèque",
     sTitle:"On configure SunoAAWeb", sIntro:"Trois étapes, environ une minute. Tu peux revenir ici à tout moment avec ⚙️ Réglages.", lang:"Langue",
     s1Title:"Connecte ton compte Suno",
-    s1Text:"Clique sur le bouton : une fenêtre de navigateur s'ouvre sur suno.com. Connecte-toi exactement comme d'habitude (Google, Discord, e-mail…). Dès que c'est fait, SunoAAWeb le détecte tout seul — rien à copier, aucun token à chercher.",
+    s1Text:"Clique sur le bouton : une fenêtre de navigateur séparée s'ouvre sur suno.com. Connecte-toi dedans une fois (Google, Discord, e-mail…) — c'est une fenêtre à part, elle ne connaît pas encore ta session habituelle. Dès que c'est fait, SunoAAWeb le détecte tout seul et s'en souvient pour la prochaine fois.",
     connect:"🔑 Se connecter à Suno", reconnect:"🔑 Se reconnecter",
-    opening:"Ouverture d'une fenêtre de navigateur…", waiting:"Connecte-toi dans la fenêtre qui vient de s'ouvrir…",
+    opening:"Ouverture d'une fenêtre de navigateur…", waiting:"Fenêtre ouverte — vérification…",
+    notSignedIn:"👉 La fenêtre Suno est ouverte mais tu n'y es pas encore connecté : dans cette fenêtre, clique sur « Sign in » (en haut à gauche de Suno) et connecte-toi. Je vérifie toutes les quelques secondes.",
+    windowClosed:"La fenêtre Suno a été fermée. Reclique sur « Se connecter à Suno ».",
+    sessionInvalid:"Connexion détectée mais Suno a refusé la session. Dans la fenêtre Suno, déconnecte-toi, reconnecte-toi et attends quelques secondes.",
     connectedAs:n=>"✅ Connecté"+(n?" : "+n:"")+".", noBrowser:"Il faut Edge ou Chrome pour cette étape.", timedOut:"Toujours pas connecté. Reclique sur le bouton, ou utilise la méthode manuelle ci-dessous.",
     s1HelpSum:"La fenêtre ne s'ouvre pas, ou ça ne marche pas ? Méthode manuelle",
     s1Help:["Ouvre suno.com dans Chrome ou Edge et connecte-toi.","Appuie sur F12 → onglet « Application » → Cookies → https://suno.com.","Trouve le cookie nommé __client et copie sa valeur (Value).","Colle-la ci-dessous et clique sur Enregistrer."],
@@ -450,11 +456,16 @@ async function doLogin(){
   if(!r.ok){ st.className='status bad'; st.textContent=t.noBrowser; $('#s1Help').open=true; return; }
   st.textContent=t.waiting;
   clearInterval(loginPoll); let n=0;
-  loginPoll=setInterval(async()=>{
-    n++; if(n>72){ clearInterval(loginPoll); st.className='status bad'; st.textContent=t.timedOut; $('#s1Help').open=true; return; }
+  const tick=async()=>{
+    n++; const T2=T();
+    if(n>120){ clearInterval(loginPoll); st.className='status bad'; st.textContent=T2.timedOut; $('#s1Help').open=true; return; }
     const c=await api('/api/login/check').catch(()=>({}));
-    if(c.ok){ clearInterval(loginPoll); await afterAuth(); }
-  },2500);
+    if(c.ok){ clearInterval(loginPoll); await afterAuth(); return; }
+    if(c.code==='window_closed'){ clearInterval(loginPoll); st.className='status bad'; st.textContent=T2.windowClosed; return; }
+    if(c.code==='session_invalid'){ st.className='status bad'; st.textContent=T2.sessionInvalid; return; }
+    st.className='status'; st.textContent=T2.notSignedIn;
+  };
+  setTimeout(tick,1500); loginPoll=setInterval(tick,2500);
 }
 async function saveCookie(){
   const v=$('#cookieInput').value.trim().replace(/^__client=/,''); if(!v) return;
