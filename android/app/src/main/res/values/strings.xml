@@ -3,13 +3,13 @@
     <string name="app_name" translatable="false">SUNODLAA</string>
 
     <!-- Android Auto browse tree -->
-    <string name="node_all">All tracks · newest</string>
-    <string name="node_all_alpha">All tracks · A→Z</string>
+    <string name="node_all">Tracks</string>
+    <string name="node_all_alpha">A→Z</string>
     <string name="node_projects">Workspaces</string>
     <string name="aa_play_all">▶ Play all</string>
     <string name="aa_shuffle">🔀 Shuffle</string>
     <string name="n_playable">%1$d playable tracks</string>
-    <string name="node_projects_recent">Workspaces · recent</string>
+    <string name="node_projects_recent">Latest WS</string>
     <string name="node_liked">Favorites</string>
     <string name="node_playlists">Playlists</string>
     <string name="node_downloaded">Offline</string>

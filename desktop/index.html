@@ -426,7 +426,7 @@ const post=(path,body)=>api(path,{method:'POST',headers:{'Content-Type':'applica
 /* ============================== state ============================== */
 let CFG={}, AUTH={ok:false}, ACC=null;
 let workspaces=[], clipsByWs={}, wsMarker={}, currentWs=null, selected=new Set();
-let LOCAL=[], MATCH={}, LOCAL_ONLY={}, CLIPWS={}, LOCAL_VIEW=[];
+let LOCAL=[], MATCH={}, LOCAL_ONLY={}, CLIPWS={}, LOCAL_VIEW=[], ALIASES={};
 let libLoaded=false, syncing=false, syncProg=null, syncErr=null, syncedAt=null, scanProg=null, scanErr=null, scannedAt=null;
 let F={filter:'all', sort:'new', wsSort:'az', wsQ:'', incomplete:false, limit:300};
 let customMode=false, job=null, player={clip:null}, alignedWords=null;
@@ -605,6 +605,8 @@ async function loadCache(){
     workspaces=d.workspaces; clipsByWs=d.clips||{}; wsMarker=d.markers||{}; syncedAt=d.savedAt||null;
     logUI(`library cache loaded: ${workspaces.length} workspaces, ${nClips()} tracks (saved ${d.savedAt})`);
   } else logUI('no library cache yet: first full load from Suno');
+  const al=await api('/api/cache/aliases').catch(()=>({})); ALIASES=(al&&typeof al==='object')?al:{};
+  if(Object.keys(ALIASES).length) logUI(`title aliases loaded: ${Object.keys(ALIASES).length} renamed tracks`);
   recomputeMatch();
 }
 let saveT=null;
@@ -674,6 +676,7 @@ function applyScan(r,fresh){
   LOCAL=files; scannedAt=fresh?new Date().toISOString():((r.index&&r.index.scannedAt)||null);
   recomputeMatch(); renderAll();
 }
+const stripIdx=s=>(s||'').replace(/^\s*\d+(?:[-_ .]+\d+)*\s*(?:[-_.]\s*)?/,'');
 function trackNo(p){ const b=(p||'').split(/[\\/]/).pop(); const m=b.match(/^\s*(\d+)(?:[-_ .]+(\d+))?/); return m?+(m[2]||m[1]):null; }
 // Link Suno tracks to files: 1) Suno id in the tags (TSRC/TXXX/COMM) or (id8) in the name,
 // 2) same title inside the same workspace folder (files without any id only).
@@ -691,12 +694,15 @@ function recomputeMatch(){
   for(const w of workspaces){
     const pool=byFolder[norm(w.name)]; if(!pool) continue;
     const cg={}, fg={};
-    (clipsByWs[w.id]||[]).forEach(c=>{ if(MATCH[c.id]) return; const k=norm(c.title); if(k) (cg[k]=cg[k]||[]).push(c); });
+    (clipsByWs[w.id]||[]).forEach(c=>{ if(MATCH[c.id]) return;
+      // current Suno title + older titles (tracks renamed on Suno, see cache\title-aliases.json)
+      new Set([norm(c.title),...(ALIASES[c.id]||[]).map(a=>norm(stripIdx(a)))]).forEach(k=>{ if(k) (cg[k]=cg[k]||[]).push(c); }); });
     pool.forEach(i=>{ const f=LOCAL[i]; const k=[norm(f.t),norm(f.ft)].find(k=>k&&cg[k]); if(k) (fg[k]=fg[k]||[]).push(i); });
     for(const k in fg){
       const C=cg[k].slice().sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||''));
       const Fi=fg[k].slice().sort((a,b)=>((trackNo(LOCAL[a].p)??1e9)-(trackNo(LOCAL[b].p)??1e9))||collator.compare(LOCAL[a].p,LOCAL[b].p));
-      for(let j=0;j<Math.min(C.length,Fi.length);j++){ MATCH[C[j].id]={p:LOCAL[Fi[j]].p,k:'title'}; used.add(Fi[j]); }
+      const Cf=C.filter(c=>!MATCH[c.id]), Ff=Fi.filter(i=>!used.has(i));
+      for(let j=0;j<Math.min(Cf.length,Ff.length);j++){ MATCH[Cf[j].id]={p:LOCAL[Ff[j]].p,k:'title'}; used.add(Ff[j]); }
     }
   }
   const wsByNorm={}; workspaces.forEach(w=>wsByNorm[norm(w.name)]=w.id);

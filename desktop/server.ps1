@@ -879,6 +879,13 @@ while ($listener.IsListening) {
                 } else { Write-Text $resp '{}' 'application/json; charset=utf-8' }
                 break
             }
+            '^/api/cache/aliases$' {
+                # optional: { "<clip id>": ["old title", ...] } - titles a track had before being renamed on Suno
+                $ap = Join-Path $CacheDir 'title-aliases.json'
+                if (Test-Path -LiteralPath $ap) { Write-Text $resp ([IO.File]::ReadAllText($ap, [Text.Encoding]::UTF8)) 'application/json; charset=utf-8' }
+                else { Write-Text $resp '{}' 'application/json; charset=utf-8' }
+                break
+            }
             '^/api/log$' {
                 $b = Read-Body $req | ConvertFrom-Json
                 Log 'UI' ([string]$b.msg)
