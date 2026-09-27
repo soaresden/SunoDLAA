@@ -100,21 +100,37 @@ if (Test-Path $TagLibDll) {
 $script:Jwt = $null; $script:JwtAt = [datetime]::MinValue; $script:Sid = $null
 $ClerkQS = '?__clerk_api_version=2025-11-10&_clerk_js_version=5.117.0'
 
-function Clerk-Get($path) {
+# Clerk calls go through HttpClient with automatic cookies OFF, so the __client cookie header is
+# sent exactly as written (Windows PowerShell 5.1's Invoke-RestMethod may drop a hand-set Cookie).
+Add-Type -AssemblyName System.Net.Http
+$script:ClerkHttp = $null
+function Clerk-Send($method, $path) {
+    if (-not $script:ClerkHttp) {
+        $hh = New-Object System.Net.Http.HttpClientHandler
+        $hh.UseCookies = $false
+        $script:ClerkHttp = New-Object System.Net.Http.HttpClient($hh)
+        $script:ClerkHttp.Timeout = [TimeSpan]::FromSeconds(20)
+    }
     $url = $Cfg.clerkBase + $path + $ClerkQS
-    $h = @{ 'Authorization' = $Cfg.clientCookie; 'Cookie' = "__client=$($Cfg.clientCookie)" }
-    return Invoke-RestMethod -Uri $url -Headers $h -Method Get
+    $req = New-Object System.Net.Http.HttpRequestMessage((New-Object System.Net.Http.HttpMethod($method)), $url)
+    [void]$req.Headers.TryAddWithoutValidation('Cookie', "__client=$($Cfg.clientCookie)")
+    [void]$req.Headers.TryAddWithoutValidation('Authorization', [string]$Cfg.clientCookie)
+    [void]$req.Headers.TryAddWithoutValidation('Origin', 'https://suno.com')
+    [void]$req.Headers.TryAddWithoutValidation('Referer', 'https://suno.com/')
+    [void]$req.Headers.TryAddWithoutValidation('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36')
+    if ($method -eq 'POST') { $req.Content = New-Object System.Net.Http.StringContent('', [Text.Encoding]::UTF8, 'application/x-www-form-urlencoded') }
+    $resp = $script:ClerkHttp.SendAsync($req).GetAwaiter().GetResult()
+    $body = $resp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    if (-not $resp.IsSuccessStatusCode) { throw "Clerk $path -> HTTP $([int]$resp.StatusCode)" }
+    return ($body | ConvertFrom-Json)
 }
-function Clerk-Post($path) {
-    $url = $Cfg.clerkBase + $path + $ClerkQS
-    $h = @{ 'Authorization' = $Cfg.clientCookie; 'Cookie' = "__client=$($Cfg.clientCookie)" }
-    return Invoke-RestMethod -Uri $url -Headers $h -Method Post -Body ''
-}
+function Clerk-Get($path)  { return Clerk-Send 'GET' $path }
+function Clerk-Post($path) { return Clerk-Send 'POST' $path }
 $script:AccountLabel = $null
 function Get-SessionId {
     $r = Clerk-Get '/v1/client'
     $sid = $r.response.last_active_session_id
-    if (-not $sid) { throw "No active session (__client cookie expired or anonymous?)" }
+    if (-not $sid) { $n = @($r.response.sessions).Count; throw "Suno sees no signed-in session for this cookie (sessions: $n)" }
     try {
         $sess = @($r.response.sessions) | Where-Object { $_.id -eq $sid } | Select-Object -First 1
         $u = $sess.user
@@ -247,11 +263,14 @@ function Try-CaptureLogin {
     if ($clients.Count -eq 0 -or -not $uat -or $uat.value -eq '0') {
         return @{ ok=$false; code='not_signed_in'; url=$st.url; seen=@($st.cookies).Count }
     }
+    $prev = $Cfg.clientCookie; $detail = $null
     foreach ($c in $clients) {
         $Cfg.clientCookie = $c.value; $script:Jwt = $null; $script:Sid = $null
-        try { $null = Get-Jwt; Save-Config $Cfg; return @{ ok=$true; label=$script:AccountLabel } } catch {}
+        try { $null = Get-Jwt; Save-Config $Cfg; return @{ ok=$true; label=$script:AccountLabel } }
+        catch { $detail = "$($c.domain): $($_.Exception.Message)" }
     }
-    return @{ ok=$false; code='session_invalid' }
+    $Cfg.clientCookie = $prev; $script:Jwt = $null; $script:Sid = $null
+    return @{ ok=$false; code='session_invalid'; detail=$detail; candidates=$clients.Count }
 }
 
 # ---- Helpers --------------------------------------------------------

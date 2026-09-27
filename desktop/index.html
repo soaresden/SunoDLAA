@@ -462,7 +462,7 @@ async function doLogin(){
     const c=await api('/api/login/check').catch(()=>({}));
     if(c.ok){ clearInterval(loginPoll); await afterAuth(); return; }
     if(c.code==='window_closed'){ clearInterval(loginPoll); st.className='status bad'; st.textContent=T2.windowClosed; return; }
-    if(c.code==='session_invalid'){ st.className='status bad'; st.textContent=T2.sessionInvalid; return; }
+    if(c.code==='session_invalid'){ st.className='status bad'; st.textContent=T2.sessionInvalid+(c.detail?'  ['+c.detail+']':''); return; }
     st.className='status'; st.textContent=T2.notSignedIn;
   };
   setTimeout(tick,1500); loginPoll=setInterval(tick,2500);
