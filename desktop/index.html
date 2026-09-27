@@ -201,6 +201,10 @@
   .prow{display:flex;gap:10px;align-items:flex-start;padding:6px 8px;border-radius:10px;cursor:pointer;font-size:13px}
   .prow:hover{background:var(--bg2)} .prow .from{color:var(--muted);text-decoration:line-through;word-break:break-all} .prow .to{color:var(--ok);font-weight:600;word-break:break-all}
   .prow .newt{width:100%;margin-top:4px;padding:5px 8px}
+  .prow .st{width:22px;flex:none;text-align:center;font-size:14px;align-self:center}
+  .prow.busy{background:#FFF6DC} .prow.done{background:#EAF8F1} .prow.fail{background:#FDE3E8}
+  .mprog{position:sticky;top:0;z-index:2;background:#fff;padding:6px 0 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
+  .mprog .bar{height:8px}
   .wstools2{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
   #stepBackup .num{background:linear-gradient(135deg,var(--turq),var(--cobalt));font-size:18px}
   #backupInfo{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.9} #backupInfo code{background:var(--bg2);padding:1px 6px;border-radius:6px;word-break:break-all}
@@ -445,6 +449,7 @@
 const I18N = {
   en: {
     setup:"⚙️ Setup", library:"📚 My library",
+    progress:(i,n,ok,bad,left)=>`${i} / ${n} · ✅ ${ok}${bad?` · ❌ ${bad}`:''}${left!=null?` · ~${left>90?Math.round(left/60)+' min':left+' s'} left`:''}`, stopped:"stopped", dlStarting:"Starting the download…",
     dlCleanTitle:n=>`✨ ${n} messy title(s) in this download`, dlCleanHelp:"Your files will be named after these titles. Clean them first? The new titles are saved on Suno too. You can edit each suggestion or untick it.",
     dlKeepNames:"Download without renaming", dlRenameThen:"Rename, then download",
     followLyrics:"⤓ Follow the lyrics",
@@ -546,6 +551,7 @@ const I18N = {
   },
   fr: {
     setup:"⚙️ Réglages", library:"📚 Ma bibliothèque",
+    progress:(i,n,ok,bad,left)=>`${i} / ${n} · ✅ ${ok}${bad?` · ❌ ${bad}`:''}${left!=null?` · encore ~${left>90?Math.round(left/60)+' min':left+' s'}`:''}`, stopped:"arrêté", dlStarting:"Le téléchargement démarre…",
     dlCleanTitle:n=>`✨ ${n} titre(s) moche(s) dans ce téléchargement`, dlCleanHelp:"Tes fichiers vont porter ces titres. On les nettoie d'abord ? Les nouveaux titres sont aussi enregistrés sur Suno. Tu peux modifier chaque proposition ou la décocher.",
     dlKeepNames:"Télécharger sans renommer", dlRenameThen:"Renommer puis télécharger",
     followLyrics:"⤓ Suivre les paroles",
@@ -1312,6 +1318,7 @@ function cleanTitle(t0){
   s=s.replace(/(^|[_\s-])x\d+(?:[.,]\d+)?(?=[_\s-]|\(|$)/gi,' ');                             // _x2, _x3.1
   s=s.replace(/\s*\((?:edit|edited|clean|temp)\)/gi,'');                                     // (Edit) (clean)
   s=s.replace(/^[\s_]*\d{1,2}-\d{2,3}\s*(?:-\s*)?(?=\S)/,'');                              // number left after a duration
+  s=s.replace(/(\s(?:x|&|-|\+|vs\.?)\s+)\d{2}-\d{3}\s+(?=\S)/gi,'$1');                    // "A x 02-023 B" -> "A x B"
   s=s.replace(/_+/g,' ').replace(/\s{2,}/g,' ').replace(/^[\s\-–—.]+|[\s\-–—.]+$/g,'').trim();
   return s||(t0||'');
 }
@@ -1321,16 +1328,34 @@ function openCleanTitles(){
   openCleanModal(cs,null);
 }
 // cs = tracks with a messy title. then = function to call afterwards (before a download), or null.
+let CLEAN_STOP=false;
 function openCleanModal(cs,then){
   const t=T();
   const readRows=()=>[...document.querySelectorAll('#modalBody .prow')].map(r=>({on:r.querySelector('input[type=checkbox]').checked,c:cs[+r.querySelector('.newt').dataset.i],v:r.querySelector('.newt').value.trim()})).filter(x=>x.on&&x.v&&x.v!==x.c.title);
   const apply=async()=>{
     const rows=readRows(); let ok=0,bad=0,i=0;
-    for(const x of rows){ i++; $('#modalBtns').textContent=`${i} / ${rows.length}…`; const r=await applyTitle(x.c,x.v); if(r.ok) ok++; else bad++; await new Promise(z=>setTimeout(z,300)); }
-    closeModal(); saveCache(); recomputeMatch(); renderAll(); renderPlayer();
-    logUI(`user: clean titles${then?' before download':''} -> ${ok} renamed on Suno, ${bad} failed`);
-    toast(t.cleanDone(ok,bad),5000);
-    if(then) then();
+    // live progress: bar + counter at the top, a status on every line, the current line kept in view
+    document.querySelectorAll('#modalBody .prow').forEach(r=>{ r.querySelectorAll('input').forEach(e=>e.disabled=true); if(!r.querySelector('.st')) r.insertAdjacentHTML('beforeend','<span class="st"></span>'); });
+    rows.forEach(x=>{ const r=[...document.querySelectorAll('#modalBody .prow')].find(r=>cs[+r.querySelector('.newt').dataset.i]===x.c); x.row=r; if(r) r.querySelector('.st').textContent='·'; });
+    $('#modalBody').insertAdjacentHTML('afterbegin',`<div class="mprog" id="mProg"><div class="bar"><i id="mBar"></i></div><div class="small-t" id="mTxt"></div></div>`);
+    $('#modalBtns').innerHTML=`<button onclick="CLEAN_STOP=true">${esc(t.stop)}</button>`; CLEAN_STOP=false;
+    const t0=Date.now();
+    for(const x of rows){
+      if(CLEAN_STOP) break;
+      i++;
+      const left=i>1?Math.round((Date.now()-t0)/(i-1)*(rows.length-i+1)/1000):null;
+      $('#mTxt').textContent=t.progress(i,rows.length,ok,bad,left)+' — '+x.v; $('#mBar').style.width=(100*(i-1)/rows.length)+'%';
+      if(x.row){ x.row.classList.add('busy'); x.row.querySelector('.st').textContent='⏳'; x.row.scrollIntoView({block:'center',behavior:'smooth'}); }
+      const r=await applyTitle(x.c,x.v);
+      if(r.ok) ok++; else bad++;
+      if(x.row){ x.row.classList.remove('busy'); x.row.classList.add(r.ok?'done':'fail'); const st=x.row.querySelector('.st'); st.textContent=r.ok?'✅':'❌'; if(!r.ok) st.title=r.error||''; }
+      await new Promise(z=>setTimeout(z,250));
+    }
+    $('#mBar').style.width='100%'; $('#mTxt').textContent=t.cleanDone(ok,bad)+(CLEAN_STOP?' — '+t.stopped:'');
+    saveCache(); recomputeMatch(); renderAll(); renderPlayer();
+    logUI(`user: clean titles${then?' before download':''} -> ${ok} renamed on Suno, ${bad} failed${CLEAN_STOP?' (stopped)':''}`);
+    if(then&&!CLEAN_STOP){ $('#modalBtns').innerHTML=`<span class="small-t muted">${esc(t.dlStarting)}</span>`; setTimeout(()=>{ closeModal(); then(); },1200); }
+    else $('#modalBtns').innerHTML=`<button class="primary" onclick="closeModal()">OK</button>`;
   };
   const buttons=then
     ?[{label:t.cancel,onclick:closeModal},{label:t.dlKeepNames,onclick:()=>{ closeModal(); logUI('user: download without renaming'); then(); }},{label:t.dlRenameThen,cls:'primary',onclick:apply}]
