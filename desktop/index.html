@@ -820,6 +820,13 @@ function ago(iso){ if(!iso) return ''; const rtf=new Intl.RelativeTimeFormat(LAN
 function slim(c){ const m=c.metadata||{}; return {id:c.id,title:c.title||'',created_at:c.created_at||'',duration:m.duration||c.duration||0,tags:m.tags||'',prompt:m.prompt||'',
   cover:m.cover_clip_id||'',image_url:c.image_url||'',image_large_url:c.image_large_url||'',audio_url:c.audio_url||'',is_liked:!!c.is_liked,display_name:c.display_name||''}; }
 function slimWs(w){ return {id:w.id,name:w.name||'',description:w.description||'',image_url:w.image_url||'',clip_count:w.clip_count||0,marker:JSON.stringify(w.last_updated_clip??null)+'|'+(w.clip_count||0)}; }
+// Workspace picture = the original's cover (★); if there is none, the oldest track's cover.
+function wsCover(w){
+  if(!w) return ''; const cs=clipsByWs[w.id]||[]; if(!cs.length) return w.image_url||'';
+  const orig=originalsOf(cs), byDate=cs.slice().sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||''));
+  const o=byDate.find(c=>orig.has(c.id)&&(c.image_large_url||c.image_url)); if(o) return o.image_url||o.image_large_url;
+  const f=byDate.find(c=>c.image_url||c.image_large_url); return f?(f.image_url||f.image_large_url):(w.image_url||'');
+}
 function wsById(id){ return workspaces.find(w=>w.id===id); }
 function nClips(){ let n=0; for(const k in clipsByWs) n+=(clipsByWs[k]||[]).length; return n; }
 function savePrefs(){ try{ localStorage.setItem('sunodlaa_view',JSON.stringify({sort:F.sort,wsSort:F.wsSort,incomplete:F.incomplete,filter:F.filter})); }catch(e){} }
@@ -1012,7 +1019,7 @@ function renderWorkspaces(){
   rows.push(`<div class="ws-item all ${currentWs===ALL_ID?'active':''}" onclick="openWorkspace('${ALL_ID}')"><div class="ph">♫</div><div class="meta"><div class="name">${esc(t.allTracks)}</div><div class="sub">${esc(t.allSub(workspaces.length))}</div></div><span class="badge ${tot&&have===tot?'full':'part'}">${have}/${tot}</span></div>`);
   rows.push('<div class="ws-sep"></div>');
   list.forEach(({w,s})=>{
-    const img=w.image_url?`<img loading="lazy" src="${esc(w.image_url)}">`:'<div class="ph"></div>';
+    const cov=wsCover(w), img=cov?`<img loading="lazy" src="${esc(cov)}">`:'<div class="ph"></div>';
     const range=s&&s.first?(s.first===s.last?fmtDate(s.first,true):`${fmtDate(s.first,true)} → ${fmtDate(s.last,true)}`):'';
     const badge=s?`<span class="badge ${s.miss===0?'full':'part'}" title="${esc(t.badgeTip)}">${s.have}/${s.total}</span>`:`<span class="badge">${w.clip_count||0}</span>`;
     const loc=s&&s.local?`<span class="badge loc" title="${esc(t.localOnlyTip)}">+${s.local}</span>`:'';
@@ -1068,7 +1075,7 @@ function renderClips(){
   // header
   let first='',last='',dur=0; cs.forEach(c=>{ const d=c.created_at||''; if(d&&(!first||d<first)) first=d; if(d>last) last=d; dur+=+c.duration||0; });
   const nHave=cs.filter(c=>MATCH[c.id]).length, nFav=cs.filter(c=>c.is_liked).length, nMiss=cs.filter(isMissing).length;
-  const img=w&&w.image_url?`<img src="${esc(w.image_url)}">`:'<div class="ph"></div>';
+  const cov=w?wsCover(w):'', img=cov?`<img src="${esc(cov)}">`:'<div class="ph"></div>';
   const range=first?`${fmtDate(first)} → ${fmtDate(last)}`:'';
   let folder='';
   if(w){ const f=cs.map(c=>MATCH[c.id]).find(m=>m&&m.k); const lo=(LOCAL_ONLY[w.id]||[])[0];

@@ -29,14 +29,14 @@ interface ProjectDao {
     @Query("DELETE FROM projects WHERE id NOT IN (:keep)")
     suspend fun deleteNotIn(keep: List<String>)
 
-    /** Workspaces with clip date span and icon: the original song's cover if there is one, else the newest clip's. */
+    /** Workspaces with clip date span and icon: the original song's cover if there is one, else the oldest clip's. */
     @Query(
         """SELECT p.*,
              (SELECT MIN(c.createdAt) FROM clips c WHERE c.projectId = p.id) AS oldestAt,
              (SELECT MAX(c.createdAt) FROM clips c WHERE c.projectId = p.id) AS newestAt,
              COALESCE(
-               (SELECT c.imageUrl FROM clips c WHERE c.projectId = p.id AND c.isOriginal = 1 ORDER BY c.createdAt LIMIT 1),
-               (SELECT c.imageUrl FROM clips c WHERE c.projectId = p.id ORDER BY c.createdAt DESC LIMIT 1)
+               (SELECT c.imageUrl FROM clips c WHERE c.projectId = p.id AND c.isOriginal = 1 AND c.imageUrl IS NOT NULL AND c.imageUrl <> '' ORDER BY c.createdAt LIMIT 1),
+               (SELECT c.imageUrl FROM clips c WHERE c.projectId = p.id AND c.imageUrl IS NOT NULL AND c.imageUrl <> '' ORDER BY c.createdAt ASC LIMIT 1)
              ) AS coverUrl
            FROM projects p
            ORDER BY p.lastUpdatedClip IS NULL, p.lastUpdatedClip DESC, p.name COLLATE NOCASE"""
@@ -48,8 +48,8 @@ interface ProjectDao {
              (SELECT MIN(c.createdAt) FROM clips c WHERE c.projectId = p.id) AS oldestAt,
              (SELECT MAX(c.createdAt) FROM clips c WHERE c.projectId = p.id) AS newestAt,
              COALESCE(
-               (SELECT c.imageUrl FROM clips c WHERE c.projectId = p.id AND c.isOriginal = 1 ORDER BY c.createdAt LIMIT 1),
-               (SELECT c.imageUrl FROM clips c WHERE c.projectId = p.id ORDER BY c.createdAt DESC LIMIT 1)
+               (SELECT c.imageUrl FROM clips c WHERE c.projectId = p.id AND c.isOriginal = 1 AND c.imageUrl IS NOT NULL AND c.imageUrl <> '' ORDER BY c.createdAt LIMIT 1),
+               (SELECT c.imageUrl FROM clips c WHERE c.projectId = p.id AND c.imageUrl IS NOT NULL AND c.imageUrl <> '' ORDER BY c.createdAt ASC LIMIT 1)
              ) AS coverUrl
            FROM projects p
            ORDER BY p.lastUpdatedClip IS NULL, p.lastUpdatedClip DESC, p.name COLLATE NOCASE"""
