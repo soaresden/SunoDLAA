@@ -171,18 +171,18 @@ class LibraryRepository(
             db.clips().recomputeOriginals()
 
             // 3. likes
-            _syncState.value = SyncState(running = true, message = "Favoris…", progress = 0.9f)
+            _syncState.value = SyncState(running = true, message = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.step_favorites), progress = 0.9f)
             syncLikes()
 
             // 4. playlists
-            _syncState.value = SyncState(running = true, message = "Playlists…", progress = 0.95f)
+            _syncState.value = SyncState(running = true, message = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.step_playlists), progress = 0.95f)
             syncPlaylists()
             db.clips().recomputeOriginals()
 
             prefs.setLastSync(System.currentTimeMillis())
             _syncState.value = SyncState(running = false, message = null, progress = 1f)
         } catch (e: kotlinx.coroutines.CancellationException) {
-            _syncState.value = SyncState(running = false, message = "Sync interrompue — relance-la.")
+            _syncState.value = SyncState(running = false, message = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.sync_interrupted))
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "sync failed", e)
@@ -260,7 +260,7 @@ class LibraryRepository(
 
     private fun ApiClip.toEntity(projectId: String?, raw: String? = null) = ClipEntity(
         id = id,
-        title = title.ifBlank { "Sans titre" },
+        title = title.ifBlank { com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.untitled) },
         projectId = projectId,
         audioUrl = bestAudioUrl ?: "",
         imageUrl = imageLargeUrl ?: imageUrl,
@@ -386,17 +386,17 @@ class LibraryRepository(
     suspend fun importLocalFolder() = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val tree = prefs.localTreeNow() ?: return@withContext
         if (_importState.value.running) return@withContext
-        _importState.value = ImportState(running = true, message = "Analyse du dossier…")
+        _importState.value = ImportState(running = true, message = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.import_scanning))
         try {
             val res = com.soaresden.sunoauto.data.LocalImport.run(context, db, android.net.Uri.parse(tree), prefs.folderPatternNow()) { done, total ->
-                _importState.value = ImportState(running = true, done = done, total = total, message = "Association $done/$total")
+                _importState.value = ImportState(running = true, done = done, total = total, message = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.import_matching, done, total))
             }
-            val summary = "${res.linked} titres liés · ${res.workspaces} workspaces" + if (res.unmatched > 0) " · ${res.unmatched} fichiers sans correspondance" else ""
+            val summary = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.import_summary, res.linked, res.workspaces) + if (res.unmatched > 0) com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.import_unmatched, res.unmatched) else ""
             prefs.setLocalSummary(summary)
             _importState.value = ImportState(running = false, done = res.scanned, total = res.scanned, message = summary)
         } catch (e: Exception) {
             Log.e(TAG, "local import failed", e)
-            _importState.value = ImportState(running = false, message = "Échec : ${e.message}")
+            _importState.value = ImportState(running = false, message = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.failed, e.message ?: ""))
         }
     }
 }

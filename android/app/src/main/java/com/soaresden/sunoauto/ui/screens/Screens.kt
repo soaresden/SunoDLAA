@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Button
@@ -48,6 +49,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.soaresden.sunoauto.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -91,20 +94,20 @@ fun LibraryScreen(vm: LibraryViewModel, player: PlayerViewModel, onOpenProject: 
     Column(Modifier.fillMaxSize()) {
         if (sync.running) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                Text("Synchro Suno… ${sync.message.orEmpty()}", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.sync_running, sync.message.orEmpty()), style = MaterialTheme.typography.bodySmall)
                 LinearProgressIndicator(progress = { sync.progress }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
             }
         } else if (sync.error != null) {
-            Text("Erreur de sync : ${sync.error}", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+            Text(stringResource(R.string.sync_error, sync.error ?: ""), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
         }
 
         androidx.compose.material3.OutlinedTextField(
             value = query, onValueChange = { vm.query.value = it },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-            placeholder = { Text("Rechercher un titre, un style…") },
+            placeholder = { Text(stringResource(R.string.search_hint)) },
             leadingIcon = { Icon(Icons.Default.Search, null) },
-            trailingIcon = { if (query.isNotEmpty()) androidx.compose.material3.IconButton(onClick = { vm.query.value = "" }) { Icon(Icons.Default.Close, "Effacer") } },
+            trailingIcon = { if (query.isNotEmpty()) androidx.compose.material3.IconButton(onClick = { vm.query.value = "" }) { Icon(Icons.Default.Close, stringResource(R.string.clear)) } },
             singleLine = true
         )
 
@@ -112,20 +115,20 @@ fun LibraryScreen(vm: LibraryViewModel, player: PlayerViewModel, onOpenProject: 
             Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Mode : Tous (morceaux groupés) / Workspace (dossiers)
-            androidx.compose.material3.FilterChip(selected = viewMode == LibraryViewModel.ViewMode.TRACKS, onClick = { vm.setViewMode(LibraryViewModel.ViewMode.TRACKS) }, label = { Text("Tous") })
-            androidx.compose.material3.FilterChip(selected = viewMode == LibraryViewModel.ViewMode.WORKSPACES, onClick = { vm.setViewMode(LibraryViewModel.ViewMode.WORKSPACES) }, leadingIcon = { Icon(Icons.Default.Folder, null, Modifier.size(16.dp)) }, label = { Text("Workspace") })
+            androidx.compose.material3.FilterChip(selected = viewMode == LibraryViewModel.ViewMode.TRACKS, onClick = { vm.setViewMode(LibraryViewModel.ViewMode.TRACKS) }, label = { Text(stringResource(R.string.chip_all)) })
+            androidx.compose.material3.FilterChip(selected = viewMode == LibraryViewModel.ViewMode.WORKSPACES, onClick = { vm.setViewMode(LibraryViewModel.ViewMode.WORKSPACES) }, leadingIcon = { Icon(Icons.Default.Folder, null, Modifier.size(16.dp)) }, label = { Text(stringResource(R.string.chip_workspace)) })
             if (viewMode == LibraryViewModel.ViewMode.TRACKS) {
-                androidx.compose.material3.FilterChip(selected = filter == LibraryViewModel.Filter.FAVORITES, onClick = { vm.setFilter(if (filter == LibraryViewModel.Filter.FAVORITES) LibraryViewModel.Filter.ALL else LibraryViewModel.Filter.FAVORITES) }, leadingIcon = { Icon(Icons.Default.Favorite, null, Modifier.size(16.dp)) }, label = { Text("Favoris") })
-                androidx.compose.material3.FilterChip(selected = filter == LibraryViewModel.Filter.OFFLINE, onClick = { vm.setFilter(if (filter == LibraryViewModel.Filter.OFFLINE) LibraryViewModel.Filter.ALL else LibraryViewModel.Filter.OFFLINE) }, leadingIcon = { Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp)) }, label = { Text("Hors ligne") })
+                androidx.compose.material3.FilterChip(selected = filter == LibraryViewModel.Filter.FAVORITES, onClick = { vm.setFilter(if (filter == LibraryViewModel.Filter.FAVORITES) LibraryViewModel.Filter.ALL else LibraryViewModel.Filter.FAVORITES) }, leadingIcon = { Icon(Icons.Default.Favorite, null, Modifier.size(16.dp)) }, label = { Text(stringResource(R.string.chip_favorites)) })
+                androidx.compose.material3.FilterChip(selected = filter == LibraryViewModel.Filter.OFFLINE, onClick = { vm.setFilter(if (filter == LibraryViewModel.Filter.OFFLINE) LibraryViewModel.Filter.ALL else LibraryViewModel.Filter.OFFLINE) }, leadingIcon = { Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp)) }, label = { Text(stringResource(R.string.chip_offline)) })
             }
-            androidx.compose.material3.FilterChip(selected = sortMode == LibraryViewModel.SortMode.DATE, onClick = { vm.setSort(LibraryViewModel.SortMode.DATE) }, label = { Text("Date") })
-            androidx.compose.material3.FilterChip(selected = sortMode == LibraryViewModel.SortMode.ALPHA, onClick = { vm.setSort(LibraryViewModel.SortMode.ALPHA) }, label = { Text("A→Z") })
+            androidx.compose.material3.FilterChip(selected = sortMode == LibraryViewModel.SortMode.DATE, onClick = { vm.setSort(LibraryViewModel.SortMode.DATE) }, label = { Text(stringResource(R.string.chip_date)) })
+            androidx.compose.material3.FilterChip(selected = sortMode == LibraryViewModel.SortMode.ALPHA, onClick = { vm.setSort(LibraryViewModel.SortMode.ALPHA) }, label = { Text(stringResource(R.string.chip_alpha)) })
         }
         Spacer(Modifier.height(4.dp))
 
         // Recherche : liste plate
         if (query.isNotBlank()) {
-            ClipList(sortClips(results, sortMode, nameById), now.clipId, vm, player, emptyText = "Aucun résultat.", showProjectSubtitle = true, bottomPadding = bottomPadding)
+            ClipList(sortClips(results, sortMode, nameById), now.clipId, vm, player, emptyText = stringResource(R.string.no_results), showProjectSubtitle = true, bottomPadding = bottomPadding)
             return
         }
 
@@ -136,7 +139,7 @@ fun LibraryScreen(vm: LibraryViewModel, player: PlayerViewModel, onOpenProject: 
             }
             LazyColumn(contentPadding = PaddingValues(bottom = bottomPadding + 8.dp)) {
                 item {
-                    Text("$count titres · ${sortedRows.size} workspaces" + if (lastSync > 0) " · synchro " + java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.FRENCH).format(java.util.Date(lastSync)) else "",
+                    Text(stringResource(R.string.summary_workspaces, count, sortedRows.size) + if (lastSync > 0) stringResource(R.string.synced_at, com.soaresden.sunoauto.ui.components.fmtShort(lastSync)) else "",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                 }
                 items(sortedRows, key = { it.project.id }) { row ->
@@ -147,7 +150,7 @@ fun LibraryScreen(vm: LibraryViewModel, player: PlayerViewModel, onOpenProject: 
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(p.name, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(listOfNotNull("${p.clipCount} titres", row.oldestAt?.let { "depuis ${fmtDate(it)}" }).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(listOfNotNull(stringResource(R.string.n_tracks, p.clipCount), row.oldestAt?.let { stringResource(R.string.since, fmtDate(it)) }).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         row.newestAt?.let { Text(fmtDate(it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 4.dp)) }
                         Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -167,14 +170,15 @@ fun LibraryScreen(vm: LibraryViewModel, player: PlayerViewModel, onOpenProject: 
             if (!sync.running) EmptyLibrary(vm)
             return
         }
-        val groups = remember(source, sortMode, nameById) {
+        val noWs = stringResource(R.string.no_workspace)
+        val groups = remember(source, sortMode, nameById, noWs) {
             source.groupBy { it.projectId }
-                .map { (pid, cs) -> (nameById[pid] ?: "Sans workspace") to sortClips(cs, sortMode, nameById) }
+                .map { (pid, cs) -> (nameById[pid] ?: noWs) to sortClips(cs, sortMode, nameById) }
                 .sortedBy { it.first.lowercase() }
         }
         LazyColumn(contentPadding = PaddingValues(bottom = bottomPadding + 8.dp)) {
             item {
-                Text("${source.size} titres" + if (lastSync > 0) " · synchro " + java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.FRENCH).format(java.util.Date(lastSync)) else "",
+                Text(stringResource(R.string.summary_tracks, source.size) + if (lastSync > 0) stringResource(R.string.synced_at, com.soaresden.sunoauto.ui.components.fmtShort(lastSync)) else "",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             }
             groups.forEach { (wsName, clips) ->
@@ -202,10 +206,10 @@ fun LibraryScreen(vm: LibraryViewModel, player: PlayerViewModel, onOpenProject: 
 private fun EmptyLibrary(vm: LibraryViewModel) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Bibliothèque vide", style = MaterialTheme.typography.titleMedium)
-            Text("Lance une synchronisation pour récupérer tes morceaux.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.empty_library), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.empty_library_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
-            Button(onClick = { vm.sync() }) { Text("Synchroniser") }
+            Button(onClick = { vm.sync() }) { Text(stringResource(R.string.sync_now)) }
         }
     }
 }
@@ -234,7 +238,7 @@ fun ProjectScreen(projectId: String, vm: LibraryViewModel, player: PlayerViewMod
 fun LikedScreen(vm: LibraryViewModel, player: PlayerViewModel, bottomPadding: Dp) {
     val clips by vm.liked.collectAsStateWithLifecycle()
     val now by player.state.collectAsStateWithLifecycle()
-    ClipList(clips, now.clipId, vm, player, onDownloadAll = { vm.downloadLiked() }, emptyText = "Aucun favori. Le ♥ sur un titre le met en favori (synchronisé avec Suno).", showProjectSubtitle = true, bottomPadding = bottomPadding)
+    ClipList(clips, now.clipId, vm, player, onDownloadAll = { vm.downloadLiked() }, emptyText = stringResource(R.string.empty_liked), showProjectSubtitle = true, bottomPadding = bottomPadding)
 }
 
 // ---------------------------------------------------------------- Récents
@@ -243,7 +247,7 @@ fun LikedScreen(vm: LibraryViewModel, player: PlayerViewModel, bottomPadding: Dp
 fun RecentScreen(vm: LibraryViewModel, player: PlayerViewModel, bottomPadding: Dp) {
     val clips by vm.recent.collectAsStateWithLifecycle()
     val now by player.state.collectAsStateWithLifecycle()
-    ClipList(clips, now.clipId, vm, player, emptyText = "Rien d'écouté pour l'instant.", showProjectSubtitle = true, bottomPadding = bottomPadding)
+    ClipList(clips, now.clipId, vm, player, emptyText = stringResource(R.string.empty_recent), showProjectSubtitle = true, bottomPadding = bottomPadding)
 }
 
 // ---------------------------------------------------------------- Playlists
@@ -252,7 +256,7 @@ fun RecentScreen(vm: LibraryViewModel, player: PlayerViewModel, bottomPadding: D
 fun PlaylistsScreen(vm: LibraryViewModel, onOpen: (String) -> Unit, bottomPadding: Dp) {
     val lists by vm.playlists.collectAsStateWithLifecycle()
     if (lists.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Aucune playlist.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.empty_playlists), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         return
     }
     LazyColumn(contentPadding = PaddingValues(bottom = bottomPadding + 8.dp)) {
@@ -262,7 +266,7 @@ fun PlaylistsScreen(vm: LibraryViewModel, onOpen: (String) -> Unit, bottomPaddin
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(p.name, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${p.clipCount} titres", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.n_tracks, p.clipCount), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -290,15 +294,15 @@ fun SearchScreen(vm: LibraryViewModel, player: PlayerViewModel, bottomPadding: D
         OutlinedTextField(
             value = q, onValueChange = { vm.query.value = it },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Titre, style, paroles…") },
+            placeholder = { Text(stringResource(R.string.search_hint_full)) },
             leadingIcon = { Icon(Icons.Default.Search, null) },
             singleLine = true
         )
         if (q.isBlank()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Recherche instantanée dans toute ta bibliothèque (hors ligne).", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(24.dp))
+                Text(stringResource(R.string.search_intro), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(24.dp))
             }
-        } else ClipList(results, now.clipId, vm, player, emptyText = "Aucun résultat.", showProjectSubtitle = true, bottomPadding = bottomPadding)
+        } else ClipList(results, now.clipId, vm, player, emptyText = stringResource(R.string.no_results), showProjectSubtitle = true, bottomPadding = bottomPadding)
     }
 }
 
@@ -313,8 +317,8 @@ fun DownloadsScreen(vm: LibraryViewModel, player: PlayerViewModel, bottomPadding
     Column(Modifier.fillMaxSize()) {
         if (pending.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("${pending.size} en file", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                TextButton(onClick = { vm.clearFinished() }) { Text("Nettoyer") }
+                Text(stringResource(R.string.in_queue, pending.size), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                TextButton(onClick = { vm.clearFinished() }) { Text(stringResource(R.string.clean)) }
             }
             pending.take(5).forEach { d ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -327,7 +331,7 @@ fun DownloadsScreen(vm: LibraryViewModel, player: PlayerViewModel, bottomPadding
                 }
             }
         }
-        ClipList(downloaded, now.clipId, vm, player, emptyText = "Aucun titre téléchargé. Utilise ⋮ → Télécharger, ou le bouton ⤓ d'un workspace.", showProjectSubtitle = true, bottomPadding = bottomPadding)
+        ClipList(downloaded, now.clipId, vm, player, emptyText = stringResource(R.string.empty_downloads), showProjectSubtitle = true, bottomPadding = bottomPadding)
     }
 }
 
@@ -345,30 +349,32 @@ fun OnboardingScreen(vm: LibraryViewModel, onLogin: () -> Unit, onPickFolder: ()
         Spacer(Modifier.height(24.dp))
         Icon(Icons.Default.LibraryMusic, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(12.dp))
-        Text("Bienvenue dans Suno Auto", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.welcome), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(
-            "Ton lecteur Suno par workspace, en voiture et hors ligne.",
+            stringResource(R.string.welcome_sub),
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 4.dp)
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(12.dp))
+        LanguagePicker()
+        Spacer(Modifier.height(16.dp))
 
         OnboardStep(
-            n = "1", title = "Connecter ton compte Suno",
-            desc = "Pour lister tes workspaces, titres et favoris. Fonctionne même en Free.",
-            done = loggedIn == true, actionLabel = if (loggedIn == true) "Reconnecter" else "Se connecter", onAction = onLogin
+            n = "1", title = stringResource(R.string.ob_connect_title),
+            desc = stringResource(R.string.ob_connect_desc),
+            done = loggedIn == true, actionLabel = if (loggedIn == true) stringResource(R.string.reconnect) else stringResource(R.string.sign_in), onAction = onLogin
         )
         if (loggedIn == true && plan != null) Text(
-            if (plan == "Pro") "Compte Pro : tu peux télécharger tes morceaux (⤓)."
-            else "Compte Free : lecture possible seulement via tes fichiers locaux (Suno chiffre le streaming).",
+            if (plan == "Pro") stringResource(R.string.ob_pro)
+            else stringResource(R.string.ob_free),
             style = MaterialTheme.typography.bodySmall,
             color = if (plan == "Pro") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
         )
         OnboardStep(
-            n = "2", title = "Choisir ton dossier de musique",
-            desc = "Tes MP3 (pCloud, Drive, local) via le sélecteur — ouvre le volet ☰ à gauche. C'est ce qui permet la lecture.",
-            done = folder != null, actionLabel = if (folder != null) "Changer" else "Choisir le dossier", onAction = onPickFolder
+            n = "2", title = stringResource(R.string.ob_folder_title),
+            desc = stringResource(R.string.ob_folder_desc),
+            done = folder != null, actionLabel = if (folder != null) stringResource(R.string.change) else stringResource(R.string.choose_folder), onAction = onPickFolder
         )
 
         Spacer(Modifier.height(8.dp))
@@ -376,14 +382,14 @@ fun OnboardingScreen(vm: LibraryViewModel, onLogin: () -> Unit, onPickFolder: ()
             color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                "À savoir : Suno chiffre le streaming. Un titre se lit seulement si tu en as le fichier (✅). Sans fichier (🫥), il faut le télécharger — possible uniquement avec un abonnement Suno Pro.",
+                stringResource(R.string.ob_info),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(12.dp)
             )
         }
 
         Spacer(Modifier.height(20.dp))
-        Button(onClick = onDone, enabled = loggedIn == true, modifier = Modifier.fillMaxWidth()) { Text("Commencer") }
-        if (loggedIn != true) Text("Connecte-toi pour continuer.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+        Button(onClick = onDone, enabled = loggedIn == true, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.start)) }
+        if (loggedIn != true) Text(stringResource(R.string.ob_need_login), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
     }
 }
 
@@ -431,15 +437,39 @@ fun AccountStatusBar(vm: LibraryViewModel) {
             if (pro) {
                 Icon(Icons.Default.Star, null, Modifier.size(18.dp).alpha(glow), tint = gold)
                 Spacer(Modifier.width(6.dp))
-                Text("Suno Pro", fontWeight = FontWeight.Bold, color = gold, modifier = Modifier.alpha(glow))
+                Text(stringResource(R.string.account_pro), fontWeight = FontWeight.Bold, color = gold, modifier = Modifier.alpha(glow))
             } else {
                 Icon(Icons.Default.AccountCircle, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(6.dp))
-                Text("Compte Free", fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.account_free), fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.weight(1f))
-            credits?.let { Text("$it crédits", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            if (lastSync > 0) Text("  ·  synchro " + java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.FRENCH).format(java.util.Date(lastSync)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            credits?.let { Text(stringResource(R.string.credits, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (lastSync > 0) Text("  " + stringResource(R.string.synced_at, com.soaresden.sunoauto.ui.components.fmtShort(lastSync)).trim(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+// ---------------------------------------------------------------- Choix de la langue (préférence)
+
+/** English / Français switch. Saved as a preference and applied immediately (the screen is recreated). */
+@Composable
+fun LanguagePicker() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val current = com.soaresden.sunoauto.LocaleHelper.get(ctx)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Default.Language, null, tint = MaterialTheme.colorScheme.primary)
+        androidx.compose.material3.FilterChip(selected = current == com.soaresden.sunoauto.LocaleHelper.EN,
+            onClick = { applyLanguage(ctx, com.soaresden.sunoauto.LocaleHelper.EN) }, label = { Text(stringResource(R.string.lang_en)) })
+        androidx.compose.material3.FilterChip(selected = current == com.soaresden.sunoauto.LocaleHelper.FR,
+            onClick = { applyLanguage(ctx, com.soaresden.sunoauto.LocaleHelper.FR) }, label = { Text(stringResource(R.string.lang_fr)) })
+    }
+}
+
+private fun applyLanguage(ctx: android.content.Context, lang: String) {
+    if (com.soaresden.sunoauto.LocaleHelper.get(ctx) == lang) return
+    com.soaresden.sunoauto.LocaleHelper.set(ctx, lang)
+    var c: android.content.Context? = ctx
+    while (c is android.content.ContextWrapper && c !is android.app.Activity) c = c.baseContext
+    (c as? android.app.Activity)?.recreate()
 }

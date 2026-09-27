@@ -34,6 +34,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.soaresden.sunoauto.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -106,19 +108,19 @@ fun NowPlayingScreen(vm: LibraryViewModel, player: PlayerViewModel) {
             androidx.compose.material3.HorizontalDivider()
             Spacer(Modifier.height(12.dp))
             Column(Modifier.fillMaxWidth()) {
-                Text("Infos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                InfoLine("Workspace", vmProjectName(vm, c.projectId))
-                InfoLine("Modèle", c.modelName)
-                InfoLine("Style / tags", c.tags)
-                InfoLine("Durée", c.durationSec?.let { fmtMs((it * 1000).toLong()) })
-                InfoLine("Créé le", c.createdAt?.let { runCatching { java.text.SimpleDateFormat("dd/MM/yyyy à HH:mm", java.util.Locale.FRENCH).format(java.util.Date(java.time.Instant.parse(it).toEpochMilli())) }.getOrNull() })
-                InfoLine("Original", if (c.isOriginal) "Oui (source des covers)" else null)
-                InfoLine("Fichier local", if (c.localPath != null) "Oui" else "Non (non jouable en Free)")
-                InfoLine("ID Suno", c.id)
+                Text(stringResource(R.string.info), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                InfoLine(stringResource(R.string.title_workspace), vmProjectName(vm, c.projectId))
+                InfoLine(stringResource(R.string.model), c.modelName)
+                InfoLine(stringResource(R.string.style_tags), c.tags)
+                InfoLine(stringResource(R.string.duration), c.durationSec?.let { fmtMs((it * 1000).toLong()) })
+                InfoLine(stringResource(R.string.created), c.createdAt?.let { iso -> val pat = stringResource(R.string.date_time_pattern); runCatching { java.text.SimpleDateFormat(pat, com.soaresden.sunoauto.LocaleHelper.locale()).format(java.util.Date(java.time.Instant.parse(iso).toEpochMilli())) }.getOrNull() })
+                InfoLine(stringResource(R.string.original), if (c.isOriginal) stringResource(R.string.original_yes) else null)
+                InfoLine(stringResource(R.string.local_file), if (c.localPath != null) stringResource(R.string.yes) else stringResource(R.string.local_no))
+                InfoLine(stringResource(R.string.suno_id), c.id)
             }
             if (!c.lyrics.isNullOrBlank()) {
                 Spacer(Modifier.height(16.dp))
-                Text("Paroles", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.lyrics), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(6.dp))
                 Text(c.lyrics!!, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
             }

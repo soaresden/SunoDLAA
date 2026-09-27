@@ -14,6 +14,11 @@ import java.util.concurrent.TimeUnit
 /** Poor man's dependency container — the app is small enough not to need Hilt. */
 class SunoApp : Application() {
 
+    override fun onCreate() {
+        super.onCreate()
+        LocaleHelper.app = this
+    }
+
     val http: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)

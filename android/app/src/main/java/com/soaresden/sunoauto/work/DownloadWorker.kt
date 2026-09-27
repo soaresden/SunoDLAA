@@ -37,7 +37,7 @@ class DownloadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
         db.downloads().update(clipId, 1, 0)
 
         if (!app.prefs.isProNow()) {
-            db.downloads().update(clipId, 3, 0, "Active « J'ai un abonnement Pro » dans les Réglages pour télécharger via Suno.")
+            db.downloads().update(clipId, 3, 0, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.dl_need_pro))
             return Result.failure()
         }
         // Ask Suno's official download endpoint for a real (unencrypted) file URL. This honours the
@@ -52,16 +52,16 @@ class DownloadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
             when {
                 resolve.url != null -> resolve.url!!
                 resolve.reason == "not_authorized" ->
-                    { db.downloads().update(clipId, 3, 0, "Téléchargement refusé par Suno (offre Free). Passe en Pro ou importe le MP3."); return Result.failure() }
+                    { db.downloads().update(clipId, 3, 0, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.dl_refused_free)); return Result.failure() }
                 else ->
-                    { db.downloads().update(clipId, 3, 0, resolve.message ?: "Suno n'a pas fourni de lien"); return Result.failure() }
+                    { db.downloads().update(clipId, 3, 0, resolve.message ?: com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.dl_no_link)); return Result.failure() }
             }
         } catch (e: Exception) {
-            db.downloads().update(clipId, 3, 0, "Erreur download: ${e.message}")
+            db.downloads().update(clipId, 3, 0, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.dl_error, e.message ?: ""))
             return if (runAttemptCount < 2) Result.retry() else Result.failure()
         }
 
-        val projectName = clip.projectId?.let { db.projects().byId(it)?.name } ?: "Sans workspace"
+        val projectName = clip.projectId?.let { db.projects().byId(it)?.name } ?: com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.no_workspace)
         val dir = File(app.repo.downloadRoot(), safeName(projectName)).apply { mkdirs() }
         val ext = "mp3"
         val target = File(dir, "${safeName(clip.title)}_${clip.id.take(8)}.$ext")
@@ -122,12 +122,12 @@ class DownloadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
     }
 
     private fun safeName(s: String): String =
-        s.replace(Regex("[\\\\/:*?\"<>|\\n\\r\\t]"), "_").trim().take(80).ifBlank { "sans_titre" }
+        s.replace(Regex("[\\\\/:*?\"<>|\\n\\r\\t]"), "_").trim().take(80).ifBlank { "untitled" }
 
     private fun foregroundInfo(title: String, pct: Int): ForegroundInfo {
         val nm = applicationContext.getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm.getNotificationChannel(CHANNEL) == null) {
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, "Téléchargements", NotificationManager.IMPORTANCE_LOW))
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.channel_downloads), NotificationManager.IMPORTANCE_LOW))
         }
         val n = NotificationCompat.Builder(applicationContext, CHANNEL)
             .setSmallIcon(R.drawable.ic_download)

@@ -42,10 +42,10 @@ object MediaItems {
             .build()
 
     fun project(p: ProjectEntity, coverUrl: String? = null, since: String? = null): MediaItem =
-        folder(MediaIds.project(p.id), p.name, listOfNotNull("${p.clipCount} titres", since?.let { "depuis $it" }).joinToString(" · "), coverUrl?.let(Uri::parse), playable = true)
+        folder(MediaIds.project(p.id), p.name, listOfNotNull(com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.n_tracks, p.clipCount), since?.let { com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.since, it) }).joinToString(" · "), coverUrl?.let(Uri::parse), playable = true)
 
     fun playlist(p: PlaylistEntity): MediaItem =
-        folder(MediaIds.playlist(p.id), p.name, "${p.clipCount} titres", p.imageUrl?.let(Uri::parse), playable = true)
+        folder(MediaIds.playlist(p.id), p.name, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.n_tracks, p.clipCount), p.imageUrl?.let(Uri::parse), playable = true)
 
     fun clip(c: ClipEntity, projectName: String? = null): MediaItem {
         val localUri = com.soaresden.sunoauto.data.LocalFiles.uriOrNull(c.localPath)
@@ -65,7 +65,7 @@ object MediaItems {
             .setUri(uri)
             .setMediaMetadata(
                 MediaMetadata.Builder()
-                    .setTitle((if (c.isOriginal) "★ " else "") + c.title.ifBlank { "Sans titre" })
+                    .setTitle((if (c.isOriginal) "★ " else "") + c.title.ifBlank { com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.untitled) })
                     .setArtist(projectName ?: c.tags?.take(60) ?: "Suno")
                     .setAlbumTitle(projectName)
                     .setGenre(c.tags)

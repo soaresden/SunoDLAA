@@ -27,6 +27,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.soaresden.sunoauto.R
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -51,6 +53,10 @@ import com.soaresden.sunoauto.ui.screens.SettingsScreen
 import com.soaresden.sunoauto.ui.theme.SunoTheme
 
 class MainActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(com.soaresden.sunoauto.LocaleHelper.wrap(newBase))
+    }
 
     private val loginLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
     private val notifLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -98,17 +104,17 @@ private fun App(onLogin: () -> Unit) {
     val playlists by vm.playlists.collectAsStateWithLifecycle()
 
     val title = when {
-        route == Routes.LIBRARY -> "Workspaces"
-        route == Routes.PROJECT -> projects.firstOrNull { it.id == backStack?.arguments?.getString("id") }?.name ?: "Workspace"
-        route == Routes.PLAYLIST -> playlists.firstOrNull { it.id == backStack?.arguments?.getString("id") }?.name ?: "Playlist"
-        route == Routes.PLAYLISTS -> "Playlists"
-        route == Routes.RECENT -> "Récemment écoutés"
-        route == Routes.SEARCH -> "Recherche"
-        route == Routes.LIKED -> "Favoris"
-        route == Routes.DOWNLOADS -> "Téléchargés"
-        route == Routes.SETTINGS -> "Réglages · v${com.soaresden.sunoauto.BuildConfig.VERSION_NAME}"
-        route == Routes.NOW_PLAYING -> "En lecture"
-        else -> "Suno Auto"
+        route == Routes.LIBRARY -> stringResource(R.string.title_workspaces)
+        route == Routes.PROJECT -> projects.firstOrNull { it.id == backStack?.arguments?.getString("id") }?.name ?: stringResource(R.string.title_workspace)
+        route == Routes.PLAYLIST -> playlists.firstOrNull { it.id == backStack?.arguments?.getString("id") }?.name ?: stringResource(R.string.title_playlist)
+        route == Routes.PLAYLISTS -> stringResource(R.string.nav_playlists)
+        route == Routes.RECENT -> stringResource(R.string.title_recent)
+        route == Routes.SEARCH -> stringResource(R.string.title_search)
+        route == Routes.LIKED -> stringResource(R.string.title_favorites)
+        route == Routes.DOWNLOADS -> stringResource(R.string.title_downloads)
+        route == Routes.SETTINGS -> stringResource(R.string.title_settings) + " · v${com.soaresden.sunoauto.BuildConfig.VERSION_NAME}"
+        route == Routes.NOW_PLAYING -> stringResource(R.string.title_now_playing)
+        else -> stringResource(R.string.app_name)
     }
     val topLevel = route == Routes.LIBRARY
     val miniHeight = if (playerState.clipId != null && route != Routes.NOW_PLAYING) 64.dp else 0.dp
@@ -139,25 +145,25 @@ private fun App(onLogin: () -> Unit) {
                         selected = route == Routes.LIBRARY,
                         onClick = { goto(Routes.LIBRARY) },
                         icon = { Icon(Icons.Default.LibraryMusic, null) },
-                        label = { Text("Workspace") }
+                        label = { Text(stringResource(R.string.nav_workspace)) }
                     )
                     NavigationBarItem(
                         selected = route == Routes.RECENT,
                         onClick = { goto(Routes.RECENT) },
                         icon = { Icon(Icons.Default.History, null) },
-                        label = { Text("Récents") }
+                        label = { Text(stringResource(R.string.nav_recent)) }
                     )
                     NavigationBarItem(
                         selected = route == Routes.PLAYLISTS,
                         onClick = { goto(Routes.PLAYLISTS) },
                         icon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, null) },
-                        label = { Text("Playlists") }
+                        label = { Text(stringResource(R.string.nav_playlists)) }
                     )
                     NavigationBarItem(
                         selected = route == Routes.SETTINGS,
                         onClick = { goto(Routes.SETTINGS) },
                         icon = { Icon(Icons.Default.Settings, null) },
-                        label = { Text("Réglages") }
+                        label = { Text(stringResource(R.string.nav_settings)) }
                     )
                 }
                 com.soaresden.sunoauto.ui.screens.AccountStatusBar(vm)

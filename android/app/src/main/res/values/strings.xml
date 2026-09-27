@@ -1,15 +1,162 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">SUNODLAA</string>
-    <string name="node_all">Tous les titres · récents</string>
-    <string name="node_all_alpha">Tous les titres · A→Z</string>
+    <string name="app_name" translatable="false">SUNODLAA</string>
+
+    <!-- Android Auto browse tree -->
+    <string name="node_all">All tracks · newest</string>
+    <string name="node_all_alpha">All tracks · A→Z</string>
     <string name="node_projects">Workspaces</string>
-    <string name="node_liked">Favoris</string>
+    <string name="node_liked">Favorites</string>
     <string name="node_playlists">Playlists</string>
-    <string name="node_downloaded">Hors ligne</string>
-    <string name="node_recent">Récents</string>
-    <string name="action_like">Favori</string>
-    <string name="action_unlike">Retirer des favoris</string>
-    <string name="action_download">Télécharger</string>
-    <string name="downloading">Téléchargement Suno</string>
+    <string name="node_downloaded">Offline</string>
+    <string name="node_recent">Recent</string>
+    <string name="action_like">Favorite</string>
+    <string name="action_unlike">Remove from favorites</string>
+    <string name="action_download">Download</string>
+    <string name="downloading">Suno download</string>
+
+    <!-- Navigation / titles -->
+    <string name="nav_workspace">Workspace</string>
+    <string name="nav_recent">Recent</string>
+    <string name="nav_playlists">Playlists</string>
+    <string name="nav_settings">Settings</string>
+    <string name="title_workspaces">Workspaces</string>
+    <string name="title_workspace">Workspace</string>
+    <string name="title_playlist">Playlist</string>
+    <string name="title_recent">Recently played</string>
+    <string name="title_search">Search</string>
+    <string name="title_favorites">Favorites</string>
+    <string name="title_downloads">Downloaded</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_now_playing">Now playing</string>
+
+    <!-- Library -->
+    <string name="sync_running">Syncing with Suno… %1$s</string>
+    <string name="sync_error">Sync error: %1$s</string>
+    <string name="search_hint">Search a title, a style…</string>
+    <string name="clear">Clear</string>
+    <string name="chip_all">All</string>
+    <string name="chip_workspace">Workspace</string>
+    <string name="chip_favorites">Favorites</string>
+    <string name="chip_offline">Offline</string>
+    <string name="chip_date">Date</string>
+    <string name="chip_alpha">A→Z</string>
+    <string name="no_results">No results.</string>
+    <string name="summary_workspaces">%1$d tracks · %2$d workspaces</string>
+    <string name="summary_tracks">%1$d tracks</string>
+    <string name="synced_at"> · synced %1$s</string>
+    <string name="n_tracks">%1$d tracks</string>
+    <string name="since">since %1$s</string>
+    <string name="no_workspace">No workspace</string>
+    <string name="untitled">Untitled</string>
+    <string name="empty_library">Library is empty</string>
+    <string name="empty_library_hint">Run a sync to fetch your songs.</string>
+    <string name="sync_now">Sync</string>
+    <string name="empty_liked">No favorites yet. Tap ♥ on a track to add it (synced with Suno).</string>
+    <string name="empty_recent">Nothing played yet.</string>
+    <string name="empty_playlists">No playlists.</string>
+    <string name="search_hint_full">Title, style, lyrics…</string>
+    <string name="search_intro">Instant search across your whole library (offline).</string>
+    <string name="in_queue">%1$d queued</string>
+    <string name="clean">Clean up</string>
+    <string name="empty_downloads">No downloaded tracks. Use ⋮ → Download, or a workspace\'s ⤓ button.</string>
+    <string name="nothing_here">Nothing here yet.</string>
+    <string name="play_n"> Play (%1$d)</string>
+    <string name="shuffle"> Shuffle</string>
+
+    <!-- Track row -->
+    <string name="cd_original">Original</string>
+    <string name="cd_available">Available</string>
+    <string name="cd_unavailable">Not available</string>
+    <string name="cd_favorite">Favorite</string>
+    <string name="play_next">Play next</string>
+    <string name="remove_download">Remove download</string>
+    <string name="download">Download</string>
+
+    <!-- Onboarding -->
+    <string name="welcome">Welcome to SUNODLAA</string>
+    <string name="welcome_sub">Your Suno songs, by workspace — on your phone, in your car, offline.</string>
+    <string name="ob_connect_title">Connect your Suno account</string>
+    <string name="ob_connect_desc">To list your workspaces, tracks and favorites. Works with a Free account too.</string>
+    <string name="sign_in">Sign in</string>
+    <string name="reconnect">Sign in again</string>
+    <string name="ob_pro">Pro account: you can download your songs (⤓).</string>
+    <string name="ob_free">Free account: playback works through your own local files (Suno encrypts its streams).</string>
+    <string name="ob_folder_title">Choose your music folder</string>
+    <string name="ob_folder_desc">Your MP3s (pCloud, Drive, local storage) through the picker — open the ☰ panel on the left. This is what makes playback possible.</string>
+    <string name="change">Change</string>
+    <string name="choose_folder">Choose folder</string>
+    <string name="ob_info">Good to know: Suno encrypts its streams. A track plays if you have its file (✅). Without a file (🫥) it has to be downloaded — which Suno only allows on a Pro plan.</string>
+    <string name="start">Get started</string>
+    <string name="ob_need_login">Sign in to continue.</string>
+
+    <!-- Account bar -->
+    <string name="account_pro">Suno Pro</string>
+    <string name="account_free">Free account</string>
+    <string name="credits">%1$d credits</string>
+
+    <!-- Now playing -->
+    <string name="info">Info</string>
+    <string name="model">Model</string>
+    <string name="style_tags">Style / tags</string>
+    <string name="duration">Duration</string>
+    <string name="created">Created</string>
+    <string name="original">Original</string>
+    <string name="original_yes">Yes (source of the covers)</string>
+    <string name="local_file">Local file</string>
+    <string name="yes">Yes</string>
+    <string name="local_no">No (not playable on Free)</string>
+    <string name="suno_id">Suno ID</string>
+    <string name="lyrics">Lyrics</string>
+    <string name="date_time_pattern" translatable="false">MMM d, yyyy \'at\' h:mm a</string>
+    <string name="date_pattern" translatable="false">MMM d, yyyy</string>
+
+    <!-- Settings -->
+    <string name="section_language">Language</string>
+    <string name="lang_en" translatable="false">English</string>
+    <string name="lang_fr" translatable="false">Français</string>
+    <string name="section_account">Suno account</string>
+    <string name="connected">Connected</string>
+    <string name="settings_pro">Pro account: you own your songs, the ⤓ button can download them (quota).</string>
+    <string name="settings_free">Free account: Suno encrypts streaming and does not allow downloads. Your songs play only if you have the local file.</string>
+    <string name="sync_suno">Sync Suno → Player</string>
+    <string name="logout">Sign out (clears the cache)</string>
+    <string name="not_connected">Not signed in.</string>
+    <string name="sign_in_suno">Sign in to Suno</string>
+    <string name="section_local">Sync local MP3 → Match with Suno</string>
+    <string name="local_desc">Your files, for playback. Pick the folder that contains your workspace folders (in the picker, open ☰ on the left for pCloud, Drive…). Access is remembered: afterwards a simple “Sync folder” is enough.</string>
+    <string name="folder_pattern_label">Folder name pattern (optional)</string>
+    <string name="folder_pattern_placeholder">e.g. Suno - </string>
+    <string name="folder_pattern_help">Prefix before the workspace name. Empty = automatic.</string>
+    <string name="sync_folder">Sync folder</string>
+    <string name="change_folder">Change folder</string>
+    <string name="how_it_works">How it works</string>
+    <string name="how_text">• Sync Suno → Player: fetches your library (workspaces, tracks, favorites, originals). Works on Free.\n• Sync local MP3 → Match with Suno: links your files to the tracks for playback.\n\nOn Free you don\'t “own” the songs in Suno\'s sense: their player decrypts them with a license, this app can\'t — so a track plays only through your local file (✅). 🫥 tracks have no file. On Pro you own your songs and the ⤓ button downloads them (quota).</string>
+    <string name="section_data">Data</string>
+    <string name="export_db">Export the database (JSON, all tags)</string>
+    <string name="export_diag">Export a diagnostic (zip)</string>
+    <string name="aa_help">Outside the Play Store: Android Auto → Settings → Version (tap 10×) → ⋮ → Developer settings → “Unknown sources”. The app then shows up in the car.</string>
+
+    <!-- Messages -->
+    <string name="checking">Checking…</string>
+    <string name="cookie_ok">Cookie accepted, sync started.</string>
+    <string name="cookie_refused">Cookie refused by Suno: %1$s</string>
+    <string name="send_diag">Send the diagnostic</string>
+    <string name="export_db_title">Export the database</string>
+    <string name="step_favorites">Favorites…</string>
+    <string name="step_playlists">Playlists…</string>
+    <string name="sync_interrupted">Sync interrupted — run it again.</string>
+    <string name="import_scanning">Scanning folder…</string>
+    <string name="import_matching">Matching %1$d/%2$d</string>
+    <string name="import_summary">%1$d tracks linked · %2$d workspaces</string>
+    <string name="import_unmatched"> · %1$d files without a match</string>
+    <string name="failed">Failed: %1$s</string>
+    <string name="starting">Starting…</string>
+    <string name="channel_sync">Sync</string>
+    <string name="notif_sync_title">Suno sync</string>
+    <string name="channel_downloads">Downloads</string>
+    <string name="dl_need_pro">Downloading from Suno requires a Pro plan.</string>
+    <string name="dl_refused_free">Download refused by Suno (Free plan). Upgrade to Pro or import the MP3.</string>
+    <string name="dl_no_link">Suno did not provide a link</string>
+    <string name="dl_error">Download error: %1$s</string>
 </resources>

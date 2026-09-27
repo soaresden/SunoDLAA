@@ -30,7 +30,7 @@ So I built SUNODLAA.
 
 ## What you get
 
-### 💻 Desktop — your library, in bulk, in order
+### 💻 SunoAAWeb (desktop) — your library, in bulk, in order
 A small local web app (double-click to start, nothing to install):
 
 - **Browse every workspace** with its tracks, covers and dates.
@@ -42,6 +42,7 @@ A small local web app (double-click to start, nothing to install):
 - **Originals highlighted in gold** and pinned first — covers are grouped under the song they come from.
 - Built-in player with **synced lyrics** (karaoke) when Suno provides word timings.
 - **One-click sign-in**: a login window opens, you sign in to Suno, done. No cookie copy-pasting.
+- **English or French**, chosen in Settings and remembered.
 
 ### 📱 Android & Android Auto — listen your way
 - **Workspaces first**: open a workspace, play it. Or browse **All tracks** (by date or A→Z),
@@ -51,26 +52,42 @@ A small local web app (double-click to start, nothing to install):
 - **Android Auto**: the same library on your car screen. Tracks you don't have yet are shown
   but never break playback.
 - Lyrics and full track info on the player screen, gold originals, fast local search.
+- **English or French**, chosen in Settings (and on the welcome screen), independent of the phone's language.
 
 **The loop:** the desktop fills your library, neatly organized → the phone and the car play it.
 
 ## Quick start
 
-### Desktop (Windows)
-1. Download this repository (Code → Download ZIP) and open the `desktop` folder.
-2. Double-click **`Start.bat`**. Your browser opens on `http://localhost:8787`.
-3. ⚙️ **Settings** → **Sign in**, choose your **library folder** and **folder format**.
+Two launchers sit at the root of the repository:
+
+| Launcher | What it does |
+|---|---|
+| **`Launch SunoAAWeb.bat`** | Starts the desktop web app and opens it in your browser. |
+| **`Launch Android Drive Unit Test.bat`** | Tests Android Auto **on your PC**: installs Google's Desktop Head Unit if needed, connects your phone over USB and opens the car screen. |
+
+### SunoAAWeb (Windows)
+1. Download this repository (Code → Download ZIP) and unzip it.
+2. Double-click **`Launch SunoAAWeb.bat`**. Your browser opens on `http://localhost:8787`.
+3. ⚙️ **Settings** → pick your **language**, **Sign in**, choose your **library folder** and **folder format**.
 4. Pick a workspace → tick tracks (or **Queue missing**) → **Download all**.
 
 Requirements: Windows 10/11 with Edge or Chrome. PowerShell and the tagging library are built in / bundled.
 
 ### Android
-1. Install [`releases/SUNODLAA-v0.15.0.apk`](releases/) (allow unknown sources).
+1. Install [`releases/SUNODLAA-v0.16.0.apk`](releases/) (allow unknown sources).
 2. Sign in to Suno, then pick the folder that holds your MP3s (the one the desktop fills).
 3. **Android Auto without the Play Store**: Android Auto → Settings → tap *Version* 10× →
    ⋮ → Developer settings → enable **Unknown sources**.
 
-Want to test Android Auto on your PC? See [`tools/android-auto-dhu`](tools/android-auto-dhu).
+### Test Android Auto on your PC
+Run **`Launch Android Drive Unit Test.bat`**. It needs Android Studio installed once (for the SDK);
+the script installs the missing pieces itself (you just accept Google's license) and walks you through
+the phone side:
+1. Android Auto → Settings → tap *Version* 10× to unlock developer mode.
+2. Menu ⋮ → **Start head unit server**.
+3. Enable USB debugging and plug the phone in.
+
+Then pick **SUNODLAA** on the emulated car screen.
 
 ## Free vs Pro — the honest part
 
@@ -85,10 +102,11 @@ Suno protects its streams. SUNODLAA does **not** try to get around that.
 ## Repository layout
 
 ```
-desktop/   Local web app: Start.bat, server.ps1 (PowerShell), index.html, lib/TagLibSharp.dll
-android/   Android Studio project (Kotlin, Jetpack Compose, Media3, Room)
-releases/  Ready-to-install APK
-tools/     Android Auto desktop head unit launcher
+Launch SunoAAWeb.bat                 Start the desktop web app
+Launch Android Drive Unit Test.bat   Test Android Auto on the PC (Desktop Head Unit)
+desktop/    SunoAAWeb: server.ps1 (PowerShell), index.html, lib/TagLibSharp.dll
+android/    Android Studio project (Kotlin, Jetpack Compose, Media3, Room) — EN + FR
+releases/   Ready-to-install APK
 ```
 
 ## Build the Android app

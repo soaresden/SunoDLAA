@@ -80,14 +80,17 @@
   <h1>SUNODLAA</h1>
   <span id="authBadge" class="badge">…</span>
   <span class="spacer"></span>
-  <select id="langSel" onchange="setLang(this.value)" title="Language">
-    <option value="en">EN</option><option value="fr">FR</option>
-  </select>
   <button class="small" id="btnScan" onclick="rescan()">↻</button>
   <button class="small" id="btnSettings" onclick="toggleSettings()">⚙️</button>
 </header>
 
 <div id="settings">
+  <div class="row">
+    <label id="lblLang">Language</label>
+    <select id="langSel" onchange="setLang(this.value)">
+      <option value="en">English</option><option value="fr">Français</option>
+    </select>
+  </div>
   <div class="row">
     <label id="lblConn">Suno connection</label>
     <button class="primary" id="btnLogin" onclick="doLogin()">🔑 Sign in</button>
@@ -153,7 +156,7 @@
 <script>
 const I18N = {
   en: {
-    conn:"Suno connection", signin:"🔑 Sign in", loginHint:"Opens a login window — sign in, done.",
+    language:"Language", conn:"Suno connection", signin:"🔑 Sign in", loginHint:"Opens a login window — sign in, done.",
     manual:"…or paste the __client cookie manually", saveCookie:"Save cookie",
     folder:"Library folder", pattern:"Folder format", save:"💾 Save", test:"🔌 Test connection",
     workspaces:"Workspaces", search:"🔎 Filter tracks…", selAll:"Select all", clear:"Clear", queueMissing:"🫥 Queue missing",
@@ -163,11 +166,11 @@ const I18N = {
     filesFound:n=>n+" local files found.", tracks:"tracks", since:"since", localFile:"Local file", sunoStream:"Suno stream",
     noSource:"No playable source", opening:"Opening browser…", signInWindow:"Sign in in the window that just opened…",
     connectedOk:"✅ Connected! Cookie captured.", timedOut:"Timed out — try again.", noBrowser:"No browser found",
-    settingsSaved:"Settings saved.", addCookie:"Add your __client cookie in Settings.", dlDone:"Downloads finished.",
+    settingsSaved:"Settings saved.", addCookie:"Sign in to Suno in Settings to get started.", dlDone:"Downloads finished.",
     missingQueued:"Missing tracks queued.", ex:"e.g."
   },
   fr: {
-    conn:"Connexion Suno", signin:"🔑 Se connecter", loginHint:"Ouvre une fenêtre de login — connecte-toi, c'est tout.",
+    language:"Langue", conn:"Connexion Suno", signin:"🔑 Se connecter", loginHint:"Ouvre une fenêtre de login — connecte-toi, c'est tout.",
     manual:"…ou coller le cookie __client manuellement", saveCookie:"Enregistrer le cookie",
     folder:"Dossier bibliothèque", pattern:"Format des dossiers", save:"💾 Enregistrer", test:"🔌 Tester la connexion",
     workspaces:"Workspaces", search:"🔎 Filtrer les titres…", selAll:"Tout cocher", clear:"Décocher", queueMissing:"🫥 File = manquants",
@@ -177,7 +180,7 @@ const I18N = {
     filesFound:n=>n+" fichiers locaux trouvés.", tracks:"titres", since:"depuis", localFile:"Fichier local", sunoStream:"Flux Suno",
     noSource:"Pas de source lisible", opening:"Ouverture du navigateur…", signInWindow:"Connecte-toi dans la fenêtre qui vient de s'ouvrir…",
     connectedOk:"✅ Connecté ! Cookie récupéré.", timedOut:"Temps écoulé — réessaie.", noBrowser:"Navigateur introuvable",
-    settingsSaved:"Réglages enregistrés.", addCookie:"Ajoute ton cookie __client dans les réglages.", dlDone:"Téléchargements terminés.",
+    settingsSaved:"Réglages enregistrés.", addCookie:"Connecte-toi à Suno dans les réglages pour commencer.", dlDone:"Téléchargements terminés.",
     missingQueued:"Manquants ajoutés à la file.", ex:"ex :"
   }
 };
@@ -193,7 +196,7 @@ function esc(s){return(s==null?'':(''+s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<'
 
 function applyLang(){
   const t=T();
-  $('#langSel').value=LANG;
+  $('#langSel').value=LANG; $('#lblLang').textContent=t.language;
   $('#lblConn').textContent=t.conn; $('#btnLogin').textContent=t.signin;
   if(!$('#loginStatus').dataset.live) $('#loginStatus').textContent=t.loginHint;
   $('#lblManual').textContent=t.manual; $('#btnSaveCookie').textContent=t.saveCookie;
@@ -207,11 +210,13 @@ function applyLang(){
   if(!queue.length) $('#emptyQueue').textContent=t.checkTracks;
   renderWorkspaces();
 }
-function setLang(l){ LANG=l; try{localStorage.setItem('sunodlaa_lang',l);}catch(e){} applyLang(); }
+function setLang(l){ LANG=l; try{localStorage.setItem('sunodlaa_lang',l);}catch(e){} applyLang();
+  api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({language:l})}).catch(()=>{}); }
 
 function toggleSettings(){ $('#settings').classList.toggle('open'); }
 async function loadConfig(){
   CFG=await api('/api/config');
+  if(CFG.language && CFG.language!==LANG){ LANG=CFG.language; try{localStorage.setItem('sunodlaa_lang',LANG);}catch(e){} }
   $('#cfgLib').value=CFG.libraryPath||''; $('#cfgPattern').value=CFG.folderPattern||'Suno - {workspace}';
   $('#patternEx').textContent=CFG.folderExample?(T().ex+' '+CFG.folderExample):'';
   $('#taglibState').textContent=CFG.taglib?'OK':'—';

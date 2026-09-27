@@ -33,7 +33,7 @@ $Cfg = Load-Config
 $defaults = @{
     port=8787; libraryPath=(Join-Path $Root 'downloads'); clientCookie='';
     deviceId=[guid]::NewGuid().ToString(); apiBase='https://studio-api.prod.suno.com';
-    clerkBase='https://auth.suno.com'; folderPattern='Suno - {workspace}'
+    clerkBase='https://auth.suno.com'; folderPattern='Suno - {workspace}'; language='en'
 }
 $changed = $false
 foreach ($k in $defaults.Keys) {
@@ -356,10 +356,11 @@ while ($listener.IsListening) {
                     if ($null -ne $b.clientCookie){ $Cfg.clientCookie = $b.clientCookie; $script:Jwt=$null; $script:Sid=$null }
                     if ($null -ne $b.deviceId)    { $Cfg.deviceId = $b.deviceId }
                     if ($null -ne $b.folderPattern -and $b.folderPattern) { $Cfg.folderPattern = $b.folderPattern }
+                    if ($b.language -in @('en','fr')) { $Cfg.language = $b.language }
                     Save-Config $Cfg
                 }
                 Write-Json $resp @{
-                    port=$Cfg.port; libraryPath=$Cfg.libraryPath; folderPattern=$Cfg.folderPattern
+                    port=$Cfg.port; libraryPath=$Cfg.libraryPath; folderPattern=$Cfg.folderPattern; language=$Cfg.language
                     folderExample=(Folder-Name 'Lucie')
                     hasCookie=[bool]$Cfg.clientCookie; deviceId=$Cfg.deviceId; taglib=$TagLibOk
                 }; break

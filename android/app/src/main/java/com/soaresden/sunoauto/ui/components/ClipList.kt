@@ -24,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.soaresden.sunoauto.R
 import androidx.compose.ui.unit.dp
 import com.soaresden.sunoauto.data.db.ClipEntity
 
@@ -39,13 +41,13 @@ fun ClipList(
     player: com.soaresden.sunoauto.ui.PlayerViewModel,
     projectName: String? = null,
     onDownloadAll: (() -> Unit)? = null,
-    emptyText: String = "Rien ici pour l'instant.",
+    emptyText: String? = null,
     showProjectSubtitle: Boolean = false,
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     if (clips.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(emptyText, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(emptyText ?: stringResource(R.string.nothing_here), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
@@ -58,10 +60,10 @@ fun ClipList(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(onClick = { player.play(clips, 0, projectName) }) {
-                    Icon(Icons.Default.PlayArrow, null); Text(" Lire (${clips.size})")
+                    Icon(Icons.Default.PlayArrow, null); Text(stringResource(R.string.play_n, clips.size))
                 }
                 OutlinedButton(onClick = { player.playShuffled(clips, projectName) }) {
-                    Icon(Icons.Default.Shuffle, null); Text(" Aléatoire")
+                    Icon(Icons.Default.Shuffle, null); Text(stringResource(R.string.shuffle))
                 }
                 if (onDownloadAll != null) OutlinedButton(onClick = onDownloadAll) {
                     Icon(Icons.Outlined.Download, null)

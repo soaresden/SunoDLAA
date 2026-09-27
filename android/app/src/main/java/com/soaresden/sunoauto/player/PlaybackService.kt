@@ -118,13 +118,13 @@ class PlaybackService : MediaLibraryService() {
     // ---- custom buttons shown in Android Auto / notification -------------------------------
 
     private fun likeButton(liked: Boolean) = CommandButton.Builder()
-        .setDisplayName(if (liked) getString(R.string.action_unlike) else getString(R.string.action_like))
+        .setDisplayName(if (liked) com.soaresden.sunoauto.LocaleHelper.s(R.string.action_unlike) else com.soaresden.sunoauto.LocaleHelper.s(R.string.action_like))
         .setIconResId(if (liked) R.drawable.ic_favorite else R.drawable.ic_favorite_border)
         .setSessionCommand(SessionCommand(CMD_TOGGLE_LIKE, Bundle.EMPTY))
         .build()
 
     private fun downloadButton() = CommandButton.Builder()
-        .setDisplayName(getString(R.string.action_download))
+        .setDisplayName(com.soaresden.sunoauto.LocaleHelper.s(R.string.action_download))
         .setIconResId(R.drawable.ic_download)
         .setSessionCommand(SessionCommand(CMD_DOWNLOAD, Bundle.EMPTY))
         .build()
@@ -186,7 +186,7 @@ class PlaybackService : MediaLibraryService() {
                 putInt(androidx.media3.session.MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
                     androidx.media3.session.MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
             }
-            val root = MediaItems.folder(MediaIds.ROOT, getString(R.string.app_name))
+            val root = MediaItems.folder(MediaIds.ROOT, com.soaresden.sunoauto.LocaleHelper.s(R.string.app_name))
             return Futures.immediateFuture(LibraryResult.ofItem(root, LibraryParams.Builder().setExtras(extras).build()))
         }
 

@@ -100,15 +100,15 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setCookie(cookie: String) = viewModelScope.launch {
         val value = cookie.trim().removePrefix("__client=").trim()
-        cookieMessage.value = "Vérification…"
+        cookieMessage.value = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.checking)
         try {
             withContext(Dispatchers.IO) { sunoApp.auth.probe(value) }
             prefs.setClientCookie(value)
             sunoApp.auth.invalidate()
-            cookieMessage.value = "Cookie accepté, synchronisation lancée."
+            cookieMessage.value = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.cookie_ok)
             repo.requestSync()
         } catch (e: Exception) {
-            cookieMessage.value = "Cookie refusé par Suno : ${e.message}"
+            cookieMessage.value = com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.cookie_refused, e.message ?: "")
         }
     }
     fun setLocalTree(uri: String) = viewModelScope.launch { repo.setLocalTree(uri) }
@@ -122,7 +122,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
             val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("application/zip")
                 .putExtra(android.content.Intent.EXTRA_STREAM, uri)
                 .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            ctx.startActivity(android.content.Intent.createChooser(send, "Envoyer le diagnostic").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            ctx.startActivity(android.content.Intent.createChooser(send, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.send_diag)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (e: Exception) { cookieMessage.value = "Diagnostic: ${e.message}" }
     }
     fun exportDatabase(ctx: android.content.Context) = viewModelScope.launch {
@@ -131,7 +131,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
             val uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".fileprovider", file)
             val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("application/zip")
                 .putExtra(android.content.Intent.EXTRA_STREAM, uri).addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            ctx.startActivity(android.content.Intent.createChooser(send, "Exporter la base").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            ctx.startActivity(android.content.Intent.createChooser(send, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.export_db_title)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (e: Exception) { cookieMessage.value = "Export: ${e.message}" }
     }
     fun setApiBase(v: String) = viewModelScope.launch { prefs.setApiBase(v) }

@@ -30,13 +30,13 @@ object BrowseTree {
 
     suspend fun children(ctx: Context, repo: LibraryRepository, parentId: String): List<MediaItem> = when {
         parentId == MediaIds.ROOT -> listOf(
-            MediaItems.folder(MediaIds.ALL, ctx.getString(R.string.node_all), playable = true),
-            MediaItems.folder(MediaIds.ALL_ALPHA, ctx.getString(R.string.node_all_alpha), playable = true),
-            MediaItems.folder(MediaIds.PROJECTS, ctx.getString(R.string.node_projects)),
-            MediaItems.folder(MediaIds.LIKED, ctx.getString(R.string.node_liked), playable = true),
-            MediaItems.folder(MediaIds.DOWNLOADED, ctx.getString(R.string.node_downloaded), playable = true),
-            MediaItems.folder(MediaIds.RECENT, ctx.getString(R.string.node_recent), playable = true),
-            MediaItems.folder(MediaIds.PLAYLISTS, ctx.getString(R.string.node_playlists)),
+            MediaItems.folder(MediaIds.ALL, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_all), playable = true),
+            MediaItems.folder(MediaIds.ALL_ALPHA, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_all_alpha), playable = true),
+            MediaItems.folder(MediaIds.PROJECTS, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_projects)),
+            MediaItems.folder(MediaIds.LIKED, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_liked), playable = true),
+            MediaItems.folder(MediaIds.DOWNLOADED, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_downloaded), playable = true),
+            MediaItems.folder(MediaIds.RECENT, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_recent), playable = true),
+            MediaItems.folder(MediaIds.PLAYLISTS, com.soaresden.sunoauto.LocaleHelper.s(R.string.node_playlists)),
         )
         parentId == MediaIds.PROJECTS -> repo.projectRows().map { MediaItems.project(it.project, it.coverUrl, it.oldestAt?.let { d -> com.soaresden.sunoauto.ui.components.fmtDate(d) }) }
         parentId == MediaIds.PLAYLISTS -> repo.playlists().map { MediaItems.playlist(it) }

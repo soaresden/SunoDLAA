@@ -26,11 +26,11 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         private const val NOTIF_ID = 4243
     }
 
-    override suspend fun getForegroundInfo(): ForegroundInfo = foregroundInfo("Démarrage…", 0)
+    override suspend fun getForegroundInfo(): ForegroundInfo = foregroundInfo(com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.starting), 0)
 
     override suspend fun doWork(): Result {
         val app = SunoApp.get(applicationContext)
-        try { setForeground(foregroundInfo("Démarrage…", 0)) } catch (_: Exception) {}
+        try { setForeground(foregroundInfo(com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.starting), 0)) } catch (_: Exception) {}
         return withContext(Dispatchers.IO) {
             val progressJob = launch {
                 app.repo.syncState.collectLatest { st ->
@@ -55,11 +55,11 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
     private fun foregroundInfo(text: String, pct: Int): ForegroundInfo {
         val nm = applicationContext.getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm.getNotificationChannel(CHANNEL) == null) {
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, "Synchronisation", NotificationManager.IMPORTANCE_LOW))
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.channel_sync), NotificationManager.IMPORTANCE_LOW))
         }
         val n = NotificationCompat.Builder(applicationContext, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Synchronisation Suno")
+            .setContentTitle(com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.notif_sync_title))
             .setContentText(text)
             .setProgress(100, pct, pct == 0)
             .setOngoing(true)

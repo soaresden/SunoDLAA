@@ -33,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.soaresden.sunoauto.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,7 +71,7 @@ fun ClipRow(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (clip.isOriginal) Icon(Icons.Default.Star, "Originale", Modifier.size(16.dp).padding(end = 2.dp), tint = Gold)
+                if (clip.isOriginal) Icon(Icons.Default.Star, stringResource(R.string.cd_original), Modifier.size(16.dp).padding(end = 2.dp), tint = Gold)
                 Text(
                     clip.title,
                     style = MaterialTheme.typography.bodyLarge,
@@ -84,8 +86,8 @@ fun ClipRow(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Availability: ✅ jouable (fichier présent) / 🫥 absent (pas de fichier, non jouable en Free)
-                if (local) Icon(Icons.Default.CheckCircle, "Disponible", Modifier.size(14.dp), tint = Available)
-                else Icon(Icons.Default.CloudOff, "Non disponible", Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                if (local) Icon(Icons.Default.CheckCircle, stringResource(R.string.cd_available), Modifier.size(14.dp), tint = Available)
+                else Icon(Icons.Default.CloudOff, stringResource(R.string.cd_unavailable), Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                 if (isCurrent) Icon(Icons.Default.GraphicEq, null, Modifier.size(14.dp).padding(start = 2.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(
                     subtitleOverride ?: listOfNotNull(clip.durationSec?.let(::fmtDuration), clip.tags?.take(50)).joinToString(" · "),
@@ -99,7 +101,7 @@ fun ClipRow(
         IconButton(onClick = onToggleLike) {
             Icon(
                 if (clip.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = "Favori",
+                contentDescription = stringResource(R.string.cd_favorite),
                 tint = if (clip.isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -107,15 +109,15 @@ fun ClipRow(
             Icon(Icons.Default.MoreVert, contentDescription = null)
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(
-                    text = { Text("Lire ensuite") },
+                    text = { Text(stringResource(R.string.play_next)) },
                     leadingIcon = { Icon(Icons.Outlined.PlaylistPlay, null) },
                     onClick = { menu = false; onPlayNext() })
                 if (local) DropdownMenuItem(
-                    text = { Text("Supprimer le téléchargement") },
+                    text = { Text(stringResource(R.string.remove_download)) },
                     leadingIcon = { Icon(Icons.Default.DownloadDone, null) },
                     onClick = { menu = false; onRemoveDownload() })
                 else DropdownMenuItem(
-                    text = { Text("Télécharger") },
+                    text = { Text(stringResource(R.string.download)) },
                     leadingIcon = { Icon(Icons.Outlined.Download, null) },
                     onClick = { menu = false; onDownload() })
             }
@@ -130,11 +132,19 @@ fun fmtDuration(sec: Double): String {
 
 fun fmtMs(ms: Long): String = fmtDuration(ms / 1000.0)
 
-/** ISO timestamp from Suno → "13 août 2026". */
+/** ISO timestamp from Suno → "Aug 13, 2026" / "13 août 2026" depending on the app language. */
 fun fmtDate(iso: String): String = runCatching {
     java.time.Instant.parse(iso).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-        .format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.FRENCH))
+        .format(java.time.format.DateTimeFormatter.ofPattern(
+            com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.date_pattern),
+            com.soaresden.sunoauto.LocaleHelper.locale()))
 }.getOrDefault(iso.take(10))
+
+/** Epoch millis → short localized date + time (last sync). */
+fun fmtShort(ms: Long): String =
+    java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault())
+        .format(java.time.format.DateTimeFormatter.ofLocalizedDateTime(java.time.format.FormatStyle.SHORT)
+            .withLocale(com.soaresden.sunoauto.LocaleHelper.locale()))
 
 val Gold = androidx.compose.ui.graphics.Color(0xFFE3B341)
 val Available = androidx.compose.ui.graphics.Color(0xFF4CAF50)
