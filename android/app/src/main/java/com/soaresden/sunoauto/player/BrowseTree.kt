@@ -11,7 +11,7 @@ object BrowseTree {
 
     /** A clip can actually be played only if we have a local file, or streaming is allowed (Pro). */
     private fun isPlayableSource(c: ClipEntity, isPro: Boolean): Boolean =
-        c.localPath != null || (isPro && !c.audioUrl.isNullOrBlank())
+        c.localPath != null || !c.audioUrl.isNullOrBlank()
 
     /** Raw clips backing a node id, in the same order as the phone app. */
     private suspend fun listFor(repo: LibraryRepository, id: String): List<ClipEntity> = when {

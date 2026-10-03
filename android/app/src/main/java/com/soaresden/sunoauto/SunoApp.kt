@@ -10,6 +10,7 @@ import com.soaresden.sunoauto.data.repo.LibraryRepository
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.launch
 
 /** Poor man's dependency container — the app is small enough not to need Hilt. */
 class SunoApp : Application() {
@@ -17,6 +18,16 @@ class SunoApp : Application() {
     override fun onCreate() {
         super.onCreate()
         LocaleHelper.app = this
+        // 0.19: stream links are now only plain (non-encrypted) ones → forget the old ones once
+        // and refresh everything from Suno.
+        val mp = getSharedPreferences("sunodlaa_migr", MODE_PRIVATE)
+        if (mp.getInt("audio", 0) < 1) {
+            mp.edit().putInt("audio", 1).apply()
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                runCatching { db.clips().clearAudioUrls() }
+                runCatching { repo.requestSync(force = true) }
+            }
+        }
     }
 
     val http: OkHttpClient by lazy {

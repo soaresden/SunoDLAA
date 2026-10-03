@@ -164,4 +164,18 @@
     <string name="dl_no_link">Suno did not provide a link</string>
     <string name="dl_error">Download error: %1$s</string>
     <string name="not_playable_here">No file for this track on the phone. On your computer: download it with SunoAAWeb, then here: Settings → Sync folder.</string>
+    <string name="section_cache">Play cache</string>
+    <string name="cache_desc">Every track you play (Suno stream or pCloud file) is kept on the phone and plays again without network — tunnels, no coverage. The next track is prepared while the current one plays. When the limit is reached, the tracks played longest ago make room.</string>
+    <string name="cache_used">Used: %1$s of %2$s</string>
+    <string name="cache_free">Free space on the phone: %1$s</string>
+    <string name="cache_off">Off</string>
+    <string name="cache_off_now">Cache off: tracks are read from the network every time.</string>
+    <string name="cache_clear">Empty the cache</string>
+    <string name="dl_quota">Suno\'s monthly download limit is reached (Pro: 20 a month). It resets each month.</string>
+    <string name="cd_in_folder">In your online folder (pCloud)</string>
+    <string name="cd_on_phone">Downloaded on the phone</string>
+    <string name="cd_in_cache">In the play cache (plays offline)</string>
+    <string name="dl_confirm_title">Download from Suno?</string>
+    <string name="dl_confirm_text">This counts in your Suno download limit (Pro: 20 a month; a track already downloaded once doesn\'t count again). The file stays on this phone only (Android/data/com.soaresden.sunoauto/files/Music/Suno). Tip: download on the computer with SunoAAWeb instead — it goes to pCloud and every device gets it.</string>
+    <string name="cache_legend">Icons in lists: ☁ in your pCloud folder · 📱 downloaded on the phone · ⚡ in the play cache (plays without network).</string>
 </resources>

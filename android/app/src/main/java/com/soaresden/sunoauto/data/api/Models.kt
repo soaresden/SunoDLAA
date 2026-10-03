@@ -37,7 +37,9 @@ data class FeedPage(
 data class ApiMediaUrl(
     val url: String,
     @SerialName("content_type") val contentType: String? = null,
-    val delivery: String? = null
+    val delivery: String? = null,
+    /** Set when the stream is encrypted for Suno's own player: not playable by us. */
+    val encoding: kotlinx.serialization.json.JsonElement? = null
 )
 
 @Serializable
@@ -72,15 +74,18 @@ data class ApiClip(
     val project: ApiClipProjectRef? = null
 ) {
     /**
-     * The classic `audio_url` (cdn1.suno.ai/<id>.mp3) now answers `/api/forbidden` for
-     * non-unlocked clips; the playable stream is the first progressive `media_urls` entry.
+     * A plain audio link we may play, or null. `audio_url` answers `/api/forbidden` when the
+     * account may not get the file; `media_urls` entries carrying an `encoding` are encrypted for
+     * Suno's own player (license keys) — we don't play those: such tracks are listened to in the
+     * Suno app, or from the user's own files.
      */
     val bestAudioUrl: String?
-        get() = mediaUrls.firstOrNull { it.delivery == null || it.delivery == "progressive" }?.url
-            ?: mediaUrls.firstOrNull()?.url
-            ?: audioUrl?.takeIf { !it.endsWith("/api/forbidden") }
+        get() = audioUrl?.takeIf { it.isNotBlank() && !it.contains("/api/forbidden") }
+            ?: mediaUrls.firstOrNull { (it.encoding == null || it.encoding is kotlinx.serialization.json.JsonNull) &&
+                (it.delivery == null || it.delivery == "progressive") }?.url
 
-    val isPlayable: Boolean get() = status == "complete" && bestAudioUrl != null && !isTrashed
+    /** The clip exists and is finished (whether we can stream it or not). */
+    val isPlayable: Boolean get() = status == "complete" && !isTrashed
 }
 
 @Serializable
@@ -134,8 +139,19 @@ data class BillingInfo(
 @Serializable
 data class DownloadResolve(
     val ok: Boolean? = null,
-    val reason: String? = null,     // e.g. "not_authorized" on a plan without downloads
+    val reason: String? = null,     // e.g. "not_authorized", "rate_limited"
     val message: String? = null,
-    val status: String? = null,     // "processing" while the file is being prepared
-    val url: String? = null
-)
+    val detail: String? = null,
+    @SerialName("error_type") val errorType: String? = null,
+    val status: String? = null,     // "processing" while the file is being prepared, then "ready" / "error"
+    @SerialName("download_url") val downloadUrl: String? = null,
+    val url: String? = null,        // older answer shape
+    val http: Int = 200
+) {
+    val link: String? get() = (downloadUrl ?: url)?.takeIf { !it.contains("/api/forbidden") }
+    val explanation: String get() = listOfNotNull(errorType, reason, detail, message, status?.takeIf { it != "ready" })
+        .distinct().joinToString(" · ").ifBlank { "HTTP $http" }
+    /** Suno's monthly download limit (Pro 20 / Premier 60 since 2026-09-03). */
+    val isQuota: Boolean get() = http == 402 || (http == 429 && reason != "rate_limited") ||
+        Regex("(?i)limit|quota|exceed|allowance|purchase|insufficient").containsMatchIn(explanation)
+}

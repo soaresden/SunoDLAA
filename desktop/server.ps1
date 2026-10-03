@@ -837,19 +837,76 @@ function Move-Audio($it) {
 }
 
 # ---- Telechargement + tag ------------------------------------------
-# Lien de telechargement officiel (bouton "Download" du site) : mp3 ou wav selon l'offre.
-function Resolve-Download($id, $fmt) {
-    for ($i = 0; $i -lt 20; $i++) {
-        $r = Invoke-RestMethod -Uri ($Cfg.apiBase + "/api/download/clip/$id" + "?format=$fmt") -Headers (Suno-Headers) -Method Get
-        if ($r.url) { return @{ url = $r.url } }
-        if ($r.status -ne 'processing') {
-            $why = 'No download link from Suno'
-            if ($r.reason) { $why = [string]$r.reason } elseif ($r.message) { $why = [string]$r.message }
-            return @{ why = $why }
-        }
-        Start-Sleep -Seconds 2
+# Lien de telechargement officiel (bouton "Download" du site).
+# Suno answers {ok, status: processing|ready|error, download_url, reason, detail, error_type}.
+# Since 2026-09-03 downloads are limited per month (Pro 20, Premier 60); a song downloaded once
+# does not count again. A refusal because of the limit stops the whole batch (code 'quota').
+# Fields of /api/billing/info/ that talk about downloads (numbers / short text only).
+function Find-DownloadInfo($o, $prefix, $depth = 0) {
+    $out = [ordered]@{}
+    if ($null -eq $o -or $depth -gt 4) { return $out }
+    if ($o -is [System.Collections.IEnumerable] -and -not ($o -is [string])) { return $out }
+    foreach ($p in $o.PSObject.Properties) {
+        $k = if ($prefix) { "$prefix.$($p.Name)" } else { $p.Name }
+        $v = $p.Value
+        if ($v -is [System.Management.Automation.PSCustomObject]) {
+            foreach ($e in (Find-DownloadInfo $v $k ($depth + 1)).GetEnumerator()) { $out[$e.Key] = $e.Value }
+        } elseif ($k -match '(?i)download' -and ($v -is [ValueType] -or ($v -is [string] -and $v.Length -lt 60))) { $out[$k] = $v }
     }
-    return @{ why = 'Suno is still preparing the file - try again in a minute' }
+    return $out
+}
+function Is-QuotaText($t) { return ([string]$t) -match '(?i)limit|quota|exceed|allowance|purchase|insufficient|no.?downloads.?left|remaining' }
+function Resolve-Download($id, $fmt) {
+    for ($i = 0; $i -lt 60; $i++) {
+        $r = $null; $http = 0
+        try { $r = Invoke-RestMethod -Uri ($Cfg.apiBase + "/api/download/clip/$id" + "?format=$fmt") -Headers (Suno-Headers) -Method Get }
+        catch {
+            if ($_.Exception.Response) { try { $http = [int]$_.Exception.Response.StatusCode } catch {} }
+            if ($_.ErrorDetails -and $_.ErrorDetails.Message) { try { $r = $_.ErrorDetails.Message | ConvertFrom-Json } catch {} }
+            if (-not $r) {
+                Log 'DL' "resolve $id ($fmt) -> HTTP $http $($_.Exception.Message)"
+                $code = 'no_link'; if ($http -eq 402 -or $http -eq 429) { $code = 'quota' }
+                return @{ why = "$($_.Exception.Message)"; code = $code; http = $http }
+            }
+        }
+        if ($r.reason -eq 'rate_limited') { Start-Sleep -Seconds 3; continue }
+        $u = $null
+        if ($r.download_url) { $u = [string]$r.download_url } elseif ($r.url) { $u = [string]$r.url }
+        if ($u -and $u -notmatch '/api/forbidden') {
+            $h = ''; try { $h = ([Uri]$u).Host } catch {}
+            Log 'DL' "resolve $id ($fmt) -> ready ($h)"
+            return @{ url = $u }
+        }
+        if ($r.status -eq 'processing') { Start-Sleep -Seconds 2; continue }
+        $parts = @()
+        foreach ($k in @('error_type', 'reason', 'detail', 'message', 'status')) { if ($r.$k) { $parts += "$k=$($r.$k)" } }
+        $txt = ($parts -join ' ')
+        Log 'DL' "resolve $id ($fmt) -> HTTP $http $txt"
+        $why = 'No download link from Suno'
+        foreach ($k in @('detail', 'message', 'reason', 'error_type')) { if ($r.$k) { $why = [string]$r.$k; break } }
+        $code = 'no_link'
+        if ($r.reason -eq 'not_authorized' -or $r.error_type -eq 'not_authorized') { $code = 'not_authorized' }
+        elseif ($http -eq 402 -or $http -eq 429 -or (Is-QuotaText $txt)) { $code = 'quota' }
+        return @{ why = $why; code = $code; http = $http }
+    }
+    return @{ why = 'Suno is still preparing the file - try again in a minute'; code = 'no_link' }
+}
+
+# Download one file. Never sends the Suno token to a non-Suno host (signed links need nothing).
+function Fetch-File($u, $o) {
+    $h = ''; try { $h = ([Uri]$u).Host } catch {}
+    try { Fetch-Retry $u $o; return }
+    catch {
+        $c = 0; if ($_.Exception.Response) { try { $c = [int]$_.Exception.Response.StatusCode } catch {} }
+        Log 'DL' "file GET $h -> HTTP $c $($_.Exception.Message)"
+        if (($c -eq 401 -or $c -eq 403) -and $h -match '(^|\.)suno\.(com|ai)$') {
+            $hd = Suno-Headers; $hd.Remove('Accept')
+            Invoke-WebRequest -Uri $u -OutFile $o -Headers $hd -UseBasicParsing -TimeoutSec 300
+            Log 'DL' "file GET $h with Suno headers -> ok"
+            return
+        }
+        throw
+    }
 }
 
 function Download-Clip($body) {
@@ -868,14 +925,16 @@ function Download-Clip($body) {
     if (-not $Cfg.libraryPath -or -not (Test-Path -LiteralPath $Cfg.libraryPath)) { return @{ ok = $false; code = 'no_library'; error = 'Choose your music folder first (Setup, step 2).' } }
     $format = if ($Cfg.audioFormat -eq 'wav') { 'wav' } else { 'mp3' }
     # 1) lien officiel de Suno (respecte l'offre du compte) ; 2) en MP3, lien direct du clip
-    $url = $null; $why = $null
+    # Never use the placeholder link Suno gives to accounts without download rights.
+    if ($audioUrl -and $audioUrl -match '/api/forbidden') { $audioUrl = $null }
+    $url = $null; $why = $null; $code = 'no_link'
     if ($clipId) {
-        try { $r = Resolve-Download $clipId $format; $url = $r.url; $why = $r.why } catch { $why = $_.Exception.Message }
+        try { $r = Resolve-Download $clipId $format; $url = $r.url; $why = $r.why; if ($r.code) { $code = $r.code } } catch { $why = $_.Exception.Message }
     }
-    if (-not $url -and $format -eq 'mp3' -and $audioUrl) { $url = $audioUrl }
+    # Fall back to the clip's own mp3 link only when Suno did not refuse (limit / rights).
+    if (-not $url -and $format -eq 'mp3' -and $audioUrl -and $code -eq 'no_link') { $url = $audioUrl }
     if (-not $url) {
-        $code = 'no_link'
-        if ($why -eq 'not_authorized') { $code = 'not_authorized'; $why = "Suno refused the $($format.ToUpper()) download on this account (plan without downloads)" }
+        if ($code -eq 'not_authorized') { $why = "Suno refused the $($format.ToUpper()) download on this account (plan without downloads)" }
         return @{ ok = $false; code = $code; format = $format; error = $(if ($why) { $why } else { 'No download link from Suno' }) }
     }
 
@@ -888,12 +947,29 @@ function Download-Clip($body) {
     $out = Join-Path $dir ($base + '.' + $format)
 
     try {
-        Fetch-Retry $url $out
+        Fetch-File $url $out
     } catch {
+        $msg = "$($_.Exception.Message)"
+        $ok2 = $false
         if ($url -ne $audioUrl -and $format -eq 'mp3' -and $audioUrl) {
-            try { Invoke-WebRequest -Uri $audioUrl -OutFile $out -UseBasicParsing -TimeoutSec 300 }
-            catch { return @{ ok = $false; code = 'refused'; error = "Download refused: $($_.Exception.Message)" } }
-        } else { return @{ ok = $false; code = 'refused'; error = "Download refused: $($_.Exception.Message)" } }
+            try { Fetch-File $audioUrl $out; $ok2 = $true } catch { $msg = "$($_.Exception.Message)" }
+        }
+        if (-not $ok2) {
+            if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue }
+            return @{ ok = $false; code = 'refused'; error = "Download refused: $msg" }
+        }
+    }
+    # Suno sometimes answers an error page with HTTP 200: check it is really audio.
+    $len = 0; try { $len = (Get-Item -LiteralPath $out).Length } catch {}
+    $head = ''
+    try { $fs = [IO.File]::OpenRead($out); $buf = New-Object byte[] 4; [void]$fs.Read($buf, 0, 4); $fs.Close(); $head = [Text.Encoding]::ASCII.GetString($buf) } catch {}
+    $isAudio = ($head.StartsWith('ID3') -or $head -eq 'RIFF' -or ($buf -and $buf[0] -eq 0xFF))
+    if ($len -lt 20000 -or -not $isAudio) {
+        $peek = ''; try { $peek = ([IO.File]::ReadAllText($out)).Substring(0, [Math]::Min(200, $len)) } catch {}
+        Log 'DL' "not audio ($len bytes): $peek"
+        Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue
+        $c2 = 'refused'; if (Is-QuotaText $peek) { $c2 = 'quota' }
+        return @{ ok = $false; code = $c2; error = "Suno sent no audio ($len bytes)" }
     }
 
     if ($TagLibOk) {
@@ -1259,7 +1335,11 @@ while ($listener.IsListening) {
             '^/api/account$' {
                 try {
                     $b = Invoke-RestMethod -Uri ($Cfg.apiBase + '/api/billing/info/') -Headers (Suno-Headers) -Method Get
-                    Write-Json $resp @{ ok=$true; pro=[bool]$b.is_active; credits=$b.total_credits_left; label=$script:AccountLabel }
+                    $dl = Find-DownloadInfo $b ''
+                    if (-not $script:DlInfoLogged) { $script:DlInfoLogged = $true; Log 'INFO' ("billing download fields: " + (($dl.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ', ')) }
+                    $plan = ''; foreach ($k in @('plan_name','plan','subscription_type','tier')) { if ($b.$k -and ($b.$k -is [string])) { $plan = $b.$k; break } }
+                    if (-not $plan -and $b.plan -and $b.plan.name) { $plan = [string]$b.plan.name }
+                    Write-Json $resp @{ ok=$true; pro=[bool]$b.is_active; plan=$plan; credits=$b.total_credits_left; downloads=$dl; label=$script:AccountLabel }
                 } catch { Write-Json $resp @{ ok=$false; error="$($_.Exception.Message)"; label=$script:AccountLabel } }
                 break
             }

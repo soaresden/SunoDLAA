@@ -126,6 +126,10 @@ interface ClipDao {
     @Upsert
     suspend fun upsertAll(items: List<ClipEntity>)
 
+    /** Forget stream links (they are refreshed by the next full sync). */
+    @Query("UPDATE clips SET audioUrl = ''")
+    suspend fun clearAudioUrls()
+
     /**
      * Upsert from the network without clobbering local-only columns
      * (localPath, play stats). Room has no partial upsert, so we merge by hand.
@@ -245,4 +249,7 @@ interface DownloadDao {
 
     @Query("DELETE FROM downloads WHERE state = 2")
     suspend fun clearDone()
+
+    @Query("SELECT * FROM downloads ORDER BY requestedAt DESC")
+    suspend fun allNow(): List<DownloadEntity>
 }

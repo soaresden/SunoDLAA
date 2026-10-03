@@ -13,6 +13,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.horizontalScroll
+import kotlinx.coroutines.launch
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -137,6 +139,10 @@ fun SettingsScreen(vm: LibraryViewModel, onLogin: () -> Unit, bottomPadding: Dp)
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
+        // ---- Cache de lecture ----
+        Spacer(Modifier.height(16.dp)); HorizontalDivider(); Spacer(Modifier.height(16.dp))
+        PlayCacheSection()
+
         // ---- Données / diagnostic ----
         Spacer(Modifier.height(16.dp)); HorizontalDivider(); Spacer(Modifier.height(16.dp))
         Text(stringResource(R.string.section_data), style = MaterialTheme.typography.titleMedium)
@@ -151,4 +157,54 @@ fun SettingsScreen(vm: LibraryViewModel, onLogin: () -> Unit, bottomPadding: Dp)
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun PlayCacheSection() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var maxMb by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(com.soaresden.sunoauto.player.PlayCache.maxMb(ctx)) }
+    var used by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(-1L) }
+    var free by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(-1L) }
+    var tick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(maxMb, tick) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            used = com.soaresden.sunoauto.player.PlayCache.usedBytes(ctx)
+            free = com.soaresden.sunoauto.player.PlayCache.freeBytes(ctx)
+        }
+    }
+    fun size(b: Long): String = when {
+        b < 0 -> "…"
+        b >= 1024L * 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.1f Go", b / (1024.0 * 1024 * 1024)).let { if (com.soaresden.sunoauto.LocaleHelper.locale().language == "fr") it else it.replace("Go", "GB") }
+        else -> "${b / (1024 * 1024)} " + if (com.soaresden.sunoauto.LocaleHelper.locale().language == "fr") "Mo" else "MB"
+    }
+    Text(stringResource(R.string.section_cache), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.cache_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(stringResource(R.string.cache_legend), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(
+        if (maxMb <= 0) stringResource(R.string.cache_off_now)
+        else stringResource(R.string.cache_used, size(used), size(maxMb * 1024 * 1024)),
+        style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp)
+    )
+    Text(stringResource(R.string.cache_free, size(free)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    androidx.compose.foundation.layout.Row(
+        Modifier.padding(top = 6.dp).horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)
+    ) {
+        for (mb in com.soaresden.sunoauto.player.PlayCache.OPTIONS) {
+            androidx.compose.material3.FilterChip(
+                selected = maxMb == mb,
+                onClick = {
+                    maxMb = mb
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) { com.soaresden.sunoauto.player.PlayCache.setMaxMb(ctx, mb); tick++ }
+                },
+                label = { Text(if (mb <= 0) stringResource(R.string.cache_off) else size(mb * 1024 * 1024)) }
+            )
+        }
+    }
+    OutlinedButton(onClick = {
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) { com.soaresden.sunoauto.player.PlayCache.clear(ctx); tick++ }
+    }, modifier = Modifier.padding(top = 6.dp)) { Text(stringResource(R.string.cache_clear)) }
 }

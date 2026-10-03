@@ -338,6 +338,16 @@ class LibraryRepository(
         sb.appendLine("folderLinked=${prefs.localTreeNow() != null} pattern=${prefs.folderPatternNow() ?: ""}")
         sb.appendLine("lastFolderSync=" + (context.getSharedPreferences("sunodlaa_diag", android.content.Context.MODE_PRIVATE).getString("lastFolderSync", null) ?: "never"))
         sb.appendLine("lastSync=${java.util.Date(prefs.lastSync.first())}")
+        val urls = clips.map { it.audioUrl }
+        sb.appendLine("streams: withUrl=${urls.count { it.isNotBlank() }} empty=${urls.count { it.isBlank() }} hosts=" +
+            urls.filter { it.isNotBlank() }.groupingBy { runCatching { android.net.Uri.parse(it).host }.getOrNull() ?: "?" }.eachCount())
+        sb.appendLine("playCache: maxMb=${com.soaresden.sunoauto.player.PlayCache.maxMb(context)} usedMb=${com.soaresden.sunoauto.player.PlayCache.usedBytes(context) / 1048576}")
+        sb.appendLine("downloads: " + runCatching { db.downloads().allNow().groupingBy { it.state }.eachCount() }.getOrDefault(emptyMap<Int, Int>()) + " (1=running 2=done 3=error)")
+        runCatching { db.downloads().allNow().filter { it.state == 3 }.take(20) }.getOrDefault(emptyList()).forEach {
+            sb.appendLine("  dl-error ${it.clipId.take(8)}: ${it.error}")
+        }
+        sb.appendLine("events:")
+        com.soaresden.sunoauto.data.DiagLog.all(context).lines().filter { it.isNotBlank() }.forEach { sb.appendLine("  $it") }
         sb.appendLine("totals: projects=${projects.size} clips=${clips.size} originals=${clips.count { it.isOriginal }} linkedLocal=${clips.count { it.localPath != null }}")
         sb.appendLine("=".repeat(60))
         for (p in projects) {

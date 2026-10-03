@@ -32,7 +32,7 @@ class SunoApi(
         private val JSON_TYPE = "application/json".toMediaType()
     }
 
-    class ApiError(val code: Int, val path: String, body: String) : IOException("$path -> $code: ${body.take(200)}")
+    class ApiError(val code: Int, val path: String, val body: String) : IOException("$path -> $code: ${body.take(200)}")
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
 
@@ -86,7 +86,12 @@ class SunoApi(
     /** Official download resolver (the web app's "Download" button). Honours the account's plan;
      *  returns not_authorized when the plan has no downloads. Never bypasses that. */
     suspend fun resolveDownload(clipId: String, format: String = "mp3"): DownloadResolve =
-        get("/api/download/clip/$clipId?format=$format")
+        try { get<DownloadResolve>("/api/download/clip/$clipId?format=$format") }
+        catch (e: ApiError) {
+            // Suno explains refusals (monthly limit, rights...) in the error body: keep it.
+            (runCatching { json.decodeFromString<DownloadResolve>(e.body) }.getOrNull() ?: DownloadResolve(ok = false, message = "HTTP ${e.code}"))
+                .copy(http = e.code)
+        }
 
     /** Like / unlike a clip (the "favori" of the web app). */
     suspend fun setLiked(clipId: String, liked: Boolean) {

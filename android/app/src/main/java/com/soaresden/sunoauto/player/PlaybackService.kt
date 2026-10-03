@@ -52,13 +52,37 @@ class PlaybackService : MediaLibraryService() {
     private lateinit var player: ExoPlayer
     private lateinit var session: MediaLibrarySession
     private val repo: LibraryRepository get() = SunoApp.get(this).repo
+    private lateinit var cacheFactory: androidx.media3.datasource.cache.CacheDataSource.Factory
+    @Volatile private var prefetch: androidx.media3.datasource.cache.CacheWriter? = null
+
+    /** While a track plays, the next one is copied into the play cache, so it starts at once and survives a tunnel. */
+    private fun prefetchNext() {
+        prefetch?.cancel(); prefetch = null
+        if (!PlayCache.enabled(this)) return
+        val idx = player.nextMediaItemIndex
+        if (idx == C.INDEX_UNSET) return
+        val uri = player.getMediaItemAt(idx).localConfiguration?.uri ?: return
+        if (uri.scheme == "file") return
+        val writer = androidx.media3.datasource.cache.CacheWriter(
+            cacheFactory.createDataSource(), androidx.media3.datasource.DataSpec(uri), null, null)
+        prefetch = writer
+        scope.launch(Dispatchers.IO) { runCatching { writer.cache() }; PlayCache.bump() }
+    }
 
     override fun onCreate() {
         super.onCreate()
         val app = SunoApp.get(this)
         val httpFactory = OkHttpDataSource.Factory(app.http)
             .setUserAgent("SunoAutoPlayer/1.0 (Android)")
-        val dataSourceFactory = DefaultDataSource.Factory(this, httpFactory)
+        val upstream = DefaultDataSource.Factory(this, httpFactory)
+        // Play cache: streamed / pCloud tracks are kept on the phone (size chosen in Settings)
+        cacheFactory = androidx.media3.datasource.cache.CacheDataSource.Factory()
+            .setCache(PlayCache.get(this))
+            .setUpstreamDataSourceFactory(upstream)
+            .setFlags(androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        val dataSourceFactory = androidx.media3.datasource.DataSource.Factory {
+            CacheOrDirectDataSource(this, upstream.createDataSource(), cacheFactory.createDataSource())
+        }
 
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
@@ -78,9 +102,15 @@ class PlaybackService : MediaLibraryService() {
                 val id = mediaItem?.mediaId?.let(MediaIds::clipId) ?: return
                 scope.launch(Dispatchers.IO) { repo.markPlayed(id) }
                 refreshLayout()
+                prefetchNext()
+                PlayCache.bump()
             }
             // Never leave Android Auto stuck on "Source error": skip a track that fails to load.
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                val item = player.currentMediaItem
+                val host = item?.localConfiguration?.uri?.let { it.host ?: it.scheme } ?: "?"
+                com.soaresden.sunoauto.data.DiagLog.add(this@PlaybackService,
+                    "play ${item?.mediaId?.let(MediaIds::clipId)?.take(8)} ($host): ${error.errorCodeName} ${error.cause?.message ?: error.message ?: ""}".take(300))
                 if (player.hasNextMediaItem()) {
                     player.seekToNextMediaItem()
                     player.prepare()

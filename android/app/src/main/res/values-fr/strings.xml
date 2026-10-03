@@ -160,4 +160,18 @@
     <string name="dl_no_link">Suno n\'a pas fourni de lien</string>
     <string name="dl_error">Erreur de téléchargement : %1$s</string>
     <string name="not_playable_here">Pas de fichier pour ce titre sur le téléphone. Sur l\'ordi : télécharge-le avec SunoAAWeb, puis ici : Réglages → Synchroniser le dossier.</string>
+    <string name="section_cache">Cache de lecture</string>
+    <string name="cache_desc">Chaque titre écouté (flux Suno ou fichier pCloud) est gardé sur le téléphone et se rejoue sans réseau — tunnels, zones blanches. Le titre suivant est préparé pendant que le précédent joue. Quand la limite est atteinte, les titres écoutés il y a le plus longtemps font de la place.</string>
+    <string name="cache_used">Utilisé : %1$s sur %2$s</string>
+    <string name="cache_free">Espace libre sur le téléphone : %1$s</string>
+    <string name="cache_off">Désactivé</string>
+    <string name="cache_off_now">Cache désactivé : les titres sont relus depuis le réseau à chaque fois.</string>
+    <string name="cache_clear">Vider le cache</string>
+    <string name="dl_quota">Limite mensuelle de téléchargements Suno atteinte (Pro : 20 par mois). Elle repart chaque mois.</string>
+    <string name="cd_in_folder">Dans ton dossier en ligne (pCloud)</string>
+    <string name="cd_on_phone">Téléchargé sur le téléphone</string>
+    <string name="cd_in_cache">Dans le cache de lecture (lisible sans réseau)</string>
+    <string name="dl_confirm_title">Télécharger depuis Suno ?</string>
+    <string name="dl_confirm_text">Ça compte dans ta limite de téléchargements Suno (Pro : 20 par mois ; un titre déjà téléchargé une fois ne recompte pas). Le fichier reste uniquement sur ce téléphone (Android/data/com.soaresden.sunoauto/files/Music/Suno). Astuce : télécharge plutôt sur l\'ordi avec SunoAAWeb — ça va dans pCloud et tous tes appareils l\'ont.</string>
+    <string name="cache_legend">Icônes dans les listes : ☁ dans ton dossier pCloud · 📱 téléchargé sur le téléphone · ⚡ dans le cache de lecture (lisible sans réseau).</string>
 </resources>

@@ -45,18 +45,24 @@ class DownloadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
         val downloadUrl: String = try {
             var resolve = app.repo.apiClient.resolveDownload(clipId, "mp3")
             var tries = 0
-            while (resolve.status == "processing" && tries < 20) {
-                kotlinx.coroutines.delay(2000); tries++
+            while ((resolve.status == "processing" || resolve.reason == "rate_limited") && resolve.link == null && tries < 60) {
+                kotlinx.coroutines.delay(if (resolve.reason == "rate_limited") 3000 else 2000); tries++
                 resolve = app.repo.apiClient.resolveDownload(clipId, "mp3")
             }
+            val link = resolve.link
+            com.soaresden.sunoauto.data.DiagLog.add(applicationContext,
+                "download ${clipId.take(8)}: ${if (link != null) "ready (" + (runCatching { java.net.URI(link).host }.getOrNull() ?: "?") + ")" else "refused HTTP ${resolve.http} " + resolve.explanation}")
             when {
-                resolve.url != null -> resolve.url!!
-                resolve.reason == "not_authorized" ->
+                link != null -> link
+                resolve.reason == "not_authorized" || resolve.errorType == "not_authorized" ->
                     { db.downloads().update(clipId, 3, 0, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.dl_refused_free)); return Result.failure() }
+                resolve.isQuota ->
+                    { db.downloads().update(clipId, 3, 0, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.dl_quota)); return Result.failure() }
                 else ->
-                    { db.downloads().update(clipId, 3, 0, resolve.message ?: com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.dl_no_link)); return Result.failure() }
+                    { db.downloads().update(clipId, 3, 0, resolve.detail ?: resolve.message ?: com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.dl_no_link)); return Result.failure() }
             }
         } catch (e: Exception) {
+            com.soaresden.sunoauto.data.DiagLog.add(applicationContext, "download ${clipId.take(8)}: error ${e.message}")
             db.downloads().update(clipId, 3, 0, com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.dl_error, e.message ?: ""))
             return if (runAttemptCount < 2) Result.retry() else Result.failure()
         }
@@ -70,7 +76,10 @@ class DownloadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
         return try {
             val req = Request.Builder().url(downloadUrl).get().build()
             app.http.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}")
+                if (!resp.isSuccessful) {
+                    com.soaresden.sunoauto.data.DiagLog.add(applicationContext, "download ${clipId.take(8)}: file GET ${resp.request.url.host} -> HTTP ${resp.code}")
+                    throw IllegalStateException("HTTP ${resp.code}")
+                }
                 val body = resp.body ?: throw IllegalStateException("empty body")
                 val total = body.contentLength()
                 body.byteStream().use { input ->

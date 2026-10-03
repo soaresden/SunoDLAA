@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
@@ -57,9 +59,10 @@ fun ClipRow(
     isPro: Boolean = false
 ) {
     var menu by remember { mutableStateOf(false) }
+    var askDl by remember { mutableStateOf(false) }
     val local = com.soaresden.sunoauto.data.LocalFiles.available(clip.localPath)
-    // Free: a track without a file can't play → greyed and not clickable. Pro: it streams, and ⤓ downloads it.
-    val playable = local || (isPro && !clip.audioUrl.isNullOrBlank())
+    // Playable = a file (pCloud / phone) or a plain Suno stream. Otherwise greyed: listen in the Suno app.
+    val playable = local || !clip.audioUrl.isNullOrBlank()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -90,9 +93,18 @@ fun ClipRow(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Availability: ✅ jouable (fichier présent) / 🫥 absent (pas de fichier, non jouable en Free)
-                if (local) Icon(Icons.Default.CheckCircle, stringResource(R.string.cd_available), Modifier.size(14.dp), tint = Available)
-                else Icon(Icons.Default.CloudOff, stringResource(R.string.cd_unavailable), Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                // Where the track is: ☁ in the pCloud folder · 📱 downloaded on the phone · ⚡ in the play cache
+                val inFolder = local && com.soaresden.sunoauto.data.LocalFiles.isContent(clip.localPath)
+                val onPhone = local && !inFolder
+                val cacheVer = com.soaresden.sunoauto.player.PlayCache.version.intValue
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val cached = remember(clip.id, clip.localPath, clip.audioUrl, cacheVer) {
+                    !onPhone && com.soaresden.sunoauto.player.PlayCache.isFullyCached(ctx, com.soaresden.sunoauto.player.PlayCache.keyFor(clip.localPath, clip.audioUrl))
+                }
+                if (inFolder) Icon(Icons.Default.Cloud, stringResource(R.string.cd_in_folder), Modifier.size(14.dp).padding(end = 2.dp), tint = Available)
+                if (onPhone) Icon(Icons.Default.PhoneAndroid, stringResource(R.string.cd_on_phone), Modifier.size(14.dp).padding(end = 2.dp), tint = Available)
+                if (cached) Icon(Icons.Default.Bolt, stringResource(R.string.cd_in_cache), Modifier.size(14.dp).padding(end = 2.dp), tint = Gold)
+                if (!local && !cached) Icon(Icons.Default.CloudOff, stringResource(R.string.cd_unavailable), Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                 if (isCurrent) Icon(Icons.Default.GraphicEq, null, Modifier.size(14.dp).padding(start = 2.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(
                     subtitleOverride ?: listOfNotNull(clip.durationSec?.let(::fmtDuration), clip.tags?.take(50)).joinToString(" · "),
@@ -103,7 +115,14 @@ fun ClipRow(
                 )
             }
         }
-        if (!local && isPro) IconButton(onClick = onDownload) {
+        if (askDl) androidx.compose.material3.AlertDialog(
+            onDismissRequest = { askDl = false },
+            title = { Text(stringResource(R.string.dl_confirm_title)) },
+            text = { Text(stringResource(R.string.dl_confirm_text)) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { askDl = false; onDownload() }) { Text(stringResource(R.string.download)) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { askDl = false }) { Text(stringResource(android.R.string.cancel)) } }
+        )
+        if (!local && isPro) IconButton(onClick = { askDl = true }) {
             Icon(Icons.Outlined.Download, contentDescription = stringResource(R.string.download), tint = MaterialTheme.colorScheme.primary)
         }
         IconButton(onClick = onToggleLike) {
@@ -127,7 +146,7 @@ fun ClipRow(
                 else if (isPro) DropdownMenuItem(
                     text = { Text(stringResource(R.string.download)) },
                     leadingIcon = { Icon(Icons.Outlined.Download, null) },
-                    onClick = { menu = false; onDownload() })
+                    onClick = { menu = false; askDl = true })
             }
         }
     }

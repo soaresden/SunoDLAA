@@ -552,12 +552,16 @@ const I18N = {
     stop:"⏹ Stop", stopping:"Stopping after this track…", jobDone:(o,b)=>`Finished: ${o} downloaded${b?`, ${b} failed`:""}.`,
     confirmAll:n=>`Download ${n} missing track(s) into your library?\n\nYou can stop at any time; next time it continues where it stopped.`,
     confirmFree:"\n\n⚠ Your account is on the Free plan: Suno will probably refuse these downloads.",
+    confirmQuota:left=>`\n\n⚠ Suno limits downloads since 3 Sept 2026 (Free 7 for life, Pro 20/month, Premier 60/month). A track already downloaded once doesn't count again.${left!=null?`\nLeft this month: ${left}.`:''}\nWhen Suno says the limit is reached, the batch stops at once.`,
+    dlLeft:n=>`⤓ ${n} left`,
+    stopQuota:"Stopped: Suno's monthly download limit is reached (it resets each month; extra downloads can be bought on suno.com).",
+    stopSame:"Stopped: Suno refused 5 tracks in a row — see the log (desktop\\logs).",
     nothingMissing:"Nothing missing here 🎉", lyrics:"Lyrics", localFile:"Local file", sunoStream:"Suno stream", noSource:"No playable source",
     connectedChip:"Connected", notConnected:"Not connected", credits:n=>`${n} credits`,
     foldersNone:"All workspace folders already match the format.",
     foldersConfirm:(n,ex,c)=>`Rename ${n} folder(s)?\n\n${ex}${c?`\n\n${c} skipped: the new name already exists.`:''}\n\nAfterwards: “Sync folder” in the SUNODLAA phone app, and update MediaMonkey's library.`,
     foldersDone:(r,s,e)=>`${r} folder(s) renamed, ${s} skipped${e?`, ${e} error(s)`:''}.`,
-    err:{not_authorized:f=>`Suno refused the ${f||'MP3'} download: your plan doesn't include downloads.`, no_library:"Choose your music folder first (Setup, step 2).", no_link:"Suno gave no download link for this track.", refused:"The download was refused or interrupted."}
+    err:{not_authorized:f=>`Suno refused the ${f||'MP3'} download: your plan doesn't include downloads.`, no_library:"Choose your music folder first (Setup, step 2).", no_link:"Suno gave no download link for this track.", refused:"The download was refused or interrupted.", quota:"Suno's monthly download limit is reached."}
   },
   fr: {
     setup:"⚙️ Réglages", library:"📚 Ma bibliothèque",
@@ -655,12 +659,16 @@ const I18N = {
     stop:"⏹ Arrêter", stopping:"Arrêt après ce titre…", jobDone:(o,b)=>`Terminé : ${o} téléchargé(s)${b?`, ${b} en échec`:""}.`,
     confirmAll:n=>`Télécharger ${n} titre(s) manquant(s) dans ta bibliothèque ?\n\nTu peux arrêter à tout moment ; la prochaine fois ça reprend où ça s'est arrêté.`,
     confirmFree:"\n\n⚠ Ton compte est en offre Free : Suno va probablement refuser ces téléchargements.",
+    confirmQuota:left=>`\n\n⚠ Suno limite les téléchargements depuis le 3 sept. 2026 (Free 7 à vie, Pro 20/mois, Premier 60/mois). Un titre déjà téléchargé une fois ne recompte pas.${left!=null?`\nRestant ce mois-ci : ${left}.`:''}\nDès que Suno dit que la limite est atteinte, le lot s'arrête net.`,
+    dlLeft:n=>`⤓ ${n} restants`,
+    stopQuota:"Arrêté : la limite mensuelle de téléchargements Suno est atteinte (elle repart chaque mois ; on peut en acheter en plus sur suno.com).",
+    stopSame:"Arrêté : Suno a refusé 5 titres d'affilée — voir le journal (desktop\\logs).",
     nothingMissing:"Rien ne manque ici 🎉", lyrics:"Paroles", localFile:"Fichier local", sunoStream:"Flux Suno", noSource:"Pas de source lisible",
     connectedChip:"Connecté", notConnected:"Non connecté", credits:n=>`${n} crédits`,
     foldersNone:"Tous les dossiers de workspace respectent déjà le format.",
     foldersConfirm:(n,ex,c)=>`Renommer ${n} dossier(s) ?\n\n${ex}${c?`\n\n${c} ignoré(s) : le nouveau nom existe déjà.`:''}\n\nEnsuite : « Synchroniser le dossier » dans l'appli SUNODLAA du téléphone, et mets à jour la bibliothèque MediaMonkey.`,
     foldersDone:(r,s,e)=>`${r} dossier(s) renommé(s), ${s} ignoré(s)${e?`, ${e} erreur(s)`:''}.`,
-    err:{not_authorized:f=>`Suno a refusé le téléchargement ${f||'MP3'} : ton offre n'inclut pas le téléchargement.`, no_library:"Choisis d'abord ton dossier de musique (Réglages, étape 2).", no_link:"Suno n'a fourni aucun lien de téléchargement pour ce titre.", refused:"Le téléchargement a été refusé ou interrompu."}
+    err:{not_authorized:f=>`Suno a refusé le téléchargement ${f||'MP3'} : ton offre n'inclut pas le téléchargement.`, no_library:"Choisis d'abord ton dossier de musique (Réglages, étape 2).", no_link:"Suno n'a fourni aucun lien de téléchargement pour ce titre.", refused:"Le téléchargement a été refusé ou interrompu.", quota:"Limite mensuelle de téléchargements Suno atteinte."}
   }
 };
 let LANG='en'; try{ LANG=localStorage.getItem('sunodlaa_lang')||'en'; }catch(e){}
@@ -713,12 +721,14 @@ function applyLang(){
 }
 
 /* ============================== account ============================== */
+// Downloads left this month, when Suno's billing info tells it (field names vary).
+function dlLeft(){ const d=ACC&&ACC.downloads; if(!d) return null; for(const k in d){ if(/remain|left|available/i.test(k)&&typeof d[k]==='number') return d[k]; } return null; }
 async function loadAccount(){ ACC=await api('/api/account').catch(()=>null); renderAccount(); renderSetup(); }
 function renderAccount(){
   const c=$('#acctChip'), t=T(); c.classList.remove('hidden');
   if(!AUTH.ok){ c.className='chip bad'; c.textContent=t.notConnected; $('#freeBanner').classList.add('hidden'); return; }
   const parts=[ACC&&ACC.label?ACC.label:t.connectedChip];
-  if(ACC&&ACC.ok){ parts.push(ACC.pro?'Pro ★':'Free'); if(ACC.credits!=null) parts.push(t.credits(ACC.credits)); }
+  if(ACC&&ACC.ok){ parts.push(ACC.pro?'Pro ★':'Free'); if(ACC.credits!=null) parts.push(t.credits(ACC.credits)); const dl=dlLeft(); if(dl!=null) parts.push(t.dlLeft(dl)); }
   c.textContent=parts.join(' · '); c.className='chip '+(ACC&&ACC.pro?'pro':'ok');
   $('#freeBanner').classList.toggle('hidden', !(ACC&&ACC.ok&&!ACC.pro));
 }
@@ -1219,7 +1229,7 @@ function toggleSel(id,on){ on?selected.add(id):selected.delete(id); renderClips(
 
 /* ============================== download job ============================== */
 function makeItems(cs){ const nums={}; return cs.map(c=>{ const w=CLIPWS[c.id]||{id:'',name:'Misc'}; if(!nums[w.id]) nums[w.id]=trackNumbers(clipsByWs[w.id]||[]); return {clip:c,ws:w.name||'Misc',track:nums[w.id][c.id]||1}; }); }
-function confirmStart(n){ const t=T(); let m=t.confirmAll(n); if(ACC&&ACC.ok&&!ACC.pro) m+=t.confirmFree; return confirm(m); }
+function confirmStart(n){ const t=T(); let m=t.confirmAll(n); if(ACC&&ACC.ok&&!ACC.pro) m+=t.confirmFree; m+=t.confirmQuota(dlLeft()); return confirm(m); }
 function downloadEverything(){
   const cs=[]; workspaces.forEach(w=>cs.push(...(clipsByWs[w.id]||[]).filter(isMissing)));
   if(!cs.length){ toast(T().nothingMissing); return; }
@@ -1237,15 +1247,18 @@ async function runJob(items,what){
     if(job.stop) break;
     const it=items[job.i], c=it.clip; renderJob();
     if(MATCH[c.id]){ job.skip++; continue; }
-    const body={clipId:c.id,audioUrl:c.audio_url,title:c.title,artist:c.display_name||'Suno',workspace:it.ws,disc:1,track:it.track,
+    const au=c.audio_url&&!/\/api\/forbidden/.test(c.audio_url)?c.audio_url:'';
+    const body={clipId:c.id,audioUrl:au,title:c.title,artist:c.display_name||'Suno',workspace:it.ws,disc:1,track:it.track,
       tags:c.tags||'',imageUrl:c.image_large_url||c.image_url||'',lyrics:c.prompt||'',createdAt:c.created_at||''};
     let r; try{ r=await post('/api/download',body); }catch(e){ r={ok:false,error:''+e}; }
-    if(r.ok){ job.ok++; MATCH[c.id]={p:r.path,k:'id'}; LOCAL.push({p:r.path,id:c.id,id8:c.id.slice(0,8),t:c.title,ft:c.title,w:it.ws}); }
-    else { job.bad++; job.fails.push({title:c.title||c.id,ws:it.ws,error:errText(r)});
-      if(r.code==='not_authorized'&&job.bad>=3&&job.ok===0){ job.stop=true; job.fails.push({title:'—',ws:'',error:T().stopRefused}); } }
+    if(r.ok){ job.ok++; job.row=0; MATCH[c.id]={p:r.path,k:'id'}; LOCAL.push({p:r.path,id:c.id,id8:c.id.slice(0,8),t:c.title,ft:c.title,w:it.ws}); }
+    else { job.bad++; job.row=(job.row||0)+1; job.fails.push({title:c.title||c.id,ws:it.ws,error:errText(r)});
+      if(r.code==='quota'){ job.stop=true; job.fails.push({title:'—',ws:'',error:T().stopQuota}); loadAccount(); }
+      else if(r.code==='not_authorized'&&job.bad>=3&&job.ok===0){ job.stop=true; job.fails.push({title:'—',ws:'',error:T().stopRefused}); }
+      else if(job.row>=5){ job.stop=true; job.fails.push({title:'—',ws:'',error:T().stopSame}); } }
     if(job.i%3===0){ renderStats(); renderWorkspaces(); renderClips(); }
   }
-  job.running=false; renderAll(); writeManifest();
+  job.running=false; renderAll(); writeManifest(); if(job.ok) loadAccount();
   logUI(`download job end: ${job.ok} ok, ${job.bad} failed, ${job.skip} already there${job.stop?' (stopped)':''}`);
   toast(T().jobDone(job.ok,job.bad),6000);
 }

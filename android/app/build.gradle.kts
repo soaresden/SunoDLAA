@@ -14,8 +14,8 @@ android {
         applicationId = "com.soaresden.sunoauto"
         minSdk = 26
         targetSdk = 35
-        versionCode = 34
-        versionName = "0.18.1"
+        versionCode = 35
+        versionName = "0.19.0"
     }
 
     buildTypes {
