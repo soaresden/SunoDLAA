@@ -64,6 +64,8 @@ numbered tracks (original ★ first), play / shuffle, actions, themes.
   <img src="assets/screenshots/after-selection-plage.png" width="49%" alt="Multi-selection, Plage theme">
 </p>
 
+<p align="center"><img src="assets/screenshots/after-explore.png" width="800" alt="Explore other people's songs"></p>
+
 <p align="center">
   <img src="assets/screenshots/after-themes.png" width="49%" alt="Theme picker">
   <img src="assets/screenshots/after-button-under-logo.png" width="30%" alt="The SUNODLAA button right under Suno's logo">
@@ -77,10 +79,12 @@ your own session. A glowing **♪ SUNODLAA** button even sits right under Suno's
 
 - **Your workspaces first**, with covers and dates (first → last track), sorted by recent, A → Z or size.
 - **All tracks** view, grouped by workspace. Search by title or style, ♥ favorites.
+- **🌍 Explore other people's songs**: Suno's public selections as cover carousels, any public
+  playlist in full, play them in a row.
 - Tracks numbered **original first** (★), then oldest → newest. Sort by number, date, title, length.
 - **Play a whole workspace**, shuffle, repeat. Lyrics with **word-by-word karaoke**, full screen.
 - **Manage your library live on Suno**: rename (with a clean-title suggestion), move to another
-  workspace, delete, like; select many tracks at once; rename / delete a workspace;
+  workspace, delete, like; create a workspace; select many tracks at once; rename / delete a workspace;
   ✨ clean all messy titles of a workspace in one go.
 - **8 themes**: Holi, Orange Suno, Plage, Bleu, Amoureux, Deep Ocean, Feu, Nuit. Your choice is
   saved in the browser.
