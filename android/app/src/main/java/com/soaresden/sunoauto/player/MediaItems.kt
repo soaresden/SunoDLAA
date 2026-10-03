@@ -64,7 +64,9 @@ object MediaItems {
 
     fun clip(c: ClipEntity, projectName: String? = null): MediaItem {
         val localUri = com.soaresden.sunoauto.data.LocalFiles.uriOrNull(c.localPath)
-        val uri = localUri ?: Uri.parse(c.audioUrl)
+        // A file (pCloud / phone) or a plain link plays in our player; anything else plays in
+        // Suno's own web player (see SunoWebEngine).
+        val uri = localUri ?: c.audioUrl.takeIf { it.isNotBlank() }?.let(Uri::parse) ?: WebTrack.uri(c.id, c.durationSec)
         val art = c.localCoverPath?.let { File(it) }?.takeIf { it.exists() }?.let { Uri.fromFile(it) }
             ?: c.imageUrl?.let(Uri::parse)
         val extras = Bundle().apply {

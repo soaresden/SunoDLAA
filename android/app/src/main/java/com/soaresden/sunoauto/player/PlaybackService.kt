@@ -54,6 +54,55 @@ class PlaybackService : MediaLibraryService() {
     private val repo: LibraryRepository get() = SunoApp.get(this).repo
     private lateinit var cacheFactory: androidx.media3.datasource.cache.CacheDataSource.Factory
     @Volatile private var prefetch: androidx.media3.datasource.cache.CacheWriter? = null
+    private lateinit var web: SunoWebEngine
+    /** true while WE move ExoPlayer (to follow Suno's page), so it isn't mirrored back. */
+    private var followingWeb = false
+    private val musicAttrs = AudioAttributes.Builder().setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).setUsage(C.USAGE_MEDIA).build()
+
+    private fun currentWebClip(): String? {
+        val item = player.currentMediaItem ?: return null
+        return if (WebTrack.isWeb(item.localConfiguration?.uri)) item.mediaId.let(MediaIds::clipId) else null
+    }
+
+    /** Keeps Suno's page in step with the queue: same track, playing or paused like the player. */
+    private fun syncWeb(newTrack: Boolean = false) {
+        val id = currentWebClip()
+        // Suno's page takes the audio focus itself while it plays; ExoPlayer (silent) must not fight it.
+        player.setAudioAttributes(musicAttrs, id == null)
+        if (id == null) { if (web.clipId != null) web.stop(); return }
+        if (newTrack || web.clipId != id) web.load(id, player.playWhenReady, player.currentPosition / 1000.0)
+        else if (player.playWhenReady) web.play() else web.pause()
+    }
+
+    private fun followWeb(id: String, posSec: Double) {
+        if (currentWebClip() != id) return
+        val target = (posSec * 1000).toLong()
+        if (kotlin.math.abs(player.currentPosition - target) > 1500) {
+            followingWeb = true
+            try { player.seekTo(target) } finally { followingWeb = false }
+        }
+    }
+
+    private val webListener = object : SunoWebEngine.Listener {
+        override fun onWebPlaying(clipId: String, positionSec: Double, durationSec: Double) = followWeb(clipId, positionSec)
+        override fun onWebTime(clipId: String, positionSec: Double, durationSec: Double, paused: Boolean) {
+            if (!paused) followWeb(clipId, positionSec)
+        }
+        /** Suno's page stopped by itself (a call, another app took the sound): pause the queue too. */
+        override fun onWebPausedByItself(clipId: String) {
+            if (currentWebClip() == clipId && player.playWhenReady) player.pause()
+        }
+        override fun onWebEnded(clipId: String) {
+            if (currentWebClip() != clipId) return
+            if (player.hasNextMediaItem()) player.seekToNextMediaItem() else player.pause()
+        }
+        override fun onWebFailed(clipId: String, why: String) {
+            if (currentWebClip() != clipId) return
+            com.soaresden.sunoauto.data.DiagLog.add(this@PlaybackService, "web ${clipId.take(8)}: $why")
+            android.widget.Toast.makeText(this@PlaybackService, com.soaresden.sunoauto.LocaleHelper.s(R.string.web_failed), android.widget.Toast.LENGTH_LONG).show()
+            if (player.hasNextMediaItem()) player.seekToNextMediaItem() else player.pause()
+        }
+    }
 
     /** While a track plays, the next one is copied into the play cache, so it starts at once and survives a tunnel. */
     private fun prefetchNext() {
@@ -62,7 +111,7 @@ class PlaybackService : MediaLibraryService() {
         val idx = player.nextMediaItemIndex
         if (idx == C.INDEX_UNSET) return
         val uri = player.getMediaItemAt(idx).localConfiguration?.uri ?: return
-        if (uri.scheme == "file") return
+        if (uri.scheme == "file" || WebTrack.isWeb(uri)) return
         val writer = androidx.media3.datasource.cache.CacheWriter(
             cacheFactory.createDataSource(), androidx.media3.datasource.DataSpec(uri), null, null)
         prefetch = writer
@@ -97,8 +146,16 @@ class PlaybackService : MediaLibraryService() {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
 
+        web = SunoWebEngine(this, webListener)
         player.addListener(object : Player.Listener {
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) { syncWeb() }
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+                if (reason != Player.DISCONTINUITY_REASON_SEEK || followingWeb) return
+                if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex) return  // handled by the transition
+                if (currentWebClip() != null) web.seek(newPosition.positionMs / 1000.0)
+            }
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                syncWeb(newTrack = reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT)
                 val id = mediaItem?.mediaId?.let(MediaIds::clipId) ?: return
                 scope.launch(Dispatchers.IO) { repo.markPlayed(id) }
                 refreshLayout()
@@ -139,6 +196,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        web.release()
         session.release()
         player.release()
         scope.cancel()

@@ -9,9 +9,9 @@ import com.soaresden.sunoauto.data.repo.LibraryRepository
 /** Maps media ids to lists of MediaItems from the local cache. Pure functions, no network. */
 object BrowseTree {
 
-    /** A clip can actually be played only if we have a local file, or streaming is allowed (Pro). */
-    private fun isPlayableSource(c: ClipEntity, isPro: Boolean): Boolean =
-        c.localPath != null || !c.audioUrl.isNullOrBlank()
+    /** Every clip plays: from a file, a plain link, or Suno's own web player. */
+    @Suppress("UNUSED_PARAMETER")
+    private fun isPlayableSource(c: ClipEntity, isPro: Boolean): Boolean = true
 
     /** Raw clips backing a node id, in the same order as the phone app. */
     private suspend fun listFor(repo: LibraryRepository, id: String): List<ClipEntity> = when {

@@ -61,8 +61,8 @@ fun ClipRow(
     var menu by remember { mutableStateOf(false) }
     var askDl by remember { mutableStateOf(false) }
     val local = com.soaresden.sunoauto.data.LocalFiles.available(clip.localPath)
-    // Playable = a file (pCloud / phone) or a plain Suno stream. Otherwise greyed: listen in the Suno app.
-    val playable = local || !clip.audioUrl.isNullOrBlank()
+    // Everything plays: a file (pCloud / phone), else Suno's own player.
+    val playable = true
     Row(
         modifier = Modifier
             .fillMaxWidth()

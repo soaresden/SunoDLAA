@@ -98,7 +98,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
             // Tapped a track that can't play here (no file on the phone, no Pro stream): say so instead of
             // silently starting another song.
             val t = clips.getOrNull(index)
-            if (tapped && t != null && t.localPath == null && t.audioUrl.isNullOrBlank()) {
+            if (false && tapped && t != null) {
                 android.widget.Toast.makeText(getApplication(), com.soaresden.sunoauto.LocaleHelper.s(com.soaresden.sunoauto.R.string.not_playable_here), android.widget.Toast.LENGTH_LONG).show()
                 return@launch
             }

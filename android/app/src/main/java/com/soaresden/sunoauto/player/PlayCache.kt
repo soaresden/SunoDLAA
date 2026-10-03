@@ -70,7 +70,7 @@ object PlayCache {
     /** Same key as the player uses: the file/content URI, else the stream link. */
     fun keyFor(localPath: String?, audioUrl: String?): String? =
         com.soaresden.sunoauto.data.LocalFiles.uriOrNull(localPath)?.takeIf { it.scheme != "file" }?.toString()
-            ?: if (localPath == null) audioUrl?.takeIf { it.isNotBlank() } else null
+            ?: if (localPath == null) audioUrl?.takeIf { it.isNotBlank() && !it.startsWith(WebTrack.SCHEME) } else null
 
     /** true when the whole track is in the play cache (plays without network). */
     fun isFullyCached(ctx: Context, key: String?): Boolean {
@@ -122,9 +122,11 @@ class CacheOrDirectDataSource(
 ) : DataSource {
     private var current: DataSource? = null
     override fun addTransferListener(transferListener: TransferListener) {
-        direct.addTransferListener(transferListener); cached.addTransferListener(transferListener)
+        direct.addTransferListener(transferListener); cached.addTransferListener(transferListener); silent.addTransferListener(transferListener)
     }
+    private val silent = SilentWavDataSource()
     override fun open(dataSpec: DataSpec): Long {
+        if (WebTrack.isWeb(dataSpec.uri)) { current = silent; return silent.open(dataSpec) }
         val useCache = dataSpec.uri.scheme != "file" && PlayCache.enabled(ctx)
         val ds = if (useCache) cached else direct
         current = ds

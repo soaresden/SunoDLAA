@@ -178,4 +178,5 @@
     <string name="dl_confirm_title">Download from Suno?</string>
     <string name="dl_confirm_text">This counts in your Suno download limit (Pro: 20 a month; a track already downloaded once doesn\'t count again). The file stays on this phone only (Android/data/com.soaresden.sunoauto/files/Music/Suno). Tip: download on the computer with SunoAAWeb instead — it goes to pCloud and every device gets it.</string>
     <string name="cache_legend">Icons in lists: ☁ in your pCloud folder · 📱 downloaded on the phone · ⚡ in the play cache (plays without network).</string>
+    <string name="web_failed">Suno\'s player could not play this track (network, or sign in again in Settings). Next track.</string>
 </resources>
