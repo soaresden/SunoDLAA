@@ -368,13 +368,6 @@ fun OnboardingScreen(vm: LibraryViewModel, onLogin: () -> Unit, onPickFolder: ()
             desc = stringResource(R.string.ob_connect_desc),
             done = loggedIn == true, actionLabel = if (loggedIn == true) stringResource(R.string.reconnect) else stringResource(R.string.sign_in), onAction = onLogin
         )
-        if (loggedIn == true && plan != null) Text(
-            if (plan == "Pro") stringResource(R.string.ob_pro)
-            else stringResource(R.string.ob_free),
-            style = MaterialTheme.typography.bodySmall,
-            color = if (plan == "Pro") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
-        )
         OnboardStep(
             n = "2", title = stringResource(R.string.ob_folder_title),
             desc = stringResource(R.string.ob_folder_desc),
@@ -438,15 +431,9 @@ fun AccountStatusBar(vm: LibraryViewModel) {
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (pro) {
-                Icon(Icons.Default.Star, null, Modifier.size(18.dp).alpha(glow), tint = gold)
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.account_pro), fontWeight = FontWeight.Bold, color = gold, modifier = Modifier.alpha(glow))
-            } else {
-                Icon(Icons.Default.AccountCircle, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.account_free), fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Icon(Icons.Default.AccountCircle, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.account_connected), fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.weight(1f))
             credits?.let { Text(stringResource(R.string.credits, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (lastSync > 0) Text("  " + stringResource(R.string.synced_at, com.soaresden.sunoauto.ui.components.fmtShort(lastSync)).trim(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

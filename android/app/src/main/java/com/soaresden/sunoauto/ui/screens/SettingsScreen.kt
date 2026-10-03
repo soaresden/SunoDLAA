@@ -2,6 +2,9 @@ package com.soaresden.sunoauto.ui.screens
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -67,6 +70,13 @@ fun SettingsScreen(vm: LibraryViewModel, onLogin: () -> Unit, bottomPadding: Dp)
         LanguagePicker()
         Spacer(Modifier.height(16.dp)); HorizontalDivider()
 
+        // ---- Theme (same themes as the suno.com overlay) ----
+        Spacer(Modifier.height(12.dp))
+        Text(stringResource(R.string.section_theme), style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(6.dp))
+        ThemePicker()
+        Spacer(Modifier.height(16.dp)); HorizontalDivider()
+
         // ---- Compte ----
         Spacer(Modifier.height(12.dp))
         Text(stringResource(R.string.section_account), style = MaterialTheme.typography.titleMedium)
@@ -76,17 +86,9 @@ fun SettingsScreen(vm: LibraryViewModel, onLogin: () -> Unit, bottomPadding: Dp)
                 buildString {
                     append(connectedLabel)
                     account?.let { append(" : $it") }
-                    plan?.let { append(" · $it") }
                     credits?.let { append(" · " + creditsLabel(it)) }
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                if (plan == "Pro") stringResource(R.string.settings_pro)
-                else stringResource(R.string.settings_free),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (plan == "Pro") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp)
             )
             Spacer(Modifier.height(8.dp))
             Button(onClick = { vm.sync() }, enabled = !sync.running) { Text(stringResource(R.string.sync_suno)) }
@@ -207,4 +209,30 @@ private fun PlayCacheSection() {
     OutlinedButton(onClick = {
         scope.launch(kotlinx.coroutines.Dispatchers.IO) { com.soaresden.sunoauto.player.PlayCache.clear(ctx); tick++ }
     }, modifier = Modifier.padding(top = 6.dp)) { Text(stringResource(R.string.cache_clear)) }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun ThemePicker() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val cur = com.soaresden.sunoauto.ui.theme.ThemeState.current.value
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+        com.soaresden.sunoauto.ui.theme.SDL_THEMES.forEach { t ->
+            val on = t.id == cur
+            androidx.compose.material3.Surface(
+                onClick = { com.soaresden.sunoauto.ui.theme.ThemeState.set(ctx, t.id) },
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                color = t.panel,
+                border = androidx.compose.foundation.BorderStroke(if (on) 2.dp else 1.dp, if (on) t.acc else t.line)
+            ) {
+                androidx.compose.foundation.layout.Row(Modifier.padding(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    androidx.compose.foundation.layout.Box(Modifier.size(28.dp).background(
+                        androidx.compose.ui.graphics.Brush.linearGradient(listOf(t.acc, t.acc2, t.bg)), androidx.compose.foundation.shape.RoundedCornerShape(8.dp)))
+                    Spacer(Modifier.width(8.dp))
+                    Text(t.name, color = t.txt, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
 }

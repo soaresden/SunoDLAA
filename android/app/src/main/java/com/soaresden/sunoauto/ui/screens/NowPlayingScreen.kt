@@ -96,10 +96,6 @@ fun NowPlayingScreen(vm: LibraryViewModel, player: PlayerViewModel) {
                 Icon(if (clip?.isLiked == true) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null,
                     tint = if (clip?.isLiked == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(onClick = { s.clipId?.let { if (local) vm.removeDownload(it) else vm.download(listOf(it)) } }) {
-                Icon(if (local) Icons.Outlined.DownloadDone else Icons.Outlined.Download, null,
-                    tint = if (local) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
-            }
         }
 
         // ---- Infos du titre (exhaustif) ----

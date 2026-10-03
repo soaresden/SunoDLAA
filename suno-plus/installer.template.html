@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SUNODLAA - Installer le favori</title>
+<style>
+  :root{--bg:#fff7ef;--card:#ffffff;--txt:#2a2230;--mut:#7a6f80;--acc:#ff6a2b;--acc2:#ff3d8b}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 20% 10%,#ffe1c7,transparent 45%),radial-gradient(circle at 85% 90%,#ffd0e4,transparent 45%),var(--bg);color:var(--txt);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px}
+  .card{max-width:640px;width:100%;background:var(--card);border-radius:24px;padding:36px 40px;box-shadow:0 20px 60px rgba(120,60,20,.15)}
+  h1{margin:0 0 4px;font-size:30px}
+  h1 b{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--mut);margin-bottom:26px}
+  ol{padding-left:22px;margin:0}
+  li{margin:14px 0}
+  .bm{display:inline-block;margin:10px 0 4px;padding:14px 26px;border-radius:999px;background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;font-weight:800;font-size:18px;text-decoration:none;box-shadow:0 8px 24px rgba(255,90,60,.35);cursor:grab}
+  .bm:active{cursor:grabbing}
+  kbd{background:#f3ece6;border-radius:6px;padding:1px 7px;font:600 14px ui-monospace,monospace}
+  .note{margin-top:24px;padding:14px 16px;border-radius:14px;background:#fff1e6;color:#7a4a2a;font-size:14px}
+  .ver{margin-top:18px;color:var(--mut);font-size:12px}
+  #hint{display:none;color:var(--acc2);font-weight:700;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1><b>SUNODLAA</b> pour suno.com</h1>
+  <div class="sub">Un lecteur plus joli par-dessus suno.com : tes espaces de travail, lecture enchaînée, paroles en karaoké. C'est le lecteur de Suno qui joue, rien n'est téléchargé.</div>
+  <ol>
+    <li>Affiche la barre de favoris : <kbd>Ctrl</kbd> + <kbd>Maj</kbd> + <kbd>B</kbd></li>
+    <li><b>Glisse ce bouton dans la barre de favoris :</b><br>
+      <a class="bm" id="bm" href="__HREF__">♪ SUNODLAA</a>
+      <div id="hint">⤴ Ne clique pas ici : glisse-le dans la barre de favoris.</div></li>
+    <li>Va sur <b>suno.com</b> (connecté) et clique sur le favori <b>♪ SUNODLAA</b>.<br>
+      Le bouton ✕ ou <kbd>Échap</kbd> le ferme ; le favori ou le bouton rose le rouvre.</li>
+  </ol>
+  <div class="note">Mise à jour : quand je t'envoie une nouvelle version, rouvre cette page et reglisse le bouton dans la barre (supprime l'ancien favori).</div>
+  <div class="ver">Version __VER__</div>
+</div>
+<script>
+  document.getElementById('bm').addEventListener('click', function (e) { e.preventDefault(); document.getElementById('hint').style.display = 'block'; });
+</script>
+</body>
+</html>

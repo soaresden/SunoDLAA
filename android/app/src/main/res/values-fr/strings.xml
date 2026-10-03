@@ -40,7 +40,7 @@
     <string name="chip_all">Tous</string>
     <string name="chip_workspace">Workspace</string>
     <string name="chip_favorites">Favoris</string>
-    <string name="chip_offline">Hors ligne</string>
+    <string name="chip_offline">Mes fichiers</string>
     <string name="chip_date">Date</string>
     <string name="chip_alpha">A→Z</string>
     <string name="no_results">Aucun résultat.</string>
@@ -85,10 +85,10 @@
     <string name="ob_pro">Compte Pro : tu peux télécharger tes morceaux (⤓).</string>
     <string name="ob_free">Compte Free : la lecture passe par tes fichiers locaux (Suno chiffre le streaming).</string>
     <string name="ob_folder_title">Choisir ton dossier de musique</string>
-    <string name="ob_folder_desc">Tes MP3 (pCloud, Drive, local) via le sélecteur — ouvre le volet ☰ à gauche. C\'est ce qui permet la lecture.</string>
+    <string name="ob_folder_desc">Facultatif : relie le dossier de tes MP3 (pCloud, Drive, téléphone) pour les écouter sans réseau. Sans dossier, tout se lit avec le lecteur de Suno.</string>
     <string name="change">Changer</string>
     <string name="choose_folder">Choisir le dossier</string>
-    <string name="ob_info">À savoir : Suno chiffre le streaming. Un titre se lit seulement si tu en as le fichier (✅). Sans fichier (🫥), il faut le télécharger — possible uniquement avec un abonnement Suno Pro.</string>
+    <string name="ob_info">Tous tes titres se lisent : depuis ton fichier s\'il est dans ton dossier (☁ / 📱, marche sans réseau), sinon par le lecteur de Suno (réseau nécessaire). Rien n\'est téléchargé depuis Suno.</string>
     <string name="start">Commencer</string>
     <string name="ob_need_login">Connecte-toi pour continuer.</string>
 
@@ -173,6 +173,8 @@
     <string name="cd_in_cache">Dans le cache de lecture (lisible sans réseau)</string>
     <string name="dl_confirm_title">Télécharger depuis Suno ?</string>
     <string name="dl_confirm_text">Ça compte dans ta limite de téléchargements Suno (Pro : 20 par mois ; un titre déjà téléchargé une fois ne recompte pas). Le fichier reste uniquement sur ce téléphone (Android/data/com.soaresden.sunoauto/files/Music/Suno). Astuce : télécharge plutôt sur l\'ordi avec SunoAAWeb — ça va dans pCloud et tous tes appareils l\'ont.</string>
-    <string name="cache_legend">Icônes dans les listes : ☁ dans ton dossier pCloud · 📱 téléchargé sur le téléphone · ⚡ dans le cache de lecture (lisible sans réseau).</string>
+    <string name="cache_legend">Icônes dans les listes : ☁ dans ton dossier pCloud · 📱 fichier sur le téléphone · ⚡ dans le cache de lecture (lisible sans réseau). Sans icône : lu par le lecteur de Suno.</string>
     <string name="web_failed">Le lecteur Suno n\'a pas pu lire ce titre (réseau, ou reconnecte-toi dans Réglages). Titre suivant.</string>
+    <string name="section_theme">Thème</string>
+    <string name="account_connected">Connecté à Suno</string>
 </resources>

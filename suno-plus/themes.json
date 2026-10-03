@@ -1,0 +1,10 @@
+[
+  {"id":"holi",  "name":"Holi",          "dark":false, "bg":"#FFF9FC","panel":"#FFFFFF","panel2":"#FBEAF3","line":"#EED5E3","txt":"#1B1B1F","mut":"#6E5566","acc":"#E81E8C","acc2":"#009B8E","acc3":"#F57C00","gold":"#C98A00","deco":["#E81E8C","#FFC400","#009B8E","#3D7BFF","#8B3DFF"]},
+  {"id":"suno",  "name":"Orange Suno",   "dark":false, "bg":"#FFF8F1","panel":"#FFFFFF","panel2":"#FFEEDF","line":"#F4DCC8","txt":"#26180F","mut":"#8A6B57","acc":"#FF6B00","acc2":"#FF9A3D","acc3":"#E04E00","gold":"#C98A00","deco":["#FF6B00","#FFB36B","#FFD9B0"]},
+  {"id":"plage", "name":"Plage",         "dark":false, "bg":"#FCF5E8","panel":"#FFFDF8","panel2":"#F3E8D2","line":"#E8D8BA","txt":"#17384A","mut":"#6A8494","acc":"#0FA3B1","acc2":"#FF8A5B","acc3":"#F2C14E","gold":"#C98A00","deco":["#7FD6E3","#F9D9A6","#FFB38A"]},
+  {"id":"bleu",  "name":"Bleu",          "dark":false, "bg":"#F3F7FF","panel":"#FFFFFF","panel2":"#E5EEFF","line":"#D2E0F6","txt":"#10203A","mut":"#5A6F8E","acc":"#2F6FED","acc2":"#00A6E8","acc3":"#6C5CE7","gold":"#C98A00","deco":["#8FB8FF","#A6E4FF","#C9C2FF"]},
+  {"id":"amour", "name":"Amoureux",      "dark":false, "bg":"#FFF4F6","panel":"#FFFFFF","panel2":"#FFE4EC","line":"#F6CFDB","txt":"#3A1222","mut":"#99667A","acc":"#E5305B","acc2":"#FF8FB1","acc3":"#B5179E","gold":"#C98A00","deco":["#FF8FB1","#FFC2D4","#E5305B"]},
+  {"id":"ocean", "name":"Deep Ocean",    "dark":true,  "bg":"#03111E","panel":"#06192B","panel2":"#0A2540","line":"#123552","txt":"#E2F3FF","mut":"#7FA2BC","acc":"#1FD1C1","acc2":"#3B82F6","acc3":"#8BE9FD","gold":"#E3B341","deco":["#0B4F6C","#01295F","#1FD1C1"]},
+  {"id":"feu",   "name":"Feu",           "dark":true,  "bg":"#140703","panel":"#1E0C06","panel2":"#2B140B","line":"#3E1D10","txt":"#FFF0E5","mut":"#C79C83","acc":"#FF5A1F","acc2":"#FFC23D","acc3":"#E8311A","gold":"#FFC23D","deco":["#FF5A1F","#FFC23D","#8A1C0B"]},
+  {"id":"nuit",  "name":"Nuit",          "dark":true,  "bg":"#0D0D12","panel":"#15151D","panel2":"#1C1C26","line":"#262633","txt":"#ECEBF3","mut":"#8E8CA3","acc":"#FF4F8B","acc2":"#8A5CFF","acc3":"#E3B341","gold":"#E3B341","deco":["#8A5CFF","#FF4F8B"]}
+]

@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.soaresden.sunoauto.data.db.ClipEntity
 import java.io.File
+import com.soaresden.sunoauto.ui.theme.Gold
 
 @Composable
 fun ClipRow(
@@ -59,7 +60,6 @@ fun ClipRow(
     isPro: Boolean = false
 ) {
     var menu by remember { mutableStateOf(false) }
-    var askDl by remember { mutableStateOf(false) }
     val local = com.soaresden.sunoauto.data.LocalFiles.available(clip.localPath)
     // Everything plays: a file (pCloud / phone), else Suno's own player.
     val playable = true
@@ -115,16 +115,6 @@ fun ClipRow(
                 )
             }
         }
-        if (askDl) androidx.compose.material3.AlertDialog(
-            onDismissRequest = { askDl = false },
-            title = { Text(stringResource(R.string.dl_confirm_title)) },
-            text = { Text(stringResource(R.string.dl_confirm_text)) },
-            confirmButton = { androidx.compose.material3.TextButton(onClick = { askDl = false; onDownload() }) { Text(stringResource(R.string.download)) } },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = { askDl = false }) { Text(stringResource(android.R.string.cancel)) } }
-        )
-        if (!local && isPro) IconButton(onClick = { askDl = true }) {
-            Icon(Icons.Outlined.Download, contentDescription = stringResource(R.string.download), tint = MaterialTheme.colorScheme.primary)
-        }
         IconButton(onClick = onToggleLike) {
             Icon(
                 if (clip.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -139,14 +129,11 @@ fun ClipRow(
                     text = { Text(stringResource(R.string.play_next)) },
                     leadingIcon = { Icon(Icons.Outlined.PlaylistPlay, null) },
                     onClick = { menu = false; onPlayNext() })
-                if (local) DropdownMenuItem(
+                if (local && !com.soaresden.sunoauto.data.LocalFiles.isContent(clip.localPath)) DropdownMenuItem(
                     text = { Text(stringResource(R.string.remove_download)) },
                     leadingIcon = { Icon(Icons.Default.DownloadDone, null) },
                     onClick = { menu = false; onRemoveDownload() })
-                else if (isPro) DropdownMenuItem(
-                    text = { Text(stringResource(R.string.download)) },
-                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
-                    onClick = { menu = false; askDl = true })
+
             }
         }
     }
@@ -173,5 +160,4 @@ fun fmtShort(ms: Long): String =
         .format(java.time.format.DateTimeFormatter.ofLocalizedDateTime(java.time.format.FormatStyle.SHORT)
             .withLocale(com.soaresden.sunoauto.LocaleHelper.locale()))
 
-val Gold = androidx.compose.ui.graphics.Color(0xFFE3B341)
 val Available = androidx.compose.ui.graphics.Color(0xFF4CAF50)

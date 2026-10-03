@@ -66,7 +66,9 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= 33) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         setContent {
             SunoTheme {
-                App(onLogin = { loginLauncher.launch(Intent(this, LoginActivity::class.java)) })
+                com.soaresden.sunoauto.ui.theme.ThemedBackground {
+                    App(onLogin = { loginLauncher.launch(Intent(this@MainActivity, LoginActivity::class.java)) })
+                }
             }
         }
     }
@@ -120,6 +122,7 @@ private fun App(onLogin: () -> Unit) {
     val miniHeight = if (playerState.clipId != null && route != Routes.NOW_PLAYING) 64.dp else 0.dp
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(title) },

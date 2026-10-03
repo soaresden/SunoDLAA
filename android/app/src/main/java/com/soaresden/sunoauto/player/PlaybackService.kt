@@ -221,7 +221,6 @@ class PlaybackService : MediaLibraryService() {
         val current = player.currentMediaItem
         val liked = current?.let(MediaItems::isLiked) ?: false
         val buttons = mutableListOf(likeButton(liked))
-        if (current != null && !MediaItems.isLocal(current)) buttons += downloadButton()
         session.setCustomLayout(ImmutableList.copyOf(buttons))
     }
 
