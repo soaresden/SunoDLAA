@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.4.0';
+  var VERSION = '2.5.0';
   if (window.__sdlSkin) { window.__sdlSkin.toggle(); return; }
   // Not on suno.com: go there (click the bookmark again to open the player).
   if (!/(^|\.)suno\.com$/.test(location.hostname)) { location.href = 'https://suno.com/'; return; }
@@ -20,7 +20,7 @@
   var norm = function (s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); };
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
   var collator = new Intl.Collator('fr', { numeric: true, sensitivity: 'base' });
-  var ALL = '__all__', EXP = '__explore__';
+  var ALL = '__all__', EXP = '__explore__', CRE = '__create__';
   // Language of the computer/browser: French if it is French, English otherwise.
   var LANG = /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
   var LOC = LANG === 'fr' ? 'fr-FR' : 'en-GB';
@@ -144,8 +144,77 @@
     } catch (e) { toast(tr('Playlist indisponible : ', 'Playlist unavailable: ') + e.message, 6000); }
     P.loading = false; renderTracks();
   }
+  /* ---- Create: a compact form that fills Suno's own Create page and presses its button ---- */
+  var D = LS.get('draft', { title: '', style: '', exclude: '', lyrics: '' });
+  function saveDraft() { LS.set('draft', D); }
+  function setNative(el, v) {
+    var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v);
+    el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function sunoForm() {
+    var vis = function (e) { var r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    var outside = function (e) { return !root.contains(e); };
+    var inputs = $$('input[type=text]').filter(outside).filter(vis);
+    var areas = $$('textarea').filter(outside).filter(vis);
+    return {
+      title: inputs.find(function (e) { return /titre|title/i.test(e.placeholder || ''); }),
+      lyrics: $$('[contenteditable="true"][role="textbox"],[contenteditable="true"]').filter(outside).filter(vis)[0],
+      style: areas.find(function (e) { return e.maxLength === 1000 && !/^(ton|tone)$/i.test(e.placeholder || ''); }),
+      exclude: inputs.find(function (e) { return /exclu/i.test(e.placeholder || ''); }),
+      create: $$('button').filter(outside).filter(vis).find(function (b) { return /^(cr[ée]er la chanson|create song|create)$/i.test((b.innerText || b.getAttribute('aria-label') || '').trim()); }),
+      styles: $$('button[aria-label]').filter(outside).map(function (b) { var m = (b.getAttribute('aria-label') || '').match(/^(?:Ajouter le style|Add style)\s*:\s*(.+)$/i); return m ? { name: m[1], b: b } : null; }).filter(Boolean)
+    };
+  }
+  async function waitForm() {
+    if (location.pathname.indexOf('/create') !== 0 && window.next && window.next.router) window.next.router.push('/create');
+    for (var i = 0; i < 40; i++) { var f = sunoForm(); if (f.style && f.lyrics) return f; await sleep(400); }
+    var f2 = sunoForm(); log('create form not found', { title: !!f2.title, lyrics: !!f2.lyrics, style: !!f2.style, create: !!f2.create }); return f2;
+  }
+  function fillLyrics(el, text) {
+    el.focus();
+    try { document.execCommand('selectAll', false, null); } catch (e) {}
+    var ok = false;
+    try { var dt = new DataTransfer(); dt.setData('text/plain', text); ok = !el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); } catch (e) {}
+    if (!ok || (el.innerText || '').trim() !== text.trim()) { try { document.execCommand('selectAll', false, null); document.execCommand('insertText', false, text); } catch (e) {} }
+    log('lyrics filled', (el.innerText || '').length, 'chars');
+  }
+  async function sendToSuno(press) {
+    readCreate(); saveDraft();
+    if (!D.style.trim() && !D.lyrics.trim()) return toast(tr('Mets au moins un style ou des paroles.', 'Add at least a style or lyrics.'));
+    toast(tr('Remplissage du formulaire Suno…', 'Filling Suno\'s form…'));
+    var f = await waitForm();
+    if (!f.style || !f.lyrics) { toast(tr('Je ne trouve pas le formulaire de Suno (mode Avancé ?). Regarde la console (F12).', 'Can\'t find Suno\'s form (Advanced mode?). See the console (F12).'), 7000); return; }
+    if (f.title) setNative(f.title, D.title);
+    setNative(f.style, D.style);
+    if (f.exclude) setNative(f.exclude, D.exclude);
+    fillLyrics(f.lyrics, D.lyrics);
+    await sleep(600);
+    if (!press) { show(false); toast(tr('Formulaire rempli : vérifie et clique sur Créer chez Suno.', 'Form filled: check it and click Create on Suno.'), 6000); return; }
+    f = sunoForm();
+    if (!f.create) { show(false); toast(tr('Bouton Créer introuvable : clique dessus toi-même.', 'Create button not found: click it yourself.'), 7000); return; }
+    log('click Create'); f.create.click();
+    toast(tr('Création lancée chez Suno ✨', 'Creation started on Suno ✨'), 5000);
+    setTimeout(function () { sync(false); }, 20000);
+  }
+  function readCreate() { ['title', 'style', 'exclude', 'lyrics'].forEach(function (k) { var e = $('#sdl-c-' + k); if (e) D[k] = e.value; }); }
+  async function loadStyleIdeas() { if (!(await token())) return; var f = await waitForm(); S.styleIdeas = (f.styles || []).map(function (x) { return x.name; }); if (S.cur === CRE) renderCreate($('#sdl-mainin')); }
+  function renderCreate(el) {
+    var cnt = function (v, m) { return '<span class="sdl-muted" style="font-size:12px">' + (v || '').length + ' / ' + m + '</span>'; };
+    el.innerHTML = '<div class="sdl-create">' +
+      '<div class="sdl-cl"><h1 style="margin:0 0 4px;font-size:30px">✨ ' + tr('Créer', 'Create') + '</h1><div class="sdl-muted" style="margin-bottom:14px">' + tr('Tout sur un écran. SUNODLAA remplit le formulaire de Suno et appuie sur son bouton Créer.', 'All on one screen. SUNODLAA fills Suno\'s form and presses its Create button.') + '</div>' +
+      '<label>' + tr('Titre', 'Title') + ' ' + cnt(D.title, 100) + '</label><input id="sdl-c-title" maxlength="100" value="' + esc(D.title) + '" placeholder="' + tr('Facultatif', 'Optional') + '">' +
+      '<label>' + tr('Style', 'Style') + ' ' + cnt(D.style, 1000) + '</label><textarea id="sdl-c-style" maxlength="1000" rows="4" placeholder="' + tr('ex. synthwave 80s, voix féminine, 110 bpm', 'e.g. 80s synthwave, female vocals, 110 bpm') + '">' + esc(D.style) + '</textarea>' +
+      '<div class="sdl-ideas">' + (S.styleIdeas || []).slice(0, 24).map(function (x) { return '<button class="sdl-chip" data-idea="' + esc(x) + '">+ ' + esc(x) + '</button>'; }).join('') + '</div>' +
+      '<label>' + tr('Styles à exclure', 'Exclude styles') + '</label><input id="sdl-c-exclude" maxlength="1000" value="' + esc(D.exclude) + '">' +
+      '<div class="sdl-acts" style="margin-top:18px"><button class="sdl-big" data-act="create">✨ ' + tr('Créer sur Suno', 'Create on Suno') + '</button><button class="sdl-ghost" data-act="fill">' + tr('Remplir seulement', 'Fill only') + '</button><button class="sdl-ghost" data-act="clear">' + tr('Effacer', 'Clear') + '</button></div>' +
+      '<div class="sdl-muted" style="font-size:12px;margin-top:10px">' + tr('Voix, instrumental, curseurs, modèle et espace cible : règle-les une fois sur la page Suno (« Remplir seulement »), ils restent.', 'Voice, instrumental, sliders, model and target workspace: set them once on Suno\'s page (“Fill only”); they stay.') + '</div></div>' +
+      '<div class="sdl-cr"><label>' + tr('Paroles', 'Lyrics') + ' ' + cnt(D.lyrics, 5000) + '<span style="flex:1"></span><button class="sdl-chip" data-act="tags">[Verse] [Chorus]</button></label><textarea id="sdl-c-lyrics" maxlength="5000" placeholder="' + tr('[Couplet]\n…\n\n[Refrain]\n…\n\nVide = instrumental ou paroles auto selon tes réglages Suno.', '[Verse]\n…\n\n[Chorus]\n…\n\nEmpty = instrumental or auto lyrics, per your Suno settings.') + '">' + esc(D.lyrics) + '</textarea></div></div>';
+    ['title', 'style', 'exclude', 'lyrics'].forEach(function (k) { var e = $('#sdl-c-' + k); e.oninput = function () { D[k] = e.value; saveDraft(); var lab = e.previousElementSibling; if (k === 'lyrics') lab = e.parentNode.querySelector('label'); var sp = lab && lab.querySelector('.sdl-muted'); if (sp) sp.textContent = e.value.length + ' / ' + e.maxLength; }; });
+  }
   function openView(id) { S.cur = id; S.tQ = ''; S.filter = 'all'; S.limit = 400; renderWs(); renderTracks(); $('#sdl-mainin').scrollTop = 0;
     if (id === EXP && !S.exp.feeds.length) loadExplore();
+    if (id === CRE && !S.styleIdeas) loadStyleIdeas();
     if (id.indexOf('pl:') === 0 && !S.pls[id.slice(3)]) loadPlaylist(id.slice(3)); }
   function renderExplore(el) {
     var scroll = el.scrollTop;
@@ -271,7 +340,7 @@
   function prev() { var a = audio(); if (a && a.currentTime > 4) { a.currentTime = 0; return; } if (S.idx > 0) playIdx(S.idx - 1); }
   function toggle() { var a = audio(); if (!a || !S.playing) { if (S.queue.length) playIdx(Math.max(0, S.idx)); else startQueue(viewClips(), 0, S.shuffle); return; } if (a.paused) a.play(); else a.pause(); }
   function applyVolume() { var a = audio(), v = LS.get('vol', null); if (a && v != null) a.volume = v / 100; }
-  document.addEventListener('ended', function (e) { if (e.target === audio() && S.playing && location.pathname.indexOf(S.playing.id) >= 0) next(true); }, true);
+  document.addEventListener('ended', function (e) { if (e.target === audio() && S.playing && !S.loading) next(true); }, true);
   ['play', 'pause', 'playing'].forEach(function (ev) { document.addEventListener(ev, function (e) { if (e.target === audio()) renderPlayer(); }, true); });
   document.addEventListener('timeupdate', function (e) { if (e.target === audio()) tick(); }, true);
 
@@ -398,6 +467,11 @@
     '#sdl-root.kara .sdl-ly{font-size:38px;line-height:1.25}#sdl-root.kara .sdl-ly.sec{font-size:15px}' +
     '.sdl-kbg{display:none}#sdl-root.kara .sdl-kbg{display:block;position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(40px) saturate(1.3);opacity:.35;pointer-events:none}' +
     '.sdl-muted{color:var(--mut)}' +
+    '.sdl-create{display:grid;grid-template-columns:minmax(320px,440px) 1fr;gap:28px;padding:28px 32px;height:100%;box-sizing:border-box}' +
+    '.sdl-cl,.sdl-cr{display:flex;flex-direction:column;min-height:0}.sdl-create label{display:flex;align-items:center;gap:8px;font-weight:700;margin:12px 0 6px}' +
+    '.sdl-create textarea,.sdl-create input{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;outline:none;resize:none;width:100%;box-sizing:border-box}' +
+    '.sdl-create textarea:focus,.sdl-create input:focus{border-color:var(--acc)}#sdl-c-lyrics{flex:1;font-size:15px;line-height:1.5;min-height:300px}' +
+    '.sdl-ideas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:96px;overflow:auto}' +
     '.sdl-feed{padding:6px 32px 10px}.sdl-feedh{display:flex;align-items:center;gap:6px;margin:8px 0}.sdl-feedh b{font-size:20px}' +
     '.sdl-cards{display:grid;grid-auto-flow:column;grid-auto-columns:168px;gap:14px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x mandatory}' +
     '.sdl-card{display:flex;flex-direction:column;gap:4px;text-align:left;scroll-snap-align:start;padding:8px!important;border-radius:14px}.sdl-card:hover,.sdl-card.on{background:var(--glass)!important}' +
@@ -511,6 +585,8 @@
     $$('[data-wsort]').forEach(function (b) { b.classList.toggle('on', b.dataset.wsort === S.wsSort); });
     $('#sdl-wslist').innerHTML = '<button class="sdl-ws' + (S.cur === ALL ? ' on' : '') + '" data-ws="' + ALL + '"><span class="ph" style="display:grid;place-items:center;font-size:20px;color:#fff;background:linear-gradient(135deg,var(--acc),var(--acc2))">♫</span>' +
       '<span style="min-width:0"><div class="nm">' + tr('Tous les titres', 'All tracks') + '</div><div class="ct">' + pl(total, 'titre', 'titres', 'track', 'tracks') + ' · ' + pl(S.ws.length, 'espace', 'espaces', 'workspace', 'workspaces') + '</div></span></button>' +
+      '<button class="sdl-ws' + (S.cur === CRE ? ' on' : '') + '" data-ws="' + CRE + '"><span class="ph" style="display:grid;place-items:center;font-size:20px;background:linear-gradient(135deg,var(--acc3),var(--acc))">✨</span>' +
+      '<span style="min-width:0"><div class="nm">' + tr('Créer', 'Create') + '</div><div class="ct">' + tr('tout sur un écran', 'all on one screen') + '</div></span></button>' +
       '<button class="sdl-ws' + (S.cur === EXP || S.cur.indexOf('pl:') === 0 ? ' on' : '') + '" data-ws="' + EXP + '"><span class="ph" style="display:grid;place-items:center;font-size:20px;background:linear-gradient(135deg,var(--acc2),var(--acc3))">🌍</span>' +
       '<span style="min-width:0"><div class="nm">' + tr('Explorer', 'Explore') + '</div><div class="ct">' + tr('les morceaux des autres', 'other people\'s songs') + '</div></span></button>' +
       list.map(function (w) {
@@ -528,7 +604,7 @@
     if (S.cur.indexOf('pl:') === 0) {
       return ((S.pls[S.cur.slice(3)] || {}).clips || []).filter(function (c) { return !q || norm(c.title).indexOf(q) >= 0 || norm(c.tags).indexOf(q) >= 0 || norm(c.author).indexOf(q) >= 0; });
     }
-    if (S.cur === EXP) return [];
+    if (S.cur === EXP || S.cur === CRE) return [];
     if (S.cur === ALL) {
       var wl = S.ws.slice().sort(function (a, b) { return collator.compare(a.name, b.name); });
       wl.forEach(function (w) { ordered(S.clips[w.id] || []).forEach(function (c) { c.ws = w; base.push(c); }); });
@@ -547,6 +623,7 @@
   function selList() { var out = []; for (var k in S.clips) S.clips[k].forEach(function (c) { if (S.sel[c.id]) out.push(c); }); return out; }
   function renderTracks() {
     if (S.cur === EXP) return renderExplore($('#sdl-mainin'));
+    if (S.cur === CRE) return renderCreate($('#sdl-mainin'));
     if (S.cur.indexOf('pl:') === 0) return renderPlaylist($('#sdl-mainin'), S.cur.slice(3));
     var w = S.cur === ALL ? { id: ALL, name: tr('Tous les titres', 'All tracks'), all: true } : curWs(), el = $('#sdl-mainin');
     if (!w) { el.innerHTML = '<div class="sdl-hero"><div><h1>' + tr('Tes espaces de travail', 'Your workspaces') + '</h1><div class="meta">' + (S.syncing ? tr('Chargement…', 'Loading…') : tr('Choisis un espace à gauche.', 'Pick a workspace on the left.')) + '</div></div></div>'; return; }
@@ -755,12 +832,13 @@
     var lk = cl('[data-like]'); if (lk) { var c1 = findClip(lk.dataset.like); if (c1) toggleLike(c1); return; }
     var mn = cl('[data-menu]'); if (mn) { var c2 = findClip(mn.dataset.menu); if (c2) trackMenu(e, c2); return; }
     var th = cl('[data-sdltheme]'); if (th) { applyTheme(th.dataset.sdltheme); return; }
+    var idea = cl('[data-idea]'); if (idea) { readCreate(); D.style = (D.style.trim() ? D.style.trim().replace(/,\s*$/, '') + ', ' : '') + idea.dataset.idea; saveDraft(); renderCreate($('#sdl-mainin')); return; }
     var fc = cl('[data-feed]'); if (fc) { var F = S.exp.feeds[+fc.dataset.feed]; if (F) startQueue(F.clips, +fc.dataset.k, false); return; }
     var fp = cl('[data-feedplay]'); if (fp) { var F2 = S.exp.feeds[+fp.dataset.feedplay]; if (F2) startQueue(F2.clips, 0, false); return; }
     var plb = cl('[data-pl]'); if (plb) { openView('pl:' + plb.dataset.pl); return; }
     var ws = cl('[data-ws]'); if (ws) {
       e.preventDefault();
-      if (ws.dataset.ws === EXP) return openView(EXP);
+      if (ws.dataset.ws === EXP || ws.dataset.ws === CRE) return openView(ws.dataset.ws);
       S.cur = ws.dataset.ws; S.tQ = ''; S.filter = 'all'; S.limit = 400; LS.set('cur', S.cur); renderWs(); renderTracks(); $('#sdl-mainin').scrollTop = 0;
       if (S.cur !== ALL && !S.clips[S.cur]) { var id = S.cur; fetchClips(id).then(function (cs) { S.clips[id] = cs; save(); renderTracks(); renderWs(); }); } return;
     }
@@ -776,6 +854,10 @@
         case 'wsdelete': return w && deleteWs(w);
         case 'newws': return newWs();
         case 'expmore': return loadExplore();
+        case 'create': return sendToSuno(true);
+        case 'fill': return sendToSuno(false);
+        case 'clear': D = { title: '', style: '', exclude: '', lyrics: '' }; saveDraft(); return renderCreate($('#sdl-mainin'));
+        case 'tags': readCreate(); D.lyrics = (D.lyrics ? D.lyrics.replace(/\s+$/, '') + '\n\n' : '') + '[Verse]\n\n[Chorus]\n'; saveDraft(); renderCreate($('#sdl-mainin')); return;
         case 'clean': return cleanTitles(S.cur === ALL ? [].concat.apply([], S.ws.map(function (x) { return S.clips[x.id] || []; })) : (S.clips[S.cur] || []));
         case 'selall': vc.forEach(function (c) { S.sel[c.id] = true; }); return renderTracks();
         case 'bnone': S.sel = {}; return renderTracks();
