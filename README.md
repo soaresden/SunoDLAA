@@ -64,6 +64,8 @@ numbered tracks (original ★ first), play / shuffle, actions, themes.
   <img src="assets/screenshots/after-selection-plage.png" width="49%" alt="Multi-selection, Plage theme">
 </p>
 
+<p align="center"><img src="assets/screenshots/after-create.png" width="800" alt="Create on one screen"></p>
+
 <p align="center"><img src="assets/screenshots/after-explore.png" width="800" alt="Explore other people's songs"></p>
 
 <p align="center">
@@ -79,6 +81,9 @@ your own session. A glowing **♪ SUNODLAA** button even sits right under Suno's
 
 - **Your workspaces first**, with covers and dates (first → last track), sorted by recent, A → Z or size.
 - **All tracks** view, grouped by workspace. Search by title or style, ♥ favorites.
+- **✨ Create on one screen**: title, style built from clickable tags, voice, lyrics with
+  [Verse]/[Chorus] buttons, your Suno saved lyrics as drafts. It fills Suno's own Create page and
+  presses its button.
 - **🌍 Explore other people's songs**: Suno's public selections as cover carousels, any public
   playlist in full, play them in a row.
 - Tracks numbered **original first** (★), then oldest → newest. Sort by number, date, title, length.

@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.5.0';
+  var VERSION = '2.6.0';
   if (window.__sdlSkin) { window.__sdlSkin.toggle(); return; }
   // Not on suno.com: go there (click the bookmark again to open the player).
   if (!/(^|\.)suno\.com$/.test(location.hostname)) { location.href = 'https://suno.com/'; return; }
@@ -73,7 +73,7 @@
   }
   // The only changes the overlay makes: the ones suno.com itself offers.
   var WRITES = [/^\/api\/gen\/trash\/?$/, /^\/api\/gen\/[0-9a-f-]{36}\/set_metadata\/$/, /^\/api\/gen\/[0-9a-f-]{36}\/update_reaction_type\/$/,
-    /^\/api\/project\/[0-9a-f-]{36}\/metadata$/, /^\/api\/project\/trash$/, /^\/api\/project$/, /^\/api\/project\/([0-9a-f-]{36}|default)\/clips$/];
+    /^\/api\/project\/[0-9a-f-]{36}\/metadata$/, /^\/api\/project\/trash$/, /^\/api\/project$/, /^\/api\/lyrics-projects$/, /^\/api\/lyrics-projects\/[0-9a-f-]{36}\/flush$/, /^\/api\/project\/([0-9a-f-]{36}|default)\/clips$/];
   async function write(path, body) {
     if (!WRITES.some(function (rx) { return rx.test(path); })) throw new Error('action non autorisée: ' + path);
     log('POST', path, JSON.stringify(body));
@@ -189,6 +189,7 @@
     setNative(f.style, D.style);
     if (f.exclude) setNative(f.exclude, D.exclude);
     fillLyrics(f.lyrics, D.lyrics);
+    await setVoiceOnSuno();
     await sleep(600);
     if (!press) { show(false); toast(tr('Formulaire rempli : vérifie et clique sur Créer chez Suno.', 'Form filled: check it and click Create on Suno.'), 6000); return; }
     f = sunoForm();
@@ -199,18 +200,74 @@
   }
   function readCreate() { ['title', 'style', 'exclude', 'lyrics'].forEach(function (k) { var e = $('#sdl-c-' + k); if (e) D[k] = e.value; }); }
   async function loadStyleIdeas() { if (!(await token())) return; var f = await waitForm(); S.styleIdeas = (f.styles || []).map(function (x) { return x.name; }); if (S.cur === CRE) renderCreate($('#sdl-mainin')); }
+  /* style building blocks: label shown in the user's language, text sent to Suno in English (what Suno understands best) */
+  var STYLE_BLOCKS = [
+    [tr('Genre', 'Genre'), [['pop'], ['rock'], ['synthwave'], ['lo-fi'], ['jazz'], ['metal'], ['orchestral', tr('orchestral', 'orchestral')], ['chiptune'], ['hip-hop'], ['house'], ['ambient'], ['folk'], ['gospel'], ['reggae'], ['punk'], ['R&B'], ['electro swing'], ['bossa nova']]],
+    [tr('Ambiance', 'Mood'), [['epic', tr('épique', 'epic')], ['melancholic', tr('mélancolique', 'melancholic')], ['uplifting', tr('joyeux', 'uplifting')], ['dark', tr('sombre', 'dark')], ['dreamy', tr('rêveur', 'dreamy')], ['energetic', tr('énergique', 'energetic')], ['romantic', tr('romantique', 'romantic')], ['chill', 'chill'], ['cinematic', tr('cinématique', 'cinematic')], ['nostalgic', tr('nostalgique', 'nostalgic')]]],
+    [tr('Voix', 'Voice'), [['female vocals', tr('voix féminine', 'female vocals')], ['male vocals', tr('voix masculine', 'male vocals')], ['duet', tr('duo', 'duet')], ['choir', tr('chœur', 'choir')], ['whispered vocals', tr('voix chuchotée', 'whispered')], ['instrumental', tr('instrumental', 'instrumental')]]],
+    [tr('Rythme & instruments', 'Tempo & instruments'), [['80 bpm'], ['110 bpm'], ['140 bpm'], ['piano'], ['violin', tr('violon', 'violin')], ['acoustic guitar', tr('guitare acoustique', 'acoustic guitar')], ['electric guitar', tr('guitare électrique', 'electric guitar')], ['strings', tr('cordes', 'strings')], ['808'], ['synth bass', tr('basse synthé', 'synth bass')], ['brass', tr('cuivres', 'brass')]]]
+  ];
+  var SECTIONS = [['[Intro]'], ['[Verse]', tr('Couplet', 'Verse')], ['[Pre-Chorus]', tr('Pré-refrain', 'Pre-chorus')], ['[Chorus]', tr('Refrain', 'Chorus')], ['[Bridge]', tr('Pont', 'Bridge')], ['[Instrumental]', tr('Instru', 'Instrumental')], ['[Outro]']];
+  function styleHas(x) { return ('|' + D.style.split(',').map(function (t) { return norm(t).trim(); }).join('|') + '|').indexOf('|' + norm(x) + '|') >= 0; }
+  function toggleStyle(x) {
+    readCreate();
+    var parts = D.style.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+    var k = parts.findIndex(function (t) { return norm(t) === norm(x); });
+    if (k >= 0) parts.splice(k, 1); else parts.push(x);
+    D.style = parts.join(', '); saveDraft(); renderCreate($('#sdl-mainin'));
+  }
+  // Suno's own saved lyrics ("Paroles enregistrées"): the same drafts on suno.com and here.
+  async function loadDrafts() { try { var d = await api('/api/lyrics-projects?limit=50&sort=updated_at'); S.drafts = d.projects || []; } catch (e) { S.drafts = S.drafts || []; } if (S.cur === CRE) renderCreate($('#sdl-mainin')); }
+  var flushT = null;
+  function flushDraft() {
+    clearTimeout(flushT); if (!D.pid) return;
+    flushT = setTimeout(function () { write('/api/lyrics-projects/' + D.pid + '/flush', { lyrics: D.lyrics }).then(function () { var x = (S.drafts || []).find(function (p) { return p.id === D.pid; }); if (x) x.lyrics = D.lyrics; }).catch(function () {}); }, 1500);
+  }
+  async function newDraft() {
+    readCreate();
+    try { var r = await write('/api/lyrics-projects', { title: D.title || tr('Sans titre', 'Untitled') }); D.pid = r.id; if (D.lyrics) await write('/api/lyrics-projects/' + r.id + '/flush', { lyrics: D.lyrics }); saveDraft(); await loadDrafts(); toast(tr('Brouillon enregistré chez Suno', 'Draft saved on Suno')); }
+    catch (e) { toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 6000); }
+  }
   function renderCreate(el) {
-    var cnt = function (v, m) { return '<span class="sdl-muted" style="font-size:12px">' + (v || '').length + ' / ' + m + '</span>'; };
+    var cnt = function (id, v, m) { return '<span class="sdl-cnt" id="sdl-n-' + id + '">' + (v || '').length + ' / ' + m + '</span>'; };
+    var voice = D.voice || 'auto';
     el.innerHTML = '<div class="sdl-create">' +
-      '<div class="sdl-cl"><h1 style="margin:0 0 4px;font-size:30px">✨ ' + tr('Créer', 'Create') + '</h1><div class="sdl-muted" style="margin-bottom:14px">' + tr('Tout sur un écran. SUNODLAA remplit le formulaire de Suno et appuie sur son bouton Créer.', 'All on one screen. SUNODLAA fills Suno\'s form and presses its Create button.') + '</div>' +
-      '<label>' + tr('Titre', 'Title') + ' ' + cnt(D.title, 100) + '</label><input id="sdl-c-title" maxlength="100" value="' + esc(D.title) + '" placeholder="' + tr('Facultatif', 'Optional') + '">' +
-      '<label>' + tr('Style', 'Style') + ' ' + cnt(D.style, 1000) + '</label><textarea id="sdl-c-style" maxlength="1000" rows="4" placeholder="' + tr('ex. synthwave 80s, voix féminine, 110 bpm', 'e.g. 80s synthwave, female vocals, 110 bpm') + '">' + esc(D.style) + '</textarea>' +
-      '<div class="sdl-ideas">' + (S.styleIdeas || []).slice(0, 24).map(function (x) { return '<button class="sdl-chip" data-idea="' + esc(x) + '">+ ' + esc(x) + '</button>'; }).join('') + '</div>' +
-      '<label>' + tr('Styles à exclure', 'Exclude styles') + '</label><input id="sdl-c-exclude" maxlength="1000" value="' + esc(D.exclude) + '">' +
-      '<div class="sdl-acts" style="margin-top:18px"><button class="sdl-big" data-act="create">✨ ' + tr('Créer sur Suno', 'Create on Suno') + '</button><button class="sdl-ghost" data-act="fill">' + tr('Remplir seulement', 'Fill only') + '</button><button class="sdl-ghost" data-act="clear">' + tr('Effacer', 'Clear') + '</button></div>' +
-      '<div class="sdl-muted" style="font-size:12px;margin-top:10px">' + tr('Voix, instrumental, curseurs, modèle et espace cible : règle-les une fois sur la page Suno (« Remplir seulement »), ils restent.', 'Voice, instrumental, sliders, model and target workspace: set them once on Suno\'s page (“Fill only”); they stay.') + '</div></div>' +
-      '<div class="sdl-cr"><label>' + tr('Paroles', 'Lyrics') + ' ' + cnt(D.lyrics, 5000) + '<span style="flex:1"></span><button class="sdl-chip" data-act="tags">[Verse] [Chorus]</button></label><textarea id="sdl-c-lyrics" maxlength="5000" placeholder="' + tr('[Couplet]\n…\n\n[Refrain]\n…\n\nVide = instrumental ou paroles auto selon tes réglages Suno.', '[Verse]\n…\n\n[Chorus]\n…\n\nEmpty = instrumental or auto lyrics, per your Suno settings.') + '">' + esc(D.lyrics) + '</textarea></div></div>';
-    ['title', 'style', 'exclude', 'lyrics'].forEach(function (k) { var e = $('#sdl-c-' + k); e.oninput = function () { D[k] = e.value; saveDraft(); var lab = e.previousElementSibling; if (k === 'lyrics') lab = e.parentNode.querySelector('label'); var sp = lab && lab.querySelector('.sdl-muted'); if (sp) sp.textContent = e.value.length + ' / ' + e.maxLength; }; });
+      // drafts
+      '<aside class="sdl-card2 sdl-drafts"><div class="sdl-h2">📝 ' + tr('Mes paroles', 'My lyrics') + '</div>' +
+        '<button class="sdl-ghost" data-act="dnew" style="width:100%;margin-bottom:8px">＋ ' + tr('Sauver le brouillon', 'Save draft') + '</button>' +
+        '<div class="sdl-dlist">' + ((S.drafts || []).map(function (p) { return '<button class="sdl-draft' + (p.id === D.pid ? ' on' : '') + '" data-draft="' + p.id + '"><b>' + esc(p.title || tr('Sans titre', 'Untitled')) + '</b><span>' + esc((p.lyrics || '').replace(/\s+/g, ' ').slice(0, 70)) + '</span></button>'; }).join('') || '<div class="sdl-muted" style="font-size:13px">' + (S.drafts ? tr('Aucun brouillon. Ceux de « Paroles enregistrées » sur Suno apparaissent ici.', 'No draft yet. Your “Saved lyrics” on Suno show up here.') : '…') + '</div>') + '</div></aside>' +
+      // form
+      '<section class="sdl-card2 sdl-form">' +
+        '<div class="sdl-step"><span class="n">1</span><div style="flex:1"><div class="sdl-h2">' + tr('Le titre', 'The title') + ' ' + cnt('title', D.title, 100) + '</div><input id="sdl-c-title" maxlength="100" value="' + esc(D.title) + '" placeholder="' + tr('Facultatif : Suno en trouve un sinon', 'Optional: Suno picks one otherwise') + '"></div></div>' +
+        '<div class="sdl-step"><span class="n">2</span><div style="flex:1;min-width:0"><div class="sdl-h2">' + tr('Le style', 'The style') + ' ' + cnt('style', D.style, 1000) + '</div>' +
+          '<textarea id="sdl-c-style" maxlength="1000" rows="2" placeholder="' + tr('Clique sur les étiquettes ci-dessous, ou écris librement', 'Click the tags below, or type freely') + '">' + esc(D.style) + '</textarea>' +
+          STYLE_BLOCKS.map(function (g) { return '<div class="sdl-tagrow"><span>' + g[0] + '</span>' + g[1].map(function (x) { return '<button class="sdl-tag' + (styleHas(x[0]) ? ' on' : '') + '" data-style="' + esc(x[0]) + '">' + esc(x[1] || x[0]) + '</button>'; }).join('') + '</div>'; }).join('') +
+          ((S.styleIdeas || []).length ? '<div class="sdl-tagrow"><span>' + tr('Idées Suno', 'Suno ideas') + '</span>' + S.styleIdeas.slice(0, 14).map(function (x) { return '<button class="sdl-tag' + (styleHas(x) ? ' on' : '') + '" data-style="' + esc(x) + '">' + esc(x) + '</button>'; }).join('') + '</div>' : '') +
+          '<details class="sdl-more"><summary>' + tr('À éviter (facultatif)', 'Avoid (optional)') + '</summary><input id="sdl-c-exclude" maxlength="1000" value="' + esc(D.exclude) + '" placeholder="' + tr('ex. autotune, batterie', 'e.g. autotune, drums') + '"></details></div></div>' +
+        '<div class="sdl-step"><span class="n">3</span><div style="flex:1"><div class="sdl-h2">' + tr('La voix', 'The voice') + '</div><div class="sdl-seg">' +
+          [['auto', tr('Au choix de Suno', 'Suno decides')], ['f', tr('Femme', 'Female')], ['m', tr('Homme', 'Male')]].map(function (x) { return '<button class="' + (voice === x[0] ? 'on' : '') + '" data-voice="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div></div></div>' +
+      '</section>' +
+      // lyrics
+      '<section class="sdl-card2 sdl-lyrics"><div class="sdl-h2" style="display:flex;align-items:center;gap:8px"><span class="n" style="position:static">4</span>' + tr('Les paroles', 'The lyrics') + ' ' + cnt('lyrics', D.lyrics, 5000) + '<span style="flex:1"></span>' + (D.pid ? '<span class="sdl-muted" style="font-size:12px">☁ ' + tr('synchronisé avec Suno', 'synced with Suno') + '</span>' : '') + '</div>' +
+        '<div class="sdl-sec">' + SECTIONS.map(function (x) { return '<button class="sdl-tag" data-sec="' + x[0] + '">' + esc(x[1] || x[0].replace(/[\[\]]/g, '')) + '</button>'; }).join('') + '</div>' +
+        '<textarea id="sdl-c-lyrics" maxlength="5000" placeholder="' + tr('Écris tes paroles ici.\nLes boutons au-dessus ajoutent [Couplet], [Refrain]… là où est ton curseur.\n\nLaisse vide pour un instrumental ou des paroles écrites par Suno.', 'Write your lyrics here.\nThe buttons above add [Verse], [Chorus]… where your cursor is.\n\nLeave empty for an instrumental or lyrics written by Suno.') + '">' + esc(D.lyrics) + '</textarea></section>' +
+      // action bar
+      '<div class="sdl-cbar"><span class="sdl-muted" style="font-size:13px;flex:1">' + tr('SUNODLAA remplit la page Créer de Suno (mode Avancé). Modèle, curseurs et espace cible : réglés sur leur page, ils restent.', 'SUNODLAA fills Suno\'s Create page (Advanced mode). Model, sliders and target workspace: set on their page, they stay.') + '</span>' +
+        '<button class="sdl-ghost" data-act="clear">' + tr('Tout effacer', 'Clear all') + '</button><button class="sdl-ghost" data-act="fill">👀 ' + tr('Remplir et vérifier', 'Fill and check') + '</button><button class="sdl-big" data-act="create">✨ ' + tr('Créer', 'Create') + '</button></div>' +
+      '</div>';
+    ['title', 'style', 'exclude', 'lyrics'].forEach(function (k) { var e = $('#sdl-c-' + k); if (!e) return; e.oninput = function () { D[k] = e.value; saveDraft(); var n = $('#sdl-n-' + k); if (n) n.textContent = e.value.length + ' / ' + e.maxLength; if (k === 'lyrics') flushDraft(); if (k === 'style') $$('.sdl-tag[data-style]').forEach(function (b) { b.classList.toggle('on', styleHas(b.dataset.style)); }); }; });
+    if (!S.drafts) loadDrafts();
+  }
+  function insertSection(tag) {
+    var e = $('#sdl-c-lyrics'); if (!e) return;
+    var a = e.selectionStart, b = e.selectionEnd, v = e.value, before = v.slice(0, a), ins = (before && !/\n\n$/.test(before) ? (/\n$/.test(before) ? '\n' : '\n\n') : '') + tag + '\n';
+    e.value = before + ins + v.slice(b); e.focus(); e.selectionStart = e.selectionEnd = a + ins.length; e.oninput();
+  }
+  async function setVoiceOnSuno() {
+    if (!D.voice || D.voice === 'auto') return;
+    var want = D.voice === 'f' ? /^(femme|female)$/i : /^(homme|male)$/i;
+    var b = $$('button').filter(function (x) { return !root.contains(x); }).find(function (x) { return want.test((x.innerText || '').trim()); });
+    if (b) { b.click(); log('voice set', D.voice); } else log('voice button not found');
   }
   function openView(id) { S.cur = id; S.tQ = ''; S.filter = 'all'; S.limit = 400; renderWs(); renderTracks(); $('#sdl-mainin').scrollTop = 0;
     if (id === EXP && !S.exp.feeds.length) loadExplore();
@@ -467,11 +524,20 @@
     '#sdl-root.kara .sdl-ly{font-size:38px;line-height:1.25}#sdl-root.kara .sdl-ly.sec{font-size:15px}' +
     '.sdl-kbg{display:none}#sdl-root.kara .sdl-kbg{display:block;position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(40px) saturate(1.3);opacity:.35;pointer-events:none}' +
     '.sdl-muted{color:var(--mut)}' +
-    '.sdl-create{display:grid;grid-template-columns:minmax(320px,440px) 1fr;gap:28px;padding:28px 32px;height:100%;box-sizing:border-box}' +
-    '.sdl-cl,.sdl-cr{display:flex;flex-direction:column;min-height:0}.sdl-create label{display:flex;align-items:center;gap:8px;font-weight:700;margin:12px 0 6px}' +
+    '.sdl-create{display:grid;grid-template-columns:210px minmax(380px,1.25fr) minmax(320px,1fr);grid-template-rows:1fr auto;gap:16px;padding:20px 24px;height:100%;box-sizing:border-box}' +
+    '.sdl-card2{background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:18px;padding:16px;min-height:0;display:flex;flex-direction:column;box-shadow:var(--shadow)}' +
+    '.sdl-h2{font-weight:800;font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px}.sdl-cnt{font-weight:600;font-size:11px;color:var(--mut);margin-left:auto}' +
     '.sdl-create textarea,.sdl-create input{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;outline:none;resize:none;width:100%;box-sizing:border-box}' +
-    '.sdl-create textarea:focus,.sdl-create input:focus{border-color:var(--acc)}#sdl-c-lyrics{flex:1;font-size:15px;line-height:1.5;min-height:300px}' +
-    '.sdl-ideas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:96px;overflow:auto}' +
+    '.sdl-create textarea:focus,.sdl-create input:focus{border-color:var(--acc);box-shadow:0 0 0 3px ' + 'var(--panel2)}' +
+    '.sdl-form{overflow:auto;gap:10px}.sdl-step{display:flex;gap:12px;align-items:flex-start}.sdl-step .n,.sdl-lyrics .n{width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--acc),var(--acc2))}' +
+    '.sdl-tagrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:6px}.sdl-tagrow>span{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);margin-right:4px}' +
+    '.sdl-tag{padding:3px 9px!important;border-radius:999px;border:1px solid var(--line)!important;background:var(--panel)!important;font-size:12px;line-height:1.4}.sdl-tag:hover{border-color:var(--acc)!important}.sdl-tag.on{background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important}' +
+    '.sdl-more{margin-top:10px}.sdl-more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-bottom:6px}' +
+    '.sdl-seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--panel)}.sdl-seg button{padding:7px 14px!important;border-radius:999px;font-weight:600;font-size:13px}.sdl-seg button.on{background:var(--acc)!important;color:#fff!important}' +
+    '.sdl-lyrics{min-width:0}.sdl-sec{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}#sdl-c-lyrics{flex:1;font-size:15px;line-height:1.6;min-height:200px}' +
+    '.sdl-drafts{overflow:hidden}.sdl-dlist{overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px}.sdl-draft{text-align:left;padding:8px 10px!important;border-radius:10px;border:1px solid transparent!important;display:flex;flex-direction:column;gap:2px}' +
+    '.sdl-draft:hover{background:var(--panel)!important}.sdl-draft.on{border-color:var(--acc)!important;background:var(--panel)!important}.sdl-draft b{font-size:13px}.sdl-draft span{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.sdl-cbar{grid-column:1/4;display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:16px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}' +
     '.sdl-feed{padding:6px 32px 10px}.sdl-feedh{display:flex;align-items:center;gap:6px;margin:8px 0}.sdl-feedh b{font-size:20px}' +
     '.sdl-cards{display:grid;grid-auto-flow:column;grid-auto-columns:168px;gap:14px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x mandatory}' +
     '.sdl-card{display:flex;flex-direction:column;gap:4px;text-align:left;scroll-snap-align:start;padding:8px!important;border-radius:14px}.sdl-card:hover,.sdl-card.on{background:var(--glass)!important}' +
@@ -832,7 +898,10 @@
     var lk = cl('[data-like]'); if (lk) { var c1 = findClip(lk.dataset.like); if (c1) toggleLike(c1); return; }
     var mn = cl('[data-menu]'); if (mn) { var c2 = findClip(mn.dataset.menu); if (c2) trackMenu(e, c2); return; }
     var th = cl('[data-sdltheme]'); if (th) { applyTheme(th.dataset.sdltheme); return; }
-    var idea = cl('[data-idea]'); if (idea) { readCreate(); D.style = (D.style.trim() ? D.style.trim().replace(/,\s*$/, '') + ', ' : '') + idea.dataset.idea; saveDraft(); renderCreate($('#sdl-mainin')); return; }
+    var stb = cl('[data-style]'); if (stb) { toggleStyle(stb.dataset.style); return; }
+    var sec = cl('[data-sec]'); if (sec) { insertSection(sec.dataset.sec); return; }
+    var vb = cl('[data-voice]'); if (vb) { readCreate(); D.voice = vb.dataset.voice; saveDraft(); renderCreate($('#sdl-mainin')); return; }
+    var dr = cl('[data-draft]'); if (dr) { var P = (S.drafts || []).find(function (x) { return x.id === dr.dataset.draft; }); if (P) { readCreate(); D.pid = P.id; D.lyrics = P.lyrics || ''; if (!D.title || D.title === D.ptitle) D.title = P.title || ''; D.ptitle = P.title; saveDraft(); renderCreate($('#sdl-mainin')); } return; }
     var fc = cl('[data-feed]'); if (fc) { var F = S.exp.feeds[+fc.dataset.feed]; if (F) startQueue(F.clips, +fc.dataset.k, false); return; }
     var fp = cl('[data-feedplay]'); if (fp) { var F2 = S.exp.feeds[+fp.dataset.feedplay]; if (F2) startQueue(F2.clips, 0, false); return; }
     var plb = cl('[data-pl]'); if (plb) { openView('pl:' + plb.dataset.pl); return; }
@@ -856,8 +925,8 @@
         case 'expmore': return loadExplore();
         case 'create': return sendToSuno(true);
         case 'fill': return sendToSuno(false);
-        case 'clear': D = { title: '', style: '', exclude: '', lyrics: '' }; saveDraft(); return renderCreate($('#sdl-mainin'));
-        case 'tags': readCreate(); D.lyrics = (D.lyrics ? D.lyrics.replace(/\s+$/, '') + '\n\n' : '') + '[Verse]\n\n[Chorus]\n'; saveDraft(); renderCreate($('#sdl-mainin')); return;
+        case 'clear': D = { title: '', style: '', exclude: '', lyrics: '', voice: D.voice }; saveDraft(); return renderCreate($('#sdl-mainin'));
+        case 'dnew': return newDraft();
         case 'clean': return cleanTitles(S.cur === ALL ? [].concat.apply([], S.ws.map(function (x) { return S.clips[x.id] || []; })) : (S.clips[S.cur] || []));
         case 'selall': vc.forEach(function (c) { S.sel[c.id] = true; }); return renderTracks();
         case 'bnone': S.sel = {}; return renderTracks();
