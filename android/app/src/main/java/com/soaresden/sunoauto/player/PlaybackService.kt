@@ -57,6 +57,7 @@ class PlaybackService : MediaLibraryService() {
     private lateinit var web: SunoWebEngine
     /** true while WE move ExoPlayer (to follow Suno's page), so it isn't mirrored back. */
     private var followingWeb = false
+    private var focusSet = false
     private val musicAttrs = AudioAttributes.Builder().setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).setUsage(C.USAGE_MEDIA).build()
 
     private fun currentWebClip(): String? {
@@ -67,8 +68,10 @@ class PlaybackService : MediaLibraryService() {
     /** Keeps Suno's page in step with the queue: same track, playing or paused like the player. */
     private fun syncWeb(newTrack: Boolean = false) {
         val id = currentWebClip()
-        // Suno's page takes the audio focus itself while it plays; ExoPlayer (silent) must not fight it.
-        player.setAudioAttributes(musicAttrs, id == null)
+        // Android's WebView does NOT ask for the audio focus, so the queue (ExoPlayer, even when it only
+        // plays the silent placeholder) always holds it: Spotify & co pause when we play, and a call or
+        // another app pausing us pauses Suno's page too (onPlayWhenReadyChanged -> syncWeb).
+        if (!focusSet) { player.setAudioAttributes(musicAttrs, true); focusSet = true }
         if (id == null) { if (web.clipId != null) web.stop(); return }
         if (newTrack || web.clipId != id) web.load(id, player.playWhenReady, player.currentPosition / 1000.0)
         else if (player.playWhenReady) web.play() else web.pause()
