@@ -277,6 +277,7 @@
   <span id="acctChip" class="chip hidden"></span>
   <span class="spacer"></span>
   <button class="small hidden" id="btnLibrary" onclick="openLibrary()"></button>
+  <button class="small" id="btnSkin" onclick="showSkin()">🎵 Suno+</button>
   <button class="small" id="btnBackup" onclick="doBackup()"></button>
   <button class="small" id="btnSetup" onclick="showSetup()"></button>
 </header>
@@ -554,6 +555,8 @@ const I18N = {
     confirmFree:"\n\n⚠ Your account is on the Free plan: Suno will probably refuse these downloads.",
     confirmQuota:left=>`\n\n⚠ Suno limits downloads since 3 Sept 2026 (Free 7 for life, Pro 20/month, Premier 60/month). A track already downloaded once doesn't count again.${left!=null?`\nLeft this month: ${left}.`:''}\nWhen Suno says the limit is reached, the batch stops at once.`,
     dlLeft:n=>`⤓ ${n} left`,
+    skinTitle:"A nicer player on suno.com",
+    skinBody:`<p>Plays your workspaces with Suno's own player (every track, no download needed), with lyrics and karaoke.</p><ol><li>Show the bookmarks bar (Ctrl+Shift+B).</li><li><b>Drag this button onto the bar:</b><br><a id="skinLink" class="btn" style="display:inline-block;margin:10px 0;padding:10px 16px;border-radius:999px;background:linear-gradient(90deg,#ff4f8b,#8a5cff);color:#fff;font-weight:700;text-decoration:none">♪ SUNODLAA</a></li><li>Open <b>suno.com</b> (signed in) and click the bookmark. Click it again to hide / show the player.</li></ol><p class="muted">After an update of SunoAAWeb, drag the button again (replace the old bookmark).</p>`,
     stopQuota:"Stopped: Suno's monthly download limit is reached (it resets each month; extra downloads can be bought on suno.com).",
     stopSame:"Stopped: Suno refused 5 tracks in a row — see the log (desktop\\logs).",
     nothingMissing:"Nothing missing here 🎉", lyrics:"Lyrics", localFile:"Local file", sunoStream:"Suno stream", noSource:"No playable source",
@@ -661,6 +664,8 @@ const I18N = {
     confirmFree:"\n\n⚠ Ton compte est en offre Free : Suno va probablement refuser ces téléchargements.",
     confirmQuota:left=>`\n\n⚠ Suno limite les téléchargements depuis le 3 sept. 2026 (Free 7 à vie, Pro 20/mois, Premier 60/mois). Un titre déjà téléchargé une fois ne recompte pas.${left!=null?`\nRestant ce mois-ci : ${left}.`:''}\nDès que Suno dit que la limite est atteinte, le lot s'arrête net.`,
     dlLeft:n=>`⤓ ${n} restants`,
+    skinTitle:"Un lecteur plus joli sur suno.com",
+    skinBody:`<p>Lit tes espaces de travail avec le lecteur de Suno lui-même (tous les titres, sans rien télécharger), avec paroles et karaoké.</p><ol><li>Affiche la barre de favoris (Ctrl+Maj+B).</li><li><b>Glisse ce bouton dans la barre :</b><br><a id="skinLink" class="btn" style="display:inline-block;margin:10px 0;padding:10px 16px;border-radius:999px;background:linear-gradient(90deg,#ff4f8b,#8a5cff);color:#fff;font-weight:700;text-decoration:none">♪ SUNODLAA</a></li><li>Ouvre <b>suno.com</b> (connecté) et clique sur le favori. Reclique dessus pour masquer / afficher le lecteur.</li></ol><p class="muted">Après une mise à jour de SunoAAWeb, reglisse le bouton (remplace l'ancien favori).</p>`,
     stopQuota:"Arrêté : la limite mensuelle de téléchargements Suno est atteinte (elle repart chaque mois ; on peut en acheter en plus sur suno.com).",
     stopSame:"Arrêté : Suno a refusé 5 titres d'affilée — voir le journal (desktop\\logs).",
     nothingMissing:"Rien ne manque ici 🎉", lyrics:"Paroles", localFile:"Fichier local", sunoStream:"Flux Suno", noSource:"Pas de source lisible",
@@ -1326,6 +1331,11 @@ function openModal(title,body,buttons){
   $('#modalTitle').textContent=title; $('#modalBody').innerHTML=body;
   $('#modalBtns').innerHTML=''; (buttons||[]).forEach(b=>{ const e=document.createElement('button'); e.textContent=b.label; if(b.cls) e.className=b.cls; e.onclick=b.onclick; $('#modalBtns').appendChild(e); });
   $('#modal').classList.remove('hidden');
+}
+async function showSkin(){
+  const t=T(); openModal(t.skinTitle,t.skinBody,[{label:'OK',onclick:closeModal}]);
+  try{ const code=await (await fetch('/suno-skin.js?'+Date.now())).text(); const a=$('#skinLink'); a.href='javascript:'+encodeURIComponent(code); a.onclick=e=>{ e.preventDefault(); toast(/^Un /.test(t.skinTitle)?'⤴ Glisse-le dans la barre de favoris, puis clique dessus sur suno.com':'⤴ Drag it onto the bookmarks bar, then click it on suno.com',6000); }; }
+  catch(e){ toast(''+e); }
 }
 function closeModal(){ $('#modal').classList.add('hidden'); }
 function closeMenu(){ $('#menu').classList.add('hidden'); }
