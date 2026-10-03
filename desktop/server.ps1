@@ -127,11 +127,13 @@ function File-Name($m) {
             '^(title|titre)$'           { return [string]$m.title }
             '^(artist|artiste)$'        { return [string]$m.artist }
             '^(album|workspace)$'       { return [string]$m.workspace }
-            '^(year|annee|anne|date)$'  { return [string]$m.year }
+            '^(year|annee|anne)$'       { return [string]$m.year }
+            '^(date)$'                  { return [string]$m.date }
             '^(genre|style)$'           { return [string]$m.genre }
             '^(id|isrc)$'               { return [string]$m.id }
             '^id8$'                     { $i = [string]$m.id; return $i.Substring(0, [Math]::Min(8, $i.Length)) }
-            default                     { return $mt.Value }
+            '^(artisteoriginal|originalartist)$' { return [string]$m.originalArtist }   # empty for Suno songs
+            default                     { return '' }   # unknown tag: nothing (never "<...>" in a file name)
         }
     }.GetNewClosure()
     $name = [regex]::Replace($pat, '<\s*([^<>:]+?)\s*(?::(\d+))?\s*>', [System.Text.RegularExpressions.MatchEvaluator]$eval)
@@ -141,7 +143,7 @@ function File-Name($m) {
 }
 function File-Example {
     $ext = if ($Cfg.audioFormat -eq 'wav') { 'wav' } else { 'mp3' }
-    return (File-Name @{ disc=1; track=54; title="EuroDemo 'Slow Techno'"; artist='Soaresden'; workspace='Lucie'; year='2026'; genre='Techno'; id='1a2b3c4d-0000-0000-0000-000000000000' }) + ".$ext"
+    return (File-Name @{ disc=1; track=54; title="EuroDemo 'Slow Techno'"; artist='Soaresden'; workspace='Lucie'; year='2026'; date='2026-03-07'; genre='Techno'; id='1a2b3c4d-0000-0000-0000-000000000000' }) + ".$ext"
 }
 
 # ---- TagLib-Sharp ---------------------------------------------------
@@ -881,7 +883,8 @@ function Download-Clip($body) {
     $dir = Join-Path $Cfg.libraryPath $folderName
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
     $year = ''; if ($createdAt -and $createdAt.Length -ge 4) { $year = $createdAt.Substring(0, 4) }
-    $base = File-Name @{ disc=$disc; track=$track; title=$title; artist=$artist; workspace=$workspace; year=$year; genre=$tags; id=$clipId }
+    $date = ''; if ($createdAt -and $createdAt.Length -ge 10) { $date = $createdAt.Substring(0, 10) }
+    $base = File-Name @{ disc=$disc; track=$track; title=$title; artist=$artist; workspace=$workspace; year=$year; date=$date; genre=$tags; id=$clipId }
     $out = Join-Path $dir ($base + '.' + $format)
 
     try {

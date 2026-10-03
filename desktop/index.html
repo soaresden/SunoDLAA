@@ -147,6 +147,15 @@
   .wshead .folder code{font-size:11px;background:var(--bg2);padding:2px 6px;border-radius:6px;word-break:break-all}
   .notice{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;border:2px solid var(--ok);padding:12px 16px;border-radius:14px;z-index:60;max-width:min(680px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.18);word-break:break-all}
   .dots{padding:5px 8px;font-weight:800}
+  .maskrow input{font-family:ui-monospace,Consolas,monospace}
+  .tagbtn{font-weight:800;padding:6px 10px}
+  .menu.tagmenu{min-width:420px;max-height:70vh;overflow:auto}
+  .menu.tagmenu button{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:center}
+  .tmtok{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--fuchsia);font-weight:700}
+  .tmlab{font-size:13px} .tmval{font-size:11px;color:var(--muted);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tmhead{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:6px 10px}
+  .tmsep{height:1px;background:var(--border);margin:4px 6px}
+  .preview .pf{color:#9EE6DD}
   .clip .del{padding:5px 7px;opacity:.55} .clip .del:hover{opacity:1;background:#FDE3E8}
   .clip .tno{width:30px;flex:none;text-align:right;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;font-family:ui-monospace,Consolas,monospace}
   .clip.orig .tno{color:#9A6B00;font-weight:700}
@@ -321,8 +330,8 @@
       <p id="s3Text"></p>
       <div class="presets" id="presets"></div>
       <div id="customBox" class="hidden">
-        <div class="row"><span class="small-t muted" style="width:120px" id="lblFolderPat"></span><input type="text" id="folderPat" oninput="customChanged()"></div>
-        <div class="row"><span class="small-t muted" style="width:120px" id="lblFilePat"></span><input type="text" id="filePat" oninput="customChanged()"></div>
+        <div class="row maskrow"><span class="small-t muted" style="width:120px" id="lblFolderPat"></span><input type="text" id="folderPat" oninput="customChanged()" spellcheck="false"><button class="small tagbtn" onclick="tagMenu(event,'folderPat')" title="">&gt;&gt;</button></div>
+        <div class="row maskrow"><span class="small-t muted" style="width:120px" id="lblFilePat"></span><input type="text" id="filePat" oninput="customChanged()" spellcheck="false"><button class="small tagbtn" onclick="tagMenu(event,'filePat')" title="">&gt;&gt;</button></div>
         <div class="small-t muted" style="margin-top:6px" id="tokensHelp"></div>
       </div>
       <div style="margin-top:14px;font-weight:700" id="lblQuality"></div>
@@ -449,6 +458,7 @@
 const I18N = {
   en: {
     setup:"⚙️ Setup", library:"📚 My library",
+    tagMenuTitle:"Insert a tag (example on the right)", tTitle:"Title", tTrack:"Track number", tDisc:"Disc number", tAlbum:"Album (workspace)", tArtist:"Artist", tOrigArtist:"Original artist", tEmpty:"(empty for Suno songs)", tYear:"Year", tDate:"Date created", tGenre:"Genre (style)", tId8:"Suno id, short", tId:"Suno id", tSep:"Separator", tSpace:"Space", tPrefix:"Prefix",
     progress:(i,n,ok,bad,left)=>`${i} / ${n} · ✅ ${ok}${bad?` · ❌ ${bad}`:''}${left!=null?` · ~${left>90?Math.round(left/60)+' min':left+' s'} left`:''}`, stopped:"stopped", dlStarting:"Starting the download…",
     dlCleanTitle:n=>`✨ ${n} messy title(s) in this download`, dlCleanHelp:"Your files will be named after these titles. Clean them first? The new titles are saved on Suno too. You can edit each suggestion or untick it.",
     dlKeepNames:"Download without renaming", dlRenameThen:"Rename, then download",
@@ -508,7 +518,7 @@ const I18N = {
     presetSimple:"Simple", presetSimpled:"One folder per workspace, title only.",
     presetCustom:"Custom", presetCustomd:"Your own folder and file masks.",
     folderPat:"Folder", filePat:"File",
-    tokens:"Tags: <Disc#:2> <Track#:3> <Title> <Artist> <Album> <Year> <Genre> <ID8> — French names work too (<Disque n°:2> <Piste n°:3> <Titre>). The number after “:” is the number of digits. Folder: {workspace}. Track numbers follow the workspace's creation order (oldest = 001).",
+    tokens:"Click >> to insert a tag at the cursor. “:3” forces 3 digits with leading zeros (<Track#:3> → 007), “:2” forces 2 (<Disc#:2> → 01). The original ★ is number 001, then the other versions from oldest to newest. The preview below updates while you type.",
     quality:"Audio quality",
     mp3:"MP3", mp3d:"Suno's own MP3 (≈180 kbps, 48 kHz). Suno offers no 128/320 choice.",
     wav:"WAV (lossless)", wavd:"Original quality, bigger files. Suno Pro plans only.",
@@ -551,6 +561,7 @@ const I18N = {
   },
   fr: {
     setup:"⚙️ Réglages", library:"📚 Ma bibliothèque",
+    tagMenuTitle:"Insérer une balise (exemple à droite)", tTitle:"Titre", tTrack:"Numéro de piste", tDisc:"Numéro de disque", tAlbum:"Album (workspace)", tArtist:"Artiste", tOrigArtist:"Artiste original", tEmpty:"(vide pour les titres Suno)", tYear:"Année", tDate:"Date de création", tGenre:"Genre (style)", tId8:"ID Suno court", tId:"ID Suno", tSep:"Séparateur", tSpace:"Espace", tPrefix:"Préfixe",
     progress:(i,n,ok,bad,left)=>`${i} / ${n} · ✅ ${ok}${bad?` · ❌ ${bad}`:''}${left!=null?` · encore ~${left>90?Math.round(left/60)+' min':left+' s'}`:''}`, stopped:"arrêté", dlStarting:"Le téléchargement démarre…",
     dlCleanTitle:n=>`✨ ${n} titre(s) moche(s) dans ce téléchargement`, dlCleanHelp:"Tes fichiers vont porter ces titres. On les nettoie d'abord ? Les nouveaux titres sont aussi enregistrés sur Suno. Tu peux modifier chaque proposition ou la décocher.",
     dlKeepNames:"Télécharger sans renommer", dlRenameThen:"Renommer puis télécharger",
@@ -610,7 +621,7 @@ const I18N = {
     presetSimple:"Simple", presetSimpled:"Un dossier par workspace, juste le titre.",
     presetCustom:"Personnalisé", presetCustomd:"Tes propres masques de dossier et de fichier.",
     folderPat:"Dossier", filePat:"Fichier",
-    tokens:"Balises : <Disque n°:2> <Piste n°:3> <Titre> <Artiste> <Album> <Année> <Genre> <ID8> — les noms anglais marchent aussi (<Disc#:2> <Track#:3> <Title>). Le chiffre après « : » = nombre de chiffres. Dossier : {workspace}. Les numéros de piste suivent l'ordre de création du workspace (le plus ancien = 001).",
+    tokens:"Clique sur >> pour insérer une balise à l'endroit du curseur. « :3 » force 3 chiffres avec des zéros devant (<Piste n°:3> → 007), « :2 » en force 2 (<Disque n°:2> → 01). L'originale ★ porte le numéro 001, puis les autres versions de la plus ancienne à la plus récente. L'aperçu en bas se met à jour pendant que tu tapes.",
     quality:"Qualité audio",
     mp3:"MP3", mp3d:"Le MP3 de Suno (≈180 kbps, 48 kHz). Suno ne propose pas de choix 128/320.",
     wav:"WAV (sans perte)", wavd:"Qualité d'origine, fichiers plus lourds. Offres Suno Pro uniquement.",
@@ -740,8 +751,7 @@ function renderSetup(){
   $('#formats').innerHTML=[['mp3',t.mp3,t.mp3d],['wav',t.wav,t.wavd]].map(([k,n,d])=>`<label class="${fmt===k?'sel':''}"><input type="radio" name="fmt" ${fmt===k?'checked':''} onchange="saveOpts({audioFormat:'${k}'})"> <b>${esc(n)}</b><div class="small-t muted">${esc(d)}</div></label>`).join('');
   $('#lrcBox').checked=CFG.saveLrc!==false;
   if(document.activeElement!==$('#delayInput')) $('#delayInput').value=CFG.downloadDelaySec??3;
-  const lib=(CFG.libraryPath||'…').replace(/[\\/]+$/,''), fe=CFG.fileExample||'', fo=CFG.folderExample||'';
-  $('#preview').innerHTML=`<span class="dim">${esc(t.preview)} :</span><br>${esc(lib)}\\${esc(fo)}\\<b>${esc(fe)}</b>`+(CFG.saveLrc!==false?`<br><span class="dim">${esc(lib)}\\${esc(fo)}\\${esc(fe.replace(/\.[^.]+$/,'.lrc'))}</span>`:'');
+  renderPreview();
   const ready=s1&&s2; $('#btnFinish').disabled=!ready; $('#btnFinish').textContent=ready?t.finish:t.finishNeed;
 }
 async function saveOpts(o){ CFG=await post('/api/config',o); renderSetup(); }
@@ -752,7 +762,63 @@ function choosePreset(k){
   else renderSetup();
 }
 let customT=null;
-function customChanged(){ clearTimeout(customT); customT=setTimeout(()=>saveOpts({folderPattern:$('#folderPat').value.trim()||'{workspace}',fileNamePattern:$('#filePat').value.trim()||'<Title>'}),400); }
+// Example built in the page with the masks being typed: a real workspace of the library when there is one
+function sampleTracks(){
+  const ext=CFG.audioFormat||'mp3';
+  let best=null; for(const w of workspaces){ const cs=clipsByWs[w.id]||[]; if(cs.length>=3&&originalsOf(cs).size&&(!best||cs.length<(clipsByWs[best.id]||[]).length)) best=w; }
+  if(best){ const cs=clipsByWs[best.id], nums=trackNumbers(cs);
+    const pick=cs.slice().sort((a,b)=>nums[a.id]-nums[b.id]).slice(0,3);
+    return pick.map(c=>({ws:best.name,ext,m:{disc:1,track:nums[c.id],title:c.title,artist:c.display_name||'Suno',workspace:best.name,year:(c.created_at||'').slice(0,4),date:(c.created_at||'').slice(0,10),genre:c.tags,id:c.id}})); }
+  const base={disc:1,artist:'Soaresden',workspace:'Lucie',year:'2026',date:'2026-03-07',genre:'Techno',id:'1a2b3c4d-0000-0000-0000-000000000000'};
+  return [{ws:'Lucie',ext,m:{...base,track:1,title:'Lucie'}},{ws:'Lucie',ext,m:{...base,track:2,title:"Cover - Lucie - Metal industrial"}},{ws:'Lucie',ext,m:{...base,track:54,title:"EuroDemo 'Slow Techno'"}}];
+}
+function renderPreview(){
+  const t=T(), el=$('#preview'); if(!el) return;
+  const custom=!$('#customBox').classList.contains('hidden');
+  const fp=custom?($('#folderPat').value.trim()||'{workspace}'):CFG.folderPattern, np=custom?($('#filePat').value.trim()||'<Title>'):CFG.fileNamePattern;
+  const lib=(CFG.libraryPath||'…').replace(/[\\/]+$/,''), S='\\';
+  const rows=sampleTracks().map((x,i)=>{ const fo=folderNameFor(x.ws,fp), fe=fileNameFor(x.m,np)+'.'+x.ext;
+    return `${i?'':`<span class="dim">${esc(lib)}${S}</span>`}<span class="pf">${esc(fo)}${S}</span><b>${esc(fe)}</b>`+(i===0&&CFG.saveLrc!==false?`<br><span class="dim">${esc(lib)}${S}${esc(fo)}${S}${esc(fe.replace(/\.[^.]+$/,'.lrc'))}</span>`:''); });
+  el.innerHTML=`<span class="dim">${esc(t.preview)} :</span><br>`+rows.join('<br>');
+}
+// ">>" menu: insert a tag at the cursor, like MediaMonkey's "Tag by filename"
+function tagMenu(ev,inputId){
+  ev.stopPropagation(); const t=T(), fr=LANG==='fr', file=inputId==='filePat';
+  const ex=sampleTracks()[0].m;
+  const items=file?[
+    [fr?'<Titre>':'<Title>', t.tTitle, ex.title],
+    [fr?'<Piste n°:3>':'<Track#:3>', t.tTrack+' · 3', String(ex.track).padStart(3,'0')],
+    [fr?'<Piste n°:2>':'<Track#:2>', t.tTrack+' · 2', String(ex.track).padStart(2,'0')],
+    [fr?'<Piste n°>':'<Track#>', t.tTrack, String(ex.track)],
+    [fr?'<Disque n°:2>':'<Disc#:2>', t.tDisc+' · 2', '01'],
+    [fr?'<Disque n°>':'<Disc#>', t.tDisc, '1'],
+    [fr?'<Album>':'<Album>', t.tAlbum, ex.workspace],
+    [fr?'<Artiste>':'<Artist>', t.tArtist, ex.artist],
+    [fr?'<Artiste original>':'<Original Artist>', t.tOrigArtist, t.tEmpty],
+    [fr?'<Année>':'<Year>', t.tYear, ex.year],
+    ['<Date>', t.tDate, ex.date],
+    ['<Genre>', t.tGenre, (ex.genre||'').slice(0,24)],
+    ['<ID8>', t.tId8, ex.id.slice(0,8)],
+    ['<ID>', t.tId, ex.id],
+    ['sep'],[' - ', t.tSep, ' - '],['-', t.tSep, '-'],[' ', t.tSpace, '␣'],['_', t.tSep, '_'],
+  ]:[
+    ['<Workspace>', t.tAlbum, ex.workspace],
+    ['{workspace}', t.tAlbum, ex.workspace],
+    ['sep'],['Suno - ', t.tPrefix, 'Suno - '],[' - ', t.tSep, ' - '],
+  ];
+  const el=$('#menu');
+  el.innerHTML=`<div class="tmhead">${esc(t.tagMenuTitle)}</div>`+items.map(([tok,lab,val])=>tok==='sep'?'<div class="tmsep"></div>':
+    `<button onclick="insertTag('${inputId}',${esc(JSON.stringify(tok))})"><span class="tmtok">${esc(tok)}</span><span class="tmlab">${esc(lab)}</span><span class="tmval">${esc(val||'')}</span></button>`).join('');
+  el.classList.remove('hidden'); el.classList.add('tagmenu');
+  const r=ev.target.getBoundingClientRect();
+  el.style.top=Math.max(8,Math.min(window.innerHeight-el.offsetHeight-8,r.bottom+4))+'px'; el.style.left=Math.max(8,r.right-el.offsetWidth)+'px';
+}
+function insertTag(inputId,tok){
+  const i=$('#'+inputId), a=i.selectionStart??i.value.length, b=i.selectionEnd??a;
+  i.value=i.value.slice(0,a)+tok+i.value.slice(b); i.focus(); i.setSelectionRange(a+tok.length,a+tok.length);
+  closeMenu(); $('#menu').classList.remove('tagmenu'); customChanged();
+}
+function customChanged(){ renderPreview(); clearTimeout(customT); customT=setTimeout(()=>saveOpts({folderPattern:$('#folderPat').value.trim()||'{workspace}',fileNamePattern:$('#filePat').value.trim()||'<Title>'}),400); }
 
 let loginPoll=null;
 async function doLogin(){
@@ -1200,9 +1266,9 @@ function renderJob(){
 
 /* ============================== names (same rules as the server) ============================== */
 function sanitizeName(s){ return ((s||'')+'').replace(/[\\/:*?"<>|]/g,'_').trim(); }
-function folderNameFor(ws){ const w=sanitizeName(ws)||'Untitled', pat=CFG.folderPattern||'Suno - {workspace}'; return pat.replace(/\{workspace\}/g,w).replace(/<\s*(workspace|album)\s*>/gi,w); }
-function fileNameFor(m){
-  const pat=CFG.fileNamePattern||'<Disc#:2>-<Track#:3> <Title>';
+function folderNameFor(ws,patOpt){ const w=sanitizeName(ws)||'Untitled', pat=patOpt||CFG.folderPattern||'Suno - {workspace}'; return pat.replace(/\{workspace\}/g,w).replace(/<\s*(workspace|album)\s*>/gi,w); }
+function fileNameFor(m,patOpt){
+  const pat=patOpt||CFG.fileNamePattern||'<Disc#:2>-<Track#:3> <Title>';
   let n=pat.replace(/<\s*([^<>:]+?)\s*(?::(\d+))?\s*>/g,(all,key,w)=>{
     const k=key.toLowerCase().replace(/[^a-z0-9#]/g,'');
     if(/^(disc#|disc|discnumber|disquen|disque|cd)$/.test(k)) return String(parseInt(m.disc)||0).padStart(w?+w:2,'0');
@@ -1210,11 +1276,13 @@ function fileNameFor(m){
     if(/^(title|titre)$/.test(k)) return m.title||'';
     if(/^(artist|artiste)$/.test(k)) return m.artist||'';
     if(/^(album|workspace)$/.test(k)) return m.workspace||'';
-    if(/^(year|annee|anne|date)$/.test(k)) return m.year||'';
+    if(/^(year|annee|anne)$/.test(k)) return m.year||'';
+    if(k==='date') return m.date||'';
     if(/^(genre|style)$/.test(k)) return m.genre||'';
     if(/^(id|isrc)$/.test(k)) return m.id||'';
     if(k==='id8') return (m.id||'').slice(0,8);
-    return all;
+    if(k==='artisteoriginal'||k==='originalartist') return m.originalArtist||'';   // empty for Suno songs
+    return '';   // unknown tag: nothing
   });
   n=n.replace(/[\\/:*?"<>|]/g,'_').trim().replace(/\.+$/,'');
   return n||'Untitled';
@@ -1229,7 +1297,7 @@ function trackNumbers(cs){
 let NUMS_CACHE={};
 function numsFor(wsId){ if(!NUMS_CACHE[wsId]) NUMS_CACHE[wsId]=trackNumbers(clipsByWs[wsId]||[]); return NUMS_CACHE[wsId]; }
 function expectedBase(c,w){ w=w||CLIPWS[c.id]; if(!w) return null;
-  return fileNameFor({disc:1,track:numsFor(w.id)[c.id]||1,title:c.title,artist:c.display_name||'Suno',workspace:w.name,year:(c.created_at||'').slice(0,4),genre:c.tags,id:c.id}); }
+  return fileNameFor({disc:1,track:numsFor(w.id)[c.id]||1,title:c.title,artist:c.display_name||'Suno',workspace:w.name,year:(c.created_at||'').slice(0,4),date:(c.created_at||'').slice(0,10),genre:c.tags,id:c.id}); }
 function expectedPath(c,ext){ const w=CLIPWS[c.id]; if(!w) return null; const s=SEP();
   return (CFG.libraryPath||'').replace(/[\\/]+$/,'')+s+folderNameFor(w.name)+s+expectedBase(c,w)+'.'+(ext||CFG.audioFormat||'mp3'); }
 
