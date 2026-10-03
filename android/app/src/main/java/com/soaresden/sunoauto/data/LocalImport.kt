@@ -34,6 +34,7 @@ object LocalImport {
     private data class Found(val uri: Uri, val name: String, val parent: String, val rel: String)
     /** Written by SunoAAWeb in the music folder: every file it knows, with its Suno id. */
     const val MANIFEST = "SUNODLAA-index.json"
+    private const val UNKNOWN = "?unknown"
 
     suspend fun run(context: Context, db: AppDatabase, treeUri: Uri, pattern: String?, onProgress: (Int, Int) -> Unit): Result {
         val resolver = context.contentResolver
@@ -52,7 +53,7 @@ object LocalImport {
         // 0b. SunoAAWeb's manifest: exact "file → Suno id" for every file it matched on the computer
         //     (Suno id in the tags, name or title), whatever the folder is called. No need to open each file.
         val idsAll = db.clips().allIds().toHashSet()
-        var linkedByManifest = 0
+        var linkedByManifest = 0; var manifestEntries = -1
         val handled = HashSet<String>()
         all.firstOrNull { it.name.equals(MANIFEST, ignoreCase = true) }?.let { mf ->
             val base = mf.rel.substringBeforeLast('/', "")
@@ -62,7 +63,8 @@ object LocalImport {
                     val arr = org.json.JSONObject(input.readBytes().toString(Charsets.UTF_8)).getJSONArray("files")
                     for (i in 0 until arr.length()) { val o = arr.getJSONObject(i); map[o.getString("path").lowercase()] = o.getString("id").lowercase() }
                 }
-            }.onFailure { Log.w(TAG, "manifest unreadable: ${it.message}") }
+            }.onFailure { Log.w(TAG, "manifest unreadable: ${it.message}"); manifestEntries = -2 }
+            if (manifestEntries != -2) manifestEntries = map.size
             val linkedNow = db.clips().linkedContentUris().toHashSet()
             for (f in all) {
                 val key = (if (base.isEmpty()) f.rel else f.rel.removePrefix("$base/")).lowercase()
@@ -78,7 +80,12 @@ object LocalImport {
         for (f in all) {
             if (f.name.substringAfterLast('.', "").lowercase() !in AUDIO_EXT) continue
             if (f.uri.toString() in handled) continue
-            val pid = projectByName[workspaceKey(f.parent, pattern)] ?: continue
+            // the workspace folder: the file's own folder, or the first "Suno - …" folder above it
+            // (old downloads made sub-folders when a title contained "/")
+            val sunoFolder = f.rel.split('/').dropLast(1).lastOrNull { DEFAULT_PREFIX.find(it)?.range?.first == 0 && it.trim().length > 4 }
+            val pid = projectByName[workspaceKey(f.parent, pattern)]
+                ?: sunoFolder?.let { projectByName[workspaceKey(it, pattern)] }
+                ?: if (sunoFolder != null) UNKNOWN else continue   // "Suno - …" folder with another name: Suno id only
             byWorkspace.getOrPut(pid) { ArrayList() }.add(f)
         }
         val total = byWorkspace.values.sumOf { it.size }
@@ -86,11 +93,11 @@ object LocalImport {
         val idsById = db.clips().allIds().toHashSet()
         val clipsById = HashMap<String, ClipEntity?>()
         val alreadyLinked = db.clips().linkedContentUris().toHashSet()
-        var done = 0; var linked = handled.size; var unmatched = 0
+        var done = 0; var linked = handled.size; var unmatched = 0; var noId = 0
 
         // 2. match per workspace
         for ((pid, files) in byWorkspace) {
-            val clips = db.clips().byProject(pid)
+            val clips = if (pid == UNKNOWN) emptyList() else db.clips().byProject(pid)
             // title → clip, but ONLY when that title is unique in the workspace (no ambiguity)
             val titleCount = HashMap<String, Int>()
             for (c in clips) titleCount[norm(c.title)] = (titleCount[norm(c.title)] ?: 0) + 1
@@ -104,7 +111,9 @@ object LocalImport {
                 done++; onProgress(done, total)
                 if (f.uri.toString() in alreadyLinked) { linked++; return@forEach }   // resume
                 // 1) exact: the Suno clip id embedded in the file's tags (TSRC)
-                var clip: ClipEntity? = idFromHead(resolver, f.uri, idsById)?.let { id ->
+                val headId = idFromHead(resolver, f.uri, idsById)
+                if (headId == null) noId++
+                var clip: ClipEntity? = headId?.let { id ->
                     (clipsById.getOrPut(id) { db.clips().byId(id) } )?.takeIf { it.id !in used }
                 }
                 // 2) fallback: unique title within the workspace (never by track number)
@@ -120,6 +129,13 @@ object LocalImport {
         }
         db.clips().recomputeOriginals()
         Log.i(TAG, "linked=$linked scanned=$total unmatched=$unmatched workspaces=${byWorkspace.size}")
+        // kept for the diagnostic export
+        runCatching {
+            val manifestTxt = when (manifestEntries) { -1 -> "not found"; -2 -> "unreadable"; else -> "$manifestEntries entries, $linkedByManifest newly linked" }
+            context.getSharedPreferences("sunodlaa_diag", Context.MODE_PRIVATE).edit().putString("lastFolderSync",
+                "${java.util.Date()} files=${all.size} audioInWorkspaces=${total + handled.size} linked=$linked unmatched=$unmatched " +
+                "noIdInHead=$noId unknownSunoFolders=${byWorkspace[UNKNOWN]?.size ?: 0} manifest=[$manifestTxt]").apply()
+        }
         return Result(linked, total + handled.size, unmatched, byWorkspace.size)
     }
 

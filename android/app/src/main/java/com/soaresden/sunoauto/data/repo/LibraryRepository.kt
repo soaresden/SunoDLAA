@@ -336,6 +336,7 @@ class LibraryRepository(
         sb.appendLine("generatedAt=${java.util.Date()}")
         sb.appendLine("account=${prefs.accountLabel.first() ?: "?"} plan=${prefs.accountPlan.first() ?: "?"} isPro=${prefs.isProNow()}")
         sb.appendLine("folderLinked=${prefs.localTreeNow() != null} pattern=${prefs.folderPatternNow() ?: ""}")
+        sb.appendLine("lastFolderSync=" + (context.getSharedPreferences("sunodlaa_diag", android.content.Context.MODE_PRIVATE).getString("lastFolderSync", null) ?: "never"))
         sb.appendLine("lastSync=${java.util.Date(prefs.lastSync.first())}")
         sb.appendLine("totals: projects=${projects.size} clips=${clips.size} originals=${clips.count { it.isOriginal }} linkedLocal=${clips.count { it.localPath != null }}")
         sb.appendLine("=".repeat(60))
