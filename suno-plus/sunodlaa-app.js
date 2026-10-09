@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.16.0';
+  var VERSION = '2.16.1';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -986,7 +986,7 @@
       '<button class="sdl-chip' + (S.filter === 'pin' ? ' on' : '') + '" data-filter="pin">📌 ' + tr("Épinglés", "Pinned") + '</button>' +
       '<button class="sdl-chip' + (S.filter === 'orig' ? ' on' : '') + '" data-filter="orig" title="' + tr("Tes créations au prompt (sans upload) et ce qui en découle", "Your prompt creations (no upload) and what comes from them") + '">✨ ' + tr("Mes créations", "My creations") + '</button>' +
       '<span class="sdl-muted" style="margin-left:8px">' + tr('Tri', 'Sort') + '</span>' + [['no', 'N°'], ['new', tr('Récents', 'Newest')], ['old', tr('Anciens', 'Oldest')], ['az', 'A → Z'], ['long', tr('Durée', 'Length')], ['plays', '▶ ' + tr('Écoutes', 'Plays')]].map(function (x) { return '<button class="sdl-chip' + (S.sort === x[0] ? ' on' : '') + '" data-sort="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
-      '<button class="sdl-chip" data-act="selall" style="margin-left:auto">☑ ' + tr("Tout sélectionner", "Select all") + '</button></div>' +
+      '<button class="sdl-chip" data-act="cols" style="margin-left:auto" title="' + tr("Choisir et ranger les colonnes", "Choose and order the columns") + '">⚙ ' + tr("Colonnes", "Columns") + '</button><button class="sdl-chip" data-act="selall">☑ ' + tr("Tout sélectionner", "Select all") + '</button></div>' +
       (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bnewws">🆕 ' + tr("Nouvel espace", "New workspace") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">🏷 ' + tr("Renommer", "Rename") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
       '<div class="sdl-tracks cols' + (sel.length ? ' sdl-anysel' : '') + '" style="--cols:' + colsGrid() + ';--minw:' + colsMinW() + 'px">' + (cs.length ? colHead() : '') + (cs.length ? cs.slice(0, S.limit || 400).map(function (c, i) {
         var on = S.playing && S.playing.id === c.id, head = '', sg = sugFor(c), gn = genOf(c);
