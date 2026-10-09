@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.15.1';
+  var VERSION = '2.16.0';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -590,6 +590,16 @@
     if (mash.length) save();
     LS.set('par', S.par); LS.set('parTried', S.parTried); sugCache = {}; renderTracks();
   }
+  // Tracks made from these ones (any depth) that sit in the same workspace as them: they follow when these move.
+  function descendants(cs) {
+    var kids = {}, wsIdOf = {};
+    Object.keys(S.clips).forEach(function (k) { S.clips[k].forEach(function (c) { wsIdOf[c.id] = k; parentIds(c).forEach(function (pid) { (kids[pid] = kids[pid] || []).push(c); }); }); });
+    var from = {}, seen = {}, out = [], q = cs.slice();
+    cs.forEach(function (c) { seen[c.id] = 1; from[wsIdOf[c.id]] = 1; });
+    while (q.length) (kids[q.shift().id] || []).forEach(function (k) { if (seen[k.id] || !from[wsIdOf[k.id]]) return; seen[k.id] = 1; out.push(k); q.push(k); });
+    return out;
+  }
+  function descBox(id, n) { return n ? '<label class="sdl-row" style="border:0"><input type="checkbox" id="' + id + '" checked><span>🧬 ' + tr('Emmener aussi ', 'Also take ') + pl(n, 'titre qui en découle', 'titres qui en découlent', 'track made from it', 'tracks made from them') + tr(' (covers, edits, stems…)', ' (covers, edits, stems…)') + '</span></label>' : ''; }
   function catBadge(c) {
     var k = catOf(c); if (!k) return '';
     var o = originOf(c), r = rootOf(c).c, lab = k === 'fix' ? (fixLabel(c) || catLabel(k)) : catLabel(k);
@@ -1155,15 +1165,16 @@
   }
   function moveTracks(cs) {
     var src = {}; cs.forEach(function (c) { var w = wsOf(c.id); if (w) src[w.id] = 1; });
+    var desc = descendants(cs);
     var list = S.ws.slice().sort(function (a, b) { return collator.compare(a.name, b.name); });
     modal(tr('Déplacer ', 'Move ') + pl(cs.length, 'titre', 'titres', 'track', 'tracks') + tr(' vers…', ' to…'),
       '<input type="text" id="sdl-mvq" style="width:100%" placeholder="' + tr("Rechercher un espace…", "Search a workspace…") + '"><div id="sdl-mvl" style="margin-top:8px;max-height:46vh;overflow:auto">' +
-      list.map(function (w) { var only = Object.keys(src).length === 1 && src[w.id]; return '<label class="sdl-row" data-n="' + esc(norm(w.name)) + '"' + (only ? ' style="opacity:.4"' : '') + '><input type="radio" name="sdl-mv" value="' + w.id + '"' + (only ? ' disabled' : '') + '><span style="flex:1">' + esc(w.name) + '</span><span class="sdl-muted">' + (S.clips[w.id] || []).length + '</span></label>'; }).join('') + '</div>',
+      list.map(function (w) { var only = Object.keys(src).length === 1 && src[w.id]; return '<label class="sdl-row" data-n="' + esc(norm(w.name)) + '"' + (only ? ' style="opacity:.4"' : '') + '><input type="radio" name="sdl-mv" value="' + w.id + '"' + (only ? ' disabled' : '') + '><span style="flex:1">' + esc(w.name) + '</span><span class="sdl-muted">' + (S.clips[w.id] || []).length + '</span></label>'; }).join('') + '</div>' + descBox('sdl-mv-desc', desc.length),
       [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Déplacer', 'Move'), cls: 'primary', onclick: async function () {
         var r = $('input[name=sdl-mv]:checked', root); if (!r) return toast(tr('Choisis un espace', 'Pick a workspace'));
         var target = S.ws.find(function (w) { return w.id === r.value; });
         setButtons([{ label: '…' }]);
-        var bySrc = {}; cs.forEach(function (c) { var w = wsOf(c.id); if (w && w.id !== target.id) (bySrc[w.id] = bySrc[w.id] || []).push(c); });
+        var bySrc = {}; cs.concat($('#sdl-mv-desc') && $('#sdl-mv-desc').checked ? desc : []).forEach(function (c) { var w = wsOf(c.id); if (w && w.id !== target.id) (bySrc[w.id] = bySrc[w.id] || []).push(c); });
         var n = 0, err = null;
         for (var sid in bySrc) {
           var ids = bySrc[sid].map(function (c) { return c.id; });
@@ -1242,9 +1253,14 @@
         if (tw && tw.id !== w.id) found.push({ c: c, from: w, to: tw.id, why: tr('mashup : sa source la plus écoutée est « ', 'mashup: its most played source is "') + top.title + tr(' » (', '" (') + pl(top.plays || 0, 'écoute', 'écoutes', 'play', 'plays') + tr('), rangée dans « ', '), kept in "') + tw.name + tr(' »', '"') });
         return;
       }
-      if (!why && !(c._lt && ownN > 0) && nameScore(w.id, c) <= 0) {   // lyrics or name tie it here: on purpose
-        var ps = parentIds(c).map(findClip).filter(Boolean)[0], pw = ps && wsOf(ps.id);
-        if (pw && pw.id !== w.id && pw.id !== 'default') { target = pw.id; why = tr('issu de « ', 'comes from "') + ps.title + tr(' », rangé dans « ', '", kept in "') + pw.name + tr(' »', '"'); }
+      if (!why && nameScore(w.id, c) <= 0) {   // named after this workspace: on purpose
+        // first ancestor kept in another workspace (parents left here with it are left behind too)
+        var ps = null, pw = null, cur = c;
+        for (var up = 0; up < 10; up++) { var anc = parentIds(cur).map(findClip).filter(Boolean)[0]; if (!anc) break; var aw = wsOf(anc.id); if (aw && aw.id !== w.id) { ps = anc; pw = aw; break; } cur = anc; }
+        var plt = ps && String(ps.prompt || '').trim(), pfp = plt && plt.length >= 60 ? lyricPairs(plt) : null;
+        // same words as its reference (or no words at all): it was left behind. Other words: it lives with its own song.
+        var sameWords = !c._lt || !pfp || overlap(texts[c._lt].fp, pfp) >= 0.6;
+        if (pw && pw.id !== w.id && pw.id !== 'default' && sameWords) { target = pw.id; why = tr('issu de « ', 'comes from "') + ps.title + tr(' », rangé dans « ', '", kept in "') + pw.name + tr(' »', '"'); }
       }
       if (why) found.push({ c: c, from: w, to: target, why: why });
     });
@@ -1358,15 +1374,15 @@
   function newWsWith(cs0) {
     var cs = cs0.slice().sort(function (a, b) { return (a.at || '').localeCompare(b.at || ''); }), first = cs[0];
     var twins = []; cs.forEach(function (c) { var g = genOf(c); if (g) g.list.forEach(function (x) { if (cs.indexOf(x) < 0 && twins.indexOf(x) < 0) twins.push(x); }); });
-    var sug = cleanTitle(rootOf(first).c.title);
+    var sug = cleanTitle(rootOf(first).c.title), desc = descendants(cs).filter(function (d) { return twins.indexOf(d) < 0; });
     modal(tr('Nouvel espace de travail', 'New workspace'),
       '<input type="text" id="sdl-nw" maxlength="100" style="width:100%" value="' + esc(sug) + '">' +
       '<div class="sdl-muted" style="font-size:13px;margin-top:8px">' + (cs.length > 1 ? pl(cs.length, 'titre déplacé', 'titres déplacés', 'track moved', 'tracks moved') : tr('« ', '"') + esc(first.title) + tr(' » y sera déplacé', '" will be moved there')) + '</div>' +
       '<label class="sdl-row" style="border:0"><input type="checkbox" id="sdl-nw-pin" checked><span>📌 ' + tr('Épingler « ', 'Pin "') + esc(first.title) + tr(' » en tête', '" on top') + '</span></label>' +
-      (twins.length ? '<label class="sdl-row" style="border:0"><input type="checkbox" id="sdl-nw-tw"><span>⧉ ' + tr('Emmener aussi son jumeau de génération', 'Also take its generation twin') + (twins.length > 1 ? ' (' + twins.length + ')' : '') + '</span></label>' : ''),
+      descBox('sdl-nw-desc', desc.length) + (twins.length ? '<label class="sdl-row" style="border:0"><input type="checkbox" id="sdl-nw-tw"><span>⧉ ' + tr('Emmener aussi son jumeau de génération', 'Also take its generation twin') + (twins.length > 1 ? ' (' + twins.length + ')' : '') + '</span></label>' : ''),
       [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Créer et déplacer', 'Create and move'), cls: 'primary', onclick: async function () {
         var name = $('#sdl-nw').value.trim().slice(0, 100); if (!name) return;
-        var pin = $('#sdl-nw-pin').checked, all = cs.concat($('#sdl-nw-tw') && $('#sdl-nw-tw').checked ? twins : []);
+        var pin = $('#sdl-nw-pin').checked, all = cs.concat($('#sdl-nw-tw') && $('#sdl-nw-tw').checked ? twins : [], $('#sdl-nw-desc') && $('#sdl-nw-desc').checked ? desc : []);
         setButtons([{ label: '…' }]);
         try {
           var r = await write('/api/project', { name: name, description: '' });
