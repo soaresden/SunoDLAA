@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.17.1';
+  var VERSION = '2.17.2';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -532,13 +532,15 @@
     s = s.replace(/\s*\(?[\w-]+\.(?:cc|io|com|net|to)\)?\s*$/i, '').replace(/\s*\[\s*\w*mp3\w*[^\]]*\]?/gi, '');
     s = s.replace(/\s*\((?:(?:clip|vid[ée]o)\s*)?officiel+e?\)|\s*\(official[^)]*\)|\s*\((?:lyrics?|paroles|audio|hd|hq)\)|\s*\(remaster(?:ed)?\)|\s*\(add vocal\)|\s*\(mashup\)/gi, '');
     s = s.replace(/^\s*\[temp\]\s*-\s*/i, '');
-    s = s.replace(/^\s*\d{1,2}-\d{2,3}\s*(?:-\s*)?(?=\S)/, '');
+    s = s.replace(/^\s*\d{1,3}s(?:[_\s-]+|(?=\d))/i, '');                      // leading length in seconds: "47s 1-20 …"
+    s = s.replace(/^\s*\d{1,2}-\d{1,3}\s*(?:-\s*)?(?=\S)/, '');
     s = s.replace(/(^|[_\s-])(?:dur[ée]e|duration)?[_\s-]?\d{1,2}m\d{1,2}s(?=[_\s-]|\(|$)/gi, ' ');
     s = s.replace(/(^|[_\s-])x\d+(?:[.,]\d+)?(?=[_\s-]|\(|$)/gi, ' ');
     s = s.replace(/\s*\((?:edit|edited|clean|temp)\)/gi, '');
     s = s.replace(/^[\s_]*\d{1,2}-\d{2,3}\s*(?:-\s*)?(?=\S)/, '');
     s = s.replace(/(\s(?:x|&|-|\+|vs\.?)\s+)\d{2}-\d{3}\s+(?=\S)/gi, '$1');
     s = s.replace(STEM_RX, '').replace(/^\s*!+/, '');
+    while (/\s#\d+\s*$/.test(s)) s = s.replace(/\s*#\d+\s*$/, '');            // our own numbers: renumbered afterwards
     s = s.replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s\-–—.,]+|[\s\-–—.,]+$/g, '').trim();
     return s || (t0 || '');
   }
@@ -638,7 +640,7 @@
   function nameOf(c, R, wsName) {
     var k = catOf(c), own = k === 'create' || k === 'sfx' || k === 'mashup' || !k;
     var base = cleanTitle(own ? c.title : rootOf(c).c.title);
-    if (badTitle(base)) base = cleanTitle(c.title); if (badTitle(base)) base = wsName || base;
+    if (badTitle(base)) base = cleanTitle(c.title); if (badTitle(base)) base = cleanTitle(wsName || '') || base;
     var detail = '';
     if (k === 'cover' || k === 'vcover' || k === 'inspo') { var st = styleShort(c._st != null ? c._st : c.tags, R.style); if (st && norm(base).indexOf(norm(st)) < 0) detail = st; }
     else if (k === 'stem') { var m = String(c.title || '').match(STEM_RX); detail = m ? (m[1] || m[2]).replace(/\b\w/g, function (x) { return x.toUpperCase(); }) : ''; }
@@ -648,12 +650,14 @@
     var tail = [lab, detail].filter(Boolean).join(' ');
     return (base + (tail ? R.sep + tail : '')).slice(0, 76);
   }
+  // Same request to Suno: same kind, and same source track (covers, edits…) or same title (own creations).
+  function sameSource(x, c) { var k = catOf(c); return (k === 'create' || k === 'sfx' || k === 'mashup' || !k) ? norm(cleanTitle(x.title)) === norm(cleanTitle(c.title)) : parentIds(x).join() === parentIds(c).join(); }
   // Names for a whole workspace: a generation shares its first track's name (not stems: one per instrument), then #1 #2…
   function names(wsId, R) {
     var key = function (t) { return norm(t).trim(); };
     var cs = S.clips[wsId] || [], g = gens(wsId), w = S.ws.find(function (x) { return x.id === wsId; }), out = {}, groups = {};
     cs.forEach(function (c) {
-      var gg = g[c.id], first = gg && gg.list.length > 1 && catOf(c) !== 'stem' ? gg.list.find(function (x) { return catOf(x) === catOf(c) && x.tk === c.tk; }) || c : c;
+      var gg = g[c.id], first = gg && gg.list.length > 1 && catOf(c) !== 'stem' ? gg.list.find(function (x) { return catOf(x) === catOf(c) && x.tk === c.tk && sameSource(x, c); }) || c : c;
       var n = first === c ? nameOf(c, R, w && w.name) : (out[first.id] || nameOf(first, R, w && w.name));
       out[c.id] = n;
     });
