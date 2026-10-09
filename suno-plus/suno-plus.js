@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.17.0';
+  var VERSION = '2.17.1';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -787,7 +787,7 @@
     '.sdl-mbox h2{margin:0 0 10px;font-size:20px}.sdl-mbody{overflow:auto;flex:1}.sdl-mbtns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}' +
     '.sdl-mbtns button{padding:9px 18px;border-radius:999px;border:1px solid var(--line)!important;font-weight:600}.sdl-mbtns .primary{background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important}.sdl-mbtns .danger{background:#e5484d!important;border-color:#e5484d!important;color:#fff!important}' +
     '.sdl-row{display:flex;gap:10px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--line)}.sdl-row .from{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sdl-row input[type=text]{width:100%;margin-top:3px}' +
-    '.sdl-row.done{opacity:.6}.sdl-row.fail{background:rgba(229,72,77,.08)}.sdl-pbar{height:6px;border-radius:3px;background:var(--panel2);overflow:hidden;margin:6px 0}.sdl-pbar i{display:block;height:100%;background:var(--acc);width:0;transition:width .3s}' +
+    '#sdl-prog{position:sticky;top:-1px;z-index:6;background:var(--panel);padding:8px 0 6px;margin-bottom:4px;border-bottom:1px solid var(--line)}#sdl-ptxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sdl-row.done{opacity:.6}.sdl-row.fail{background:rgba(229,72,77,.08)}.sdl-pbar{height:6px;border-radius:3px;background:var(--panel2);overflow:hidden;margin:6px 0}.sdl-pbar i{display:block;height:100%;background:var(--acc);width:0;transition:width .3s}' +
     '.sdl-themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:6px;max-height:62vh;overflow:auto}.sdl-th{display:flex;gap:8px;align-items:center;padding:8px;border-radius:10px;border:2px solid transparent!important;text-align:left}' +
     '.sdl-th.on{border-color:var(--acc)!important}.sdl-th .sw{width:34px;height:34px;border-radius:8px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}' +
     '#sdl-fab{position:fixed;right:18px;bottom:96px;z-index:2147483001;padding:10px 14px;border-radius:999px;border:0;font:700 13px system-ui;color:#fff;cursor:pointer;background:linear-gradient(90deg,#E81E8C,#F57C00);box-shadow:0 6px 20px rgba(0,0,0,.3)}' +
@@ -1295,6 +1295,7 @@
         for (var i = 0; i < todo.length; i++) {
           var y = todo[i], sid = y.x.from.id, tw = S.ws.find(function (w) { return w.id === y.to; });
           $('#sdl-ptxt').textContent = (i + 1) + ' / ' + todo.length + ' — ' + y.x.c.title + ' → ' + (tw ? tw.name : ''); $('#sdl-pbar').style.width = (100 * i / todo.length) + '%';
+          var mb = $('#sdl-modal .sdl-mbtns button'); if (mb) mb.textContent = (i + 1) + '/' + todo.length + ' (' + Math.round(100 * i / todo.length) + ' %)';
           try {
             await write('/api/project/' + sid + '/clips', { update_type: 'move', metadata: { clip_ids: [y.x.c.id], target_project_id: y.to } });
             S.clips[sid] = (S.clips[sid] || []).filter(function (c) { return c !== y.x.c; }); S.clips[y.to] = (S.clips[y.to] || []).concat([y.x.c]);
@@ -1349,7 +1350,8 @@
         var ok = 0, bad = 0;
         for (var i = 0; i < todo.length && !cleanStop; i++) {
           var x = todo[i]; $('#sdl-ptxt').textContent = (i + 1) + ' / ' + todo.length + ' — ' + x.v; $('#sdl-pbar').style.width = (100 * i / todo.length) + '%';
-          $('.st', x.r).textContent = '⏳'; x.r.scrollIntoView({ block: 'center' });
+          var sb = $('#sdl-modal .sdl-mbtns button'); if (sb && !cleanStop) sb.textContent = tr('Arrêter', 'Stop') + ' · ' + (i + 1) + '/' + todo.length + ' (' + Math.round(100 * i / todo.length) + ' %)';
+          $('.st', x.r).textContent = '⏳'; x.r.scrollIntoView({ block: 'nearest' });
           try { await setTitle(x.c, x.v); ok++; x.r.classList.add('done'); $('.st', x.r).textContent = '✅'; }
           catch (e) { bad++; x.r.classList.add('fail'); $('.st', x.r).textContent = '❌'; $('.st', x.r).title = e.message; if (/429|too many/i.test(e.message)) await sleep(5000); }
           if (i % 25 === 24) save();
