@@ -55,7 +55,8 @@ page = '''<!doctype html>
 <body>
 <div class="card">
   <img class="logo" src="https://raw.githubusercontent.com/soaresden/SunoDLAA/main/assets/logo.png" alt="SUNODLAA">
-  <div><a class="bm" id="bm" href="__HREF__"><b>♪ SUNODLAA</b><span>v__VER__</span></a></div>
+  <div><a class="bm" id="bm" href="__HREF__"><b>♪ SUNODLAA</b></a></div>
+  <div class="mut" style="margin-top:0">dernière version / latest: v__VER__</div>
   <div id="hint">⤴ Ne clique pas : glisse-le dans ta barre de favoris. / Drag it, don't click.</div>
   <ol>
     <li>Affiche la barre de favoris : <kbd>Ctrl</kbd> + <kbd>Maj</kbd> + <kbd>B</kbd></li>
