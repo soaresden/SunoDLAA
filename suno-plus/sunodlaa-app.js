@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.14.0';
+  var VERSION = '2.14.1';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -719,7 +719,7 @@
     '.sdl-rnset{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;padding:8px 0 10px;border-bottom:1px solid var(--line)}.sdl-rnset input,.sdl-rnset select{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:3px 6px}.sdl-rnset .sdl-cat{cursor:pointer;opacity:.35}.sdl-rnset .sdl-cat.on{opacity:1}' +
     '.sdl-tr .dt{color:var(--mut);font-size:12px;white-space:nowrap}.sdl-gen{font-size:11px;font-weight:700;color:var(--acc2,var(--acc));border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-left:4px;opacity:.8}' +
     '.sdl-tracks{padding:4px 20px 30px}.sdl-tr{display:grid;grid-template-columns:22px 58px 44px 1fr 110px auto 52px 34px;gap:10px;align-items:center;padding:6px 10px;border-radius:10px;width:100%;text-align:left;cursor:pointer}' +
-    '.sdl-tracks.cols .sdl-tr{grid-template-columns:var(--cols)}.sdl-thead{position:sticky;top:0;z-index:2;background:var(--bg);cursor:default;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line);border-radius:0}.sdl-thead:hover{background:var(--bg)}' +
+    '.sdl-tracks.cols{overflow-x:auto}.sdl-tracks.cols .sdl-tr{grid-template-columns:var(--cols);min-width:max-content}.sdl-thead{position:sticky;top:0;z-index:2;background:var(--bg);cursor:default;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line);border-radius:0}.sdl-thead:hover{background:var(--bg)}' +
     '.sdl-thead .th{cursor:grab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}.sdl-thead .th[data-sortk]:hover,.sdl-thead .th.on{color:var(--acc)}.sdl-thead .th.r{text-align:right}.sdl-thead .th.drop{box-shadow:inset 3px 0 0 var(--acc)}.sdl-thead .th-cfg{opacity:1}' +
     '.sdl-tr .pc{color:var(--mut);font-variant-numeric:tabular-nums;text-align:right}.sdl-tr .wsn{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.sdl-tr:hover{background:var(--glass)}.sdl-tr.on{background:var(--panel2)}.sdl-tr.on .tt{color:var(--acc)}.sdl-tr.sel{background:' + 'var(--panel2)}' +
@@ -915,7 +915,7 @@
   }
   /* ---- track list columns: shown / hidden and order are the user's (⚙, or drag a header) */
   var COLS = {
-    no: ['58px', 'N°', 'No.', 'no'], img: ['44px', 'Pochette', 'Cover', ''], title: ['minmax(0,1fr)', 'Titre', 'Title', 'az'],
+    no: ['58px', 'N°', 'No.', 'no'], img: ['44px', 'Pochette', 'Cover', ''], title: ['minmax(170px,1fr)', 'Titre', 'Title', 'az'],
     cat: ['96px', 'Type', 'Type', ''], ws: ['150px', 'Espace', 'Workspace', ''], date: ['104px', 'Date', 'Date', 'new'],
     like: ['32px', '♥', '♥', ''], plays: ['72px', 'Écoutes', 'Plays', 'plays'], dur: ['52px', 'Durée', 'Length', 'long']
   };
