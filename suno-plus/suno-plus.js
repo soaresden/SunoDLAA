@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.10.0';
+  var VERSION = '2.11.0';
   if (window.__sdlSkin) { window.__sdlSkin.toggle(); return; }
   // Not on suno.com: go there (click the bookmark again to open the player).
   if (!/(^|\.)suno\.com$/.test(location.hostname)) { location.href = 'https://suno.com/'; return; }
@@ -312,7 +312,7 @@
     el.scrollTop = scroll;
     var tq = $('#sdl-tq'); if (tq) tq.oninput = function () { S.tQ = tq.value; var p = tq.selectionStart; renderTracks(); var n = $('#sdl-tq'); n.focus(); n.setSelectionRange(p, p); };
   }
-  function save() { numsCache = {}; LS.set('ws', S.ws); LS.set('clips', S.clips); LS.set('markers', S.markers); LS.set('pins', S.pins); }
+  function save() { numsCache = {}; sugCache = {}; LS.set('ws', S.ws); LS.set('clips', S.clips); LS.set('markers', S.markers); LS.set('pins', S.pins); }
 
   async function sync(force) {
     if (S.syncing) return; S.syncing = true; S.err = ''; renderStatus();
@@ -505,6 +505,37 @@
     s = s.replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s\-–—.]+|[\s\-–—.]+$/g, '').trim();
     return s || (t0 || '');
   }
+  // Suggested names: "<original title> - <start of Suno's style> #n", for tracks with a messy name
+  // (3m39s_01-001 Loca_x3 (Edit)) or a name shared with other tracks of the workspace. Originals (★) keep theirs.
+  var sugCache = {};
+  function styleShort(tags) {
+    var t = String(tags || '').split(/[,;.]/)[0].replace(/\s+/g, ' ').trim();
+    if (t.length > 40) { t = t.slice(0, 41); var sp = t.lastIndexOf(' '); t = t.slice(0, sp > 15 ? sp : 40); }
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+  }
+  function suggestions(wsId) {
+    if (sugCache[wsId]) return sugCache[wsId];
+    var cs = S.clips[wsId] || [], o = originals(cs), count = {}, groups = {}, out = {};
+    var key = function (t) { return norm(t).trim(); };
+    cs.forEach(function (c) { count[key(c.title)] = (count[key(c.title)] || 0) + 1; });
+    cs.forEach(function (c) {
+      if (o[c.id] || (count[key(c.title)] < 2 && cleanTitle(c.title) === c.title)) return;
+      var orig = c.cover && findClip(c.cover), base = cleanTitle(orig ? orig.title : c.title), st = styleShort(c.tags);
+      var name = (st && norm(st).indexOf(norm(base)) < 0 ? base + ' - ' + st : base).slice(0, 76);
+      (groups[key(name)] = groups[key(name)] || []).push({ c: c, name: name });
+    });
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k].sort(function (a, b) { return a.c.at.localeCompare(b.c.at); });
+      var taken = cs.some(function (x) { return key(x.title) === k && !g.some(function (y) { return y.c === x; }); });
+      g.forEach(function (x, i) { var n = g.length > 1 || taken ? x.name + ' #' + (i + 1) : x.name; if (n !== x.c.title) out[x.c.id] = n; });
+    });
+    return (sugCache[wsId] = out);
+  }
+  function sugFor(c) {
+    var w = c.ws || wsOf(c.id);
+    if (w) return suggestions(w.id)[c.id] || null;
+    var t = cleanTitle(c.title); return t !== c.title ? t : null;
+  }
 
   /* ================================================================ themes */
   function hexA(h, a) { var n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
@@ -556,6 +587,7 @@
     '.sdl-tr:hover{background:var(--glass)}.sdl-tr.on{background:var(--panel2)}.sdl-tr.on .tt{color:var(--acc)}.sdl-tr.sel{background:' + 'var(--panel2)}' +
     '.sdl-tr input{width:16px;height:16px;accent-color:var(--acc);opacity:.35}.sdl-tr:hover input,.sdl-tr input:checked,.sdl-anysel .sdl-tr input{opacity:1}' +
     '.sdl-tr .no{color:var(--mut);text-align:right;font-variant-numeric:tabular-nums}.sdl-tr img{width:44px;height:44px;border-radius:6px;object-fit:cover}' +
+    '.sdl-sug{font:inherit;font-size:12px;font-weight:600;color:var(--acc);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:1px 9px;margin-right:6px;cursor:pointer}.sdl-sug:hover{border-color:var(--acc)}' +
     '.sdl-tr .tt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sdl-tr .tg{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.sdl-tr .du{color:var(--mut);font-variant-numeric:tabular-nums;text-align:right}.sdl-tr .lk{color:var(--acc);font-size:16px;width:28px;height:28px;border-radius:50%}.sdl-tr .lk.off{color:var(--mut);opacity:0}.sdl-tr:hover .lk.off{opacity:.7}' +
     '.sdl-tr .dots{width:30px;height:30px;border-radius:50%;opacity:0}.sdl-tr:hover .dots{opacity:1}.sdl-tr .dots:hover{background:var(--panel)}' +
@@ -750,7 +782,7 @@
     if (w.all) S.ws.forEach(function (x) { all = all.concat(S.clips[x.id] || []); }); else all = S.clips[S.cur] || [];
     var cs = viewClips(), o = originals(all), img = w.all ? '' : wsCover(w), tot = all.reduce(function (s, c) { return s + (c.d || 0); }, 0);
     var r = w.all ? null : wsRange(w);
-    var ugly = all.filter(function (c) { return cleanTitle(c.title) !== c.title; }).length, sel = selList();
+    var ugly = (w.all ? S.ws : [w]).reduce(function (n, x) { return n + Object.keys(suggestions(x.id)).length; }, 0), sel = selList();
     var scroll = el.scrollTop;
     el.innerHTML = '<div class="sdl-hero">' + (img ? '<img src="' + esc(img) + '">' : '<span class="ph"></span>') +
       '<div style="min-width:0"><div class="meta">' + (w.all ? tr('Toute ta bibliothèque', 'Your whole library') : tr('Espace de travail', 'Workspace')) + '</div><h1>' + esc(w.name) + '</h1><div class="meta">' + pl(all.length, 'titre', 'titres', 'track', 'tracks') + ' · ' + Math.round(tot / 60) + ' min' +
@@ -766,13 +798,13 @@
       '<button class="sdl-chip" data-act="selall" style="margin-left:auto">☑ ' + tr("Tout sélectionner", "Select all") + '</button></div>' +
       (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">✨ ' + tr("Nettoyer les titres", "Clean titles") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
       '<div class="sdl-tracks' + (sel.length ? ' sdl-anysel' : '') + '">' + (cs.length ? cs.slice(0, S.limit || 400).map(function (c, i) {
-        var on = S.playing && S.playing.id === c.id, head = '';
+        var on = S.playing && S.playing.id === c.id, head = '', sg = sugFor(c);
         if (w.all && S.sort === 'no' && (i === 0 || cs[i - 1].ws !== c.ws)) head = '<div class="sdl-grp" data-ws="' + esc(c.ws.id) + '">' + esc(c.ws.name) + ' <span class="sdl-muted">· ' + (S.clips[c.ws.id] || []).length + '</span></div>';
         return head + '<div class="sdl-tr' + (on ? ' on' : '') + (o[c.id] ? ' sdl-orig' : '') + (S.sel[c.id] ? ' sel' : '') + '" data-i="' + i + '" data-id="' + c.id + '">' +
           '<input type="checkbox" data-selid="' + c.id + '"' + (S.sel[c.id] ? ' checked' : '') + '>' +
           '<span class="no">' + (on ? (S.loading ? '<span class="sdl-spin">⟳</span>' : '♪') : String(c.no).padStart(3, '0')) + '</span>' +
           (c.img ? '<img loading="lazy" src="' + esc(c.img) + '">' : '<span></span>') +
-          '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + esc(c.title) + '</div><div class="tg">' + (w.all && S.sort !== 'no' && c.ws ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>' +
+          '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + esc(c.title) + '</div><div class="tg">' + (sg ? '<button class="sdl-sug" data-sug="' + c.id + '" title="' + tr('Cliquer pour renommer ainsi sur Suno', 'Click to rename it like this on Suno') + '">💡 ' + esc(sg) + '</button>' : '') + (w.all && S.sort !== 'no' && c.ws ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>' +
           '<span class="dt" title="' + esc(fdate(c.at, true)) + '">' + esc(fdate(c.at)) + '</span>' +
           '<button class="lk' + (c.liked ? '' : ' off') + '" data-like="' + c.id + '" title="' + tr("Favori", "Favorite") + '">' + (c.liked ? '♥' : '♡') + '</button><span class="du">' + fmt(c.d) + '</span>' +
           '<button class="dots" data-menu="' + c.id + '" title="Actions">⋯</button></div>';
@@ -810,7 +842,7 @@
   function refreshAll() { save(); renderWs(); renderTracks(); renderPlayer(); }
   async function setTitle(c, v) { await write('/api/gen/' + c.id + '/set_metadata/', { title: v }); c.title = v; }
   function renameTrack(c) {
-    var sug = cleanTitle(c.title);
+    var sug = sugFor(c) || c.title;
     modal(tr('Renommer le titre', 'Rename the track'), '<input type="text" id="sdl-rn" style="width:100%" value="' + esc(c.title) + '">' +
       (sug !== c.title ? '<div class="sdl-muted" style="margin-top:8px;font-size:13px">' + tr('Suggestion : ', 'Suggestion: ') + '<a href="#" id="sdl-sug" style="color:var(--acc)">' + esc(sug) + '</a></div>' : ''),
       [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Renommer', 'Rename'), cls: 'primary', onclick: async function () {
@@ -961,11 +993,11 @@
   }
   var cleanStop = false;
   function cleanTitles(cs) {
-    cs = cs.filter(function (c) { return cleanTitle(c.title) !== c.title; });
+    var sugs = {}; cs = cs.filter(function (c) { var v = sugFor(c); if (v) sugs[c.id] = v; return !!v; });
     if (!cs.length) return toast(tr('Rien à nettoyer : les titres sont déjà propres.', 'Nothing to clean: titles are already tidy.'));
     modal(tr('Nettoyer ', 'Clean ') + pl(cs.length, 'titre', 'titres', 'title', 'titles'),
       '<div class="sdl-muted" style="font-size:13px">' + tr('Vérifie ou corrige chaque nouveau titre, décoche ceux à garder tels quels.', 'Check or fix each new title; untick those to keep as they are.') + '</div><div id="sdl-prog" hidden><div class="sdl-pbar"><i id="sdl-pbar"></i></div><div id="sdl-ptxt" style="font-size:13px"></div></div>' +
-      cs.map(function (c, i) { return '<label class="sdl-row" data-i="' + i + '"><input type="checkbox" checked><div style="flex:1;min-width:0"><div class="from">' + esc(c.title) + '</div><input type="text" value="' + esc(cleanTitle(c.title)) + '"></div><span class="st"></span></label>'; }).join(''),
+      cs.map(function (c, i) { return '<label class="sdl-row" data-i="' + i + '"><input type="checkbox" checked><div style="flex:1;min-width:0"><div class="from">' + esc(c.title) + '</div><input type="text" value="' + esc(sugs[c.id]) + '"></div><span class="st"></span></label>'; }).join(''),
       [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Renommer sur Suno', 'Rename on Suno'), cls: 'primary', onclick: async function () {
         var rows = $$('#sdl-modal .sdl-row').map(function (r) { return { r: r, on: $('input[type=checkbox]', r).checked, c: cs[+r.dataset.i], v: $('input[type=text]', r).value.trim() }; })
           .filter(function (x) { return x.on && x.v && x.v !== x.c.title; });
@@ -1029,7 +1061,7 @@
       ['▶ ' + tr('Lire', 'Play'), function () { var cs = viewClips(); startQueue(cs, Math.max(0, cs.indexOf(c)), false); }],
       ['✏️ ' + tr('Renommer', 'Rename'), function () { renameTrack(c); }],
       ['📝 ' + tr('Modifier les paroles', 'Edit lyrics'), function () { editDetails(c); }],
-      cleanTitle(c.title) !== c.title ? ['✨ ' + tr('Nettoyer le titre', 'Clean the title'), function () { cleanTitles([c]); }] : null,
+      sugFor(c) ? ['✨ ' + tr('Renommer en « ', 'Rename to "') + sugFor(c) + tr(' »', '"'), function () { setTitle(c, sugFor(c)).then(function () { refreshAll(); }, function (e) { toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }); }] : null,
       [c.liked ? '♡ ' + tr('Retirer des favoris', 'Remove from favorites') : '♥ ' + tr('Ajouter aux favoris', 'Add to favorites'), function () { toggleLike(c); }],
       [isPinned(c) ? '📌 ' + tr('Désépingler', 'Unpin') : '📌 ' + tr('Épingler en haut de l\'espace', 'Pin to the top of the workspace'), function () { setPinned([c], !isPinned(c)); }],
       ['📁 ' + tr('Déplacer vers…', 'Move to…'), function () { moveTracks([c]); }],
@@ -1045,6 +1077,7 @@
     var cl = function (sel) { var x = t.closest(sel); return x && root.contains(x) && x !== root ? x : null; };
     var sb = cl('[data-selid]'); if (sb) { S.sel[sb.dataset.selid] = sb.checked; if (!sb.checked) delete S.sel[sb.dataset.selid]; renderTracks(); return; }
     var lk = cl('[data-like]'); if (lk) { var c1 = findClip(lk.dataset.like); if (c1) toggleLike(c1); return; }
+    var sgb = cl('[data-sug]'); if (sgb) { var c3 = findClip(sgb.dataset.sug), v3 = c3 && sugFor(c3); if (v3) { sgb.disabled = true; setTitle(c3, v3).then(function () { refreshAll(); toast(tr('Renommé : ', 'Renamed: ') + v3); }, function (e) { sgb.disabled = false; toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }); } return; }
     var mn = cl('[data-menu]'); if (mn) { var c2 = findClip(mn.dataset.menu); if (c2) trackMenu(e, c2); return; }
     var th = cl('[data-sdltheme]'); if (th) { applyTheme(th.dataset.sdltheme); return; }
     var stb = cl('[data-style]'); if (stb) { toggleStyle(stb.dataset.style); return; }
