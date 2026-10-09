@@ -43,13 +43,22 @@ display_name, handle, play_count, metadata {tags, prompt, duration, cover_clip_i
 
 `GET /api/lyrics-projects?limit=50&sort=updated_at` → `projects[]` (Suno's "Saved lyrics").
 
+## Audio upload (as suno.com does it, Oct 2026)
+1. `POST /api/uploads/audio/` `{"extension": "mp3", "upload_type": "file_upload"}` → `{id, url: "https://suno-uploads.s3.amazonaws.com/", fields {Content-Type, key, AWSAccessKeyId, policy, signature}}`
+2. `POST <url>` multipart: every `fields` entry, then `file` → 204 (S3: never send the Suno token there).
+3. `POST /api/uploads/audio/<id>/upload-finish/` `{"upload_type": "file_upload", "upload_filename": "<name>", "agreed_to_vip_upload_terms": false}` → 200 `{}`
+4. `POST /api/uploads/audio/<id>/initialize-clip/` `{"user_reviewed_tags": true}` → `{clip_id, rights_clearance_available}` (Suno's checks happen before this works).
+5. `GET /api/clip/<clip_id>` → clip; `POST /api/gen/<clip_id>/set_metadata/` `{"title", "image_url", "is_audio_upload_tos_accepted": true}`
+6. `POST /api/gen/<clip_id>/set_audio_description` `{"gemini_description_accepted": true}` → clip with Suno's suggested tags.
+7. `POST /api/project/<wid>/clips` `{"update_type": "add", "metadata": {"clip_ids": ["<clip_id>"]}}` → 204.
+Allowed by accepted types: wav, flac, mp3, ogg, opus, webm, mp4/m4a, aac. Files are sent as they are: no audio change.
+
 ## Explore
 - `POST /api/unified/homepage/explore` body `{}` then `{"cursor": <next_cursor>}` → `feeds[]`
   {feed_title, feed_container_type ("playlist"), feed_container_id, item_count, items[] {content_type "clip", content_item}}, `next_cursor`.
 - `POST /api/unified/feed` body `{"feed_id":"for_you","cursor":null,"page_size":20}` → personal feed.
 
 ## Seen but not used
-- Audio upload: `POST /api/uploads/audio/` {extension, upload_type} → S3 form; then `POST /api/uploads/audio/<id>/upload-finish/` {upload_type, upload_filename}.
 - `GET /api/challenge/progress` (polled every 10 s), `/api/video_gen/pending_batches`, `/api/clips/parent?clip_id=`, `/api/session/`, `/api/modals`.
 - Downloads (capped per month, do not automate): `GET /api/download/clip/<id>?format=mp3` → {ok, status processing|ready|error, download_url}.
 - Creation endpoint: not captured yet (the Create screen drives the site's own form instead).

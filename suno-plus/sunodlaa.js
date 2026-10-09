@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.7.0';
+  var VERSION = '2.8.0';
   if (window.__sdlSkin) { window.__sdlSkin.toggle(); return; }
   // Not on suno.com: go there (click the bookmark again to open the player).
   if (!/(^|\.)suno\.com$/.test(location.hostname)) { location.href = 'https://suno.com/'; return; }
@@ -73,7 +73,8 @@
   }
   // The only changes the overlay makes: the ones suno.com itself offers.
   var WRITES = [/^\/api\/gen\/trash\/?$/, /^\/api\/gen\/[0-9a-f-]{36}\/set_metadata\/$/, /^\/api\/gen\/[0-9a-f-]{36}\/update_reaction_type\/$/,
-    /^\/api\/project\/[0-9a-f-]{36}\/metadata$/, /^\/api\/project\/trash$/, /^\/api\/project$/, /^\/api\/lyrics-projects$/, /^\/api\/lyrics-projects\/[0-9a-f-]{36}\/flush$/, /^\/api\/project\/([0-9a-f-]{36}|default)\/clips$/];
+    /^\/api\/project\/[0-9a-f-]{36}\/metadata$/, /^\/api\/project\/trash$/, /^\/api\/project$/, /^\/api\/lyrics-projects$/, /^\/api\/lyrics-projects\/[0-9a-f-]{36}\/flush$/, /^\/api\/project\/([0-9a-f-]{36}|default)\/clips$/,
+    /^\/api\/uploads\/audio\/$/, /^\/api\/uploads\/audio\/[0-9a-f-]{36}\/(upload-finish|initialize-clip)\/$/, /^\/api\/gen\/[0-9a-f-]{36}\/set_audio_description$/];
   async function write(path, body) {
     if (!WRITES.some(function (rx) { return rx.test(path); })) throw new Error('action non autorisée: ' + path);
     log('POST', path, JSON.stringify(body));
@@ -717,6 +718,7 @@
       '<div style="min-width:0"><div class="meta">' + (w.all ? tr('Toute ta bibliothèque', 'Your whole library') : tr('Espace de travail', 'Workspace')) + '</div><h1>' + esc(w.name) + '</h1><div class="meta">' + pl(all.length, 'titre', 'titres', 'track', 'tracks') + ' · ' + Math.round(tot / 60) + ' min' +
       (r && r.first ? ' · ' + esc(fdate(r.first) === fdate(r.last) ? fdate(r.first) : tr('du ', 'from ') + fdate(r.first) + tr(' au ', ' to ') + fdate(r.last)) : '') + '</div>' +
       '<div class="sdl-acts"><button class="sdl-big" data-act="playall">▶ ' + tr("Lire", "Play") + '</button><button class="sdl-ghost" data-act="shufall">🔀 ' + tr("Aléatoire", "Shuffle") + '</button>' +
+      '<button class="sdl-ghost" data-act="upload" title="' + tr("Importer un fichier audio dans un espace", "Upload an audio file into a workspace") + '">⬆ ' + tr("Importer", "Upload") + '</button>' +
       (w.all ? '' : '<button class="sdl-ghost" data-act="wsrename">✏️ ' + tr("Renommer", "Rename") + '</button>') + (ugly ? '<button class="sdl-ghost" data-act="clean">✨ ' + tr('Nettoyer ', 'Clean ') + pl(ugly, 'titre', 'titres', 'title', 'titles') + '</button>' : '') +
       (w.all ? '' : '<button class="sdl-ghost danger" data-act="wsdelete" title="' + tr("Mettre l\'espace à la corbeille Suno", "Send the workspace to Suno's trash") + '">🗑</button>') + '</div></div></div>' +
       '<div class="sdl-tools"><input class="sdl-tq" id="sdl-tq" placeholder="' + tr("Rechercher un titre, un style…", "Search a title, a style…") + '" value="' + esc(S.tQ) + '">' +
@@ -800,6 +802,65 @@
     }
     refreshAll();
     toast(err ? tr('Suno a refusé : ', 'Suno refused: ') + err.message : want ? tr(pl(n, 'titre épinglé', 'titres épinglés', '', ''), pl(n, 'track', 'tracks', 'track', 'tracks') + ' pinned') : tr(pl(n, 'titre désépinglé', 'titres désépinglés', '', ''), pl(n, 'track', 'tracks', 'track', 'tracks') + ' unpinned'), 5000);
+  }
+  /* ---- Upload: one of your audio files into a workspace, with suno.com's own upload steps.
+     The file is sent as it is; Suno's own checks apply (a refused file stays refused). ---- */
+  var UPLOAD_TYPES = 'audio/wav,audio/flac,audio/x-flac,audio/mpeg,audio/mp3,audio/ogg,audio/opus,audio/webm,audio/mp4,audio/x-m4a,audio/aac';
+  async function sendUpload(f, title, wid, st) {
+    var ext = ((f.name.match(/\.([a-z0-9]+)$/i) || [])[1] || 'mp3').toLowerCase();
+    st(tr('Préparation…', 'Preparing…'));
+    var up = await write('/api/uploads/audio/', { extension: ext, upload_type: 'file_upload' });
+    if (!up || !up.id || !/^https:\/\/[a-z0-9.-]+\.amazonaws\.com\//.test(up.url || '')) throw new Error(tr('réponse inattendue de Suno', 'unexpected answer from Suno'));
+    st(tr('Envoi du fichier…', 'Sending the file…'));
+    var fd = new FormData(); Object.keys(up.fields || {}).forEach(function (k) { fd.append(k, up.fields[k]); }); fd.append('file', f);
+    var r = await (window.__sdlRealFetch || fetch)(up.url, { method: 'POST', body: fd });   // Suno's storage: no Suno token sent there
+    if (!r.ok) throw new Error(tr('envoi refusé', 'upload refused') + ' (HTTP ' + r.status + ')');
+    await write('/api/uploads/audio/' + up.id + '/upload-finish/', { upload_type: 'file_upload', upload_filename: f.name, agreed_to_vip_upload_terms: false });
+    st(tr('Vérification par Suno…', 'Suno is checking it…'));
+    var init = null, err = null;
+    for (var i = 0; i < 20 && !init; i++) {   // while Suno is still processing the file, try again (up to ~1 min)
+      try { init = await write('/api/uploads/audio/' + up.id + '/initialize-clip/', { user_reviewed_tags: true }); }
+      catch (e) { err = e; if (!/process|pending|progress|ready|wait/i.test(e.message || '')) throw e; await sleep(3000); }
+    }
+    if (!init || !init.clip_id) throw err || new Error(tr('Suno n\'a pas créé le titre', 'Suno did not create the track'));
+    var id = init.clip_id;
+    st(tr('Titre et rangement…', 'Title and workspace…'));
+    var c = await api('/api/clip/' + id);
+    await write('/api/gen/' + id + '/set_metadata/', { title: title || c.title, image_url: c.image_url, is_audio_upload_tos_accepted: true });
+    try { await write('/api/gen/' + id + '/set_audio_description', { gemini_description_accepted: true }); } catch (e) { log('audio description', e.message); }
+    await write('/api/project/' + wid + '/clips', { update_type: 'add', metadata: { clip_ids: [id] } });
+    try { c = await api('/api/clip/' + id); } catch (e) {}
+    var out = slim(c); if (title) out.title = title; return out;
+  }
+  function uploadAudio(w0) {
+    var list = S.ws.slice().sort(function (a, b) { return collator.compare(a.name, b.name); });
+    var def = w0 ? w0.id : ((S.ws.find(function (w) { return w.id === 'default'; }) || list[0] || {}).id);
+    modal(tr('Importer un fichier audio', 'Upload an audio file'),
+      '<input type="file" id="sdl-upf" accept="' + UPLOAD_TYPES + '" style="width:100%">' +
+      '<div style="margin-top:12px">' + tr('Titre', 'Title') + '<input type="text" id="sdl-upt" style="width:100%"></div>' +
+      '<div style="margin-top:12px">' + tr('Espace de travail', 'Workspace') + '<select id="sdl-upw" style="width:100%;padding:8px;border-radius:10px;background:var(--panel2);color:var(--txt);border:1px solid var(--line)">' +
+      list.map(function (w) { return '<option value="' + esc(w.id) + '"' + (w.id === def ? ' selected' : '') + '>' + esc(w.name) + '</option>'; }).join('') + '</select></div>' +
+      '<label class="sdl-row" style="margin-top:12px;border:0"><input type="checkbox" id="sdl-upok"><span style="font-size:13px">' + tr('J\'ai les droits sur ce morceau et j\'accepte les conditions d\'import audio de Suno.', 'I own the rights to this audio and accept Suno\'s audio upload terms.') + '</span></label>' +
+      '<div id="sdl-upst" style="font-size:13px;margin-top:8px"></div>',
+      [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Importer', 'Upload'), cls: 'primary', onclick: async function () {
+        var f = $('#sdl-upf').files[0], wid = $('#sdl-upw').value, title = $('#sdl-upt').value.trim().slice(0, 100);
+        if (!f) return toast(tr('Choisis un fichier', 'Pick a file'));
+        if (!wid) return toast(tr('Choisis un espace', 'Pick a workspace'));
+        if (!$('#sdl-upok').checked) return toast(tr('Coche la case des droits pour continuer', 'Tick the rights box to continue'));
+        var m = $('#sdl-modal'); m.dataset.busy = 1; $$('#sdl-modal input, #sdl-modal select').forEach(function (i) { i.disabled = true; });
+        setButtons([{ label: '…' }]);
+        var st = function (t) { var e = $('#sdl-upst'); if (e) e.innerHTML = '<span class="sdl-spin">⟳</span> ' + esc(t); };
+        try {
+          var c = await sendUpload(f, title, wid, st), w = S.ws.find(function (x) { return x.id === wid; });
+          S.clips[wid] = (S.clips[wid] || []).concat([c]); if (w) w.n = (w.n || 0) + 1;
+          delete m.dataset.busy; closeModal(); refreshAll();
+          toast(tr('« ' + c.title + ' » importé dans « ' + (w ? w.name : '') + ' »', '"' + c.title + '" uploaded to "' + (w ? w.name : '') + '"'), 6000);
+        } catch (e) {
+          delete m.dataset.busy; $('#sdl-upst').textContent = tr('Suno a refusé : ', 'Suno refused: ') + (e.message || e);
+          setButtons([{ label: 'OK', cls: 'primary', onclick: closeModal }]);
+        }
+      } }]);
+    $('#sdl-upf').onchange = function () { var f = this.files[0]; if (f && !$('#sdl-upt').value) $('#sdl-upt').value = f.name.replace(/\.[^.]+$/, '').slice(0, 100); };
   }
   function deleteTracks(cs) {
     modal(cs.length > 1 ? tr('Supprimer ' + cs.length + ' titres ?', 'Delete ' + cs.length + ' tracks?') : tr('Supprimer « ' + cs[0].title + ' » ?', 'Delete "' + cs[0].title + '"?'),
@@ -953,6 +1014,7 @@
         case 'wsrename': return w && renameWs(w);
         case 'wsdelete': return w && deleteWs(w);
         case 'newws': return newWs();
+        case 'upload': return uploadAudio(w);
         case 'expmore': return loadExplore();
         case 'create': return sendToSuno(true);
         case 'fill': return sendToSuno(false);
