@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.17.3';
+  var VERSION = '2.18.0';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -593,13 +593,24 @@
     LS.set('par', S.par); LS.set('parTried', S.parTried); sugCache = {}; renderTracks();
   }
   // Tracks made from these ones (any depth) that sit in the same workspace as them: they follow when these move.
-  function descendants(cs) {
+  function descendants(cs, anyWs) {
     var kids = {}, wsIdOf = {};
     Object.keys(S.clips).forEach(function (k) { S.clips[k].forEach(function (c) { wsIdOf[c.id] = k; parentIds(c).forEach(function (pid) { (kids[pid] = kids[pid] || []).push(c); }); }); });
     var from = {}, seen = {}, out = [], q = cs.slice();
     cs.forEach(function (c) { seen[c.id] = 1; from[wsIdOf[c.id]] = 1; });
-    while (q.length) (kids[q.shift().id] || []).forEach(function (k) { if (seen[k.id] || !from[wsIdOf[k.id]]) return; seen[k.id] = 1; out.push(k); q.push(k); });
+    while (q.length) (kids[q.shift().id] || []).forEach(function (k) { if (seen[k.id] || (!anyWs && !from[wsIdOf[k.id]])) return; seen[k.id] = 1; out.push(k); q.push(k); });
     return out;
+  }
+  // A track was renamed: tracks made from it (any workspace) whose name no longer follows → offer to align them.
+  function alignAfterRename(c) {
+    var d = descendants([c], true); if (!d.length) return;
+    sugCache = {};
+    var byWs = {}; d.forEach(function (x) { var w = wsOf(x.id); if (w) (byWs[w.id] = byWs[w.id] || []).push(x); });
+    var off = 0; Object.keys(byWs).forEach(function (wid) { var n = names(wid, RULES); byWs[wid].forEach(function (x) { if (n[x.id] && n[x.id] !== x.title) off++; }); });
+    if (!off) return;
+    modal(tr('Aligner les titres liés ?', 'Align related tracks?'),
+      '<div>' + pl(d.length, 'titre découle', 'titres découlent', 'track comes', 'tracks come') + tr(' de « ', ' from "') + esc(c.title) + tr(' » (covers, edits, stems…), dont ', '" (covers, edits, stems…), ') + pl(off, 'n\'est plus aligné', 'ne sont plus alignés', 'is no longer aligned', 'are no longer aligned') + tr(' sur ce nom.', ' with this name.') + '</div>',
+      [{ label: tr('Non merci', 'No thanks'), onclick: closeModal }, { label: tr('Voir et aligner', 'Review and align'), cls: 'primary', onclick: function () { renamer(d, false, tr('Aligner sur « ', 'Align with "') + c.title + tr(' »', '"')); } }]);
   }
   function descBox(id, n) { return n ? '<label class="sdl-row" style="border:0"><input type="checkbox" id="' + id + '" checked><span>🧬 ' + tr('Emmener aussi ', 'Also take ') + pl(n, 'titre qui en découle', 'titres qui en découlent', 'track made from it', 'tracks made from them') + tr(' (covers, edits, stems…)', ' (covers, edits, stems…)') + '</span></label>' : ''; }
   function catBadge(c) {
@@ -1053,7 +1064,7 @@
       [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Renommer', 'Rename'), cls: 'primary', onclick: async function () {
         var v = $('#sdl-rn').value.trim(); if (!v || v === c.title) return closeModal();
         setButtons([{ label: '…' }]);
-        try { await setTitle(c, v); closeModal(); refreshAll(); toast(tr('Renommé : ', 'Renamed: ') + v); }
+        try { await setTitle(c, v); closeModal(); refreshAll(); toast(tr('Renommé : ', 'Renamed: ') + v); alignAfterRename(c); }
         catch (e) { closeModal(); toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }
       } }]);
     var s = $('#sdl-sug'); if (s) s.onclick = function (e) { e.preventDefault(); $('#sdl-rn').value = sug; };
@@ -1071,8 +1082,9 @@
         setButtons([{ label: '…' }]);
         try {
           await write('/api/gen/' + c.id + '/set_metadata/', { title: t, lyrics: l });
-          c.title = t; c.prompt = l; closeModal(); refreshAll();
+          var renamed = c.title !== t; c.title = t; c.prompt = l; closeModal(); refreshAll();
           if (S.playing && S.playing.id === c.id) loadLyrics(c);
+          if (renamed) alignAfterRename(c);
           toast(tr('Enregistré sur Suno', 'Saved on Suno'));
         } catch (e) { closeModal(); toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }
       } }]);
@@ -1315,7 +1327,7 @@
   var cleanStop = false;
   function cleanTitles(cs) { return renamer(cs, true); }
   // Bulk renamer. onlyMessy: just the 💡 suggestions (messy or duplicate names); else every track of the list, by the rules.
-  function renamer(cs0, onlyMessy) {
+  function renamer(cs0, onlyMessy, heading) {
     var R = JSON.parse(JSON.stringify(RULES)), list = [];
     function compute() {
       var byWs = {}; cs0.forEach(function (c) { var w = c.ws || wsOf(c.id); if (w) (byWs[w.id] = byWs[w.id] || []).push(c); });
@@ -1341,7 +1353,7 @@
         return '<label class="sdl-row" data-i="' + i + '"><input type="checkbox" checked><div style="flex:1;min-width:0"><div class="from">' + catBadge(x.c) + esc(x.c.title) + '</div><input type="text" value="' + esc(x.v) + '"></div><span class="st"></span></label>';
       }).join('');
     }
-    modal(tr('Renommer ', 'Rename ') + pl(cs0.length, 'titre', 'titres', 'track', 'tracks'),
+    modal(heading || (tr('Renommer ', 'Rename ') + pl(cs0.length, 'titre', 'titres', 'track', 'tracks')),
       settings() + '<div class="sdl-muted" style="font-size:13px;margin:8px 0">' + tr('Change les règles : l\'aperçu suit. Corrige un nom à la main ou décoche une ligne pour la garder telle quelle.', 'Change the rules: the preview follows. Fix a name by hand or untick a row to keep it as it is.') + ' <b id="sdl-rn-count"></b></div>' +
       '<div id="sdl-prog" hidden><div class="sdl-pbar"><i id="sdl-pbar"></i></div><div id="sdl-ptxt" style="font-size:13px"></div></div><div id="sdl-rn-list"></div>',
       [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Renommer sur Suno', 'Rename on Suno'), cls: 'primary', onclick: async function () {
@@ -1492,7 +1504,7 @@
     var cl = function (sel) { var x = t.closest(sel); return x && root.contains(x) && x !== root ? x : null; };
     var sb = cl('[data-selid]'); if (sb) { S.sel[sb.dataset.selid] = sb.checked; if (!sb.checked) delete S.sel[sb.dataset.selid]; renderTracks(); return; }
     var lk = cl('[data-like]'); if (lk) { var c1 = findClip(lk.dataset.like); if (c1) toggleLike(c1); return; }
-    var sgb = cl('[data-sug]'); if (sgb) { var c3 = findClip(sgb.dataset.sug), v3 = c3 && sugFor(c3); if (v3) { sgb.disabled = true; setTitle(c3, v3).then(function () { refreshAll(); toast(tr('Renommé : ', 'Renamed: ') + v3); }, function (e) { sgb.disabled = false; toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }); } return; }
+    var sgb = cl('[data-sug]'); if (sgb) { var c3 = findClip(sgb.dataset.sug), v3 = c3 && sugFor(c3); if (v3) { sgb.disabled = true; setTitle(c3, v3).then(function () { refreshAll(); toast(tr('Renommé : ', 'Renamed: ') + v3); alignAfterRename(c3); }, function (e) { sgb.disabled = false; toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }); } return; }
     var mn = cl('[data-menu]'); if (mn) { var c2 = findClip(mn.dataset.menu); if (c2) trackMenu(e, c2); return; }
     var th = cl('[data-sdltheme]'); if (th) { applyTheme(th.dataset.sdltheme, true); return; }
     var stb = cl('[data-style]'); if (stb) { toggleStyle(stb.dataset.style); return; }
