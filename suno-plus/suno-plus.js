@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.16.1';
+  var VERSION = '2.17.0';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -730,6 +730,7 @@
     '.sdl-tr .dt{color:var(--mut);font-size:12px;white-space:nowrap}.sdl-gen{font-size:11px;font-weight:700;color:var(--acc2,var(--acc));border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-left:4px;opacity:.8}' +
     '.sdl-tracks{padding:4px 20px 30px}.sdl-tr{display:grid;grid-template-columns:22px 58px 44px 1fr 110px auto 52px 34px;gap:10px;align-items:center;padding:6px 10px;border-radius:10px;width:100%;text-align:left;cursor:pointer}' +
     '.sdl-tracks.cols{overflow-x:auto}.sdl-tracks.cols .sdl-tr{grid-template-columns:var(--cols);min-width:var(--minw)}.sdl-thead{position:sticky;top:0;z-index:2;background:var(--bg);cursor:default;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line);border-radius:0}.sdl-thead:hover{background:var(--bg)}' +
+    '.sdl-thead .th{position:relative;padding-right:8px}.sdl-thead .rz{position:absolute;top:0;bottom:0;right:0;width:8px;cursor:col-resize;z-index:3}.sdl-thead .rz:hover,.sdl-thead .rz.on{background:linear-gradient(90deg,transparent 5px,var(--acc) 5px,var(--acc) 7px,transparent 7px)}' +
     '.sdl-thead .th{cursor:grab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}.sdl-thead .th[data-sortk]:hover,.sdl-thead .th.on{color:var(--acc)}.sdl-thead .th.r{text-align:right}.sdl-thead .th.drop{box-shadow:inset 3px 0 0 var(--acc)}.sdl-thead .th-cfg{opacity:1}' +
     '.sdl-tr .pc{color:var(--mut);font-variant-numeric:tabular-nums;text-align:right}.sdl-tr .wsn{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.sdl-tr:hover{background:var(--glass)}.sdl-tr.on{background:var(--panel2)}.sdl-tr.on .tt{color:var(--acc)}.sdl-tr.sel{background:' + 'var(--panel2)}' +
@@ -932,12 +933,15 @@
   var cols = (LS.get('cols', null) || ['no', 'img', 'title', 'date', 'like', 'plays', 'dur']).filter(function (k) { return COLS[k]; });
   if (cols.indexOf('title') < 0) cols.splice(2, 0, 'title');
   function saveCols() { LS.set('cols', cols); renderTracks(); }
-  function colsMinW() { return 22 + 34 + 20 + 10 * (cols.length + 1) + cols.reduce(function (n, k) { return n + (parseInt(COLS[k][0].replace('minmax(', ''), 10) || 0); }, 0); }
-  function colsGrid() { return '22px ' + cols.map(function (k) { return COLS[k][0]; }).join(' ') + ' 34px'; }
+  var colw = LS.get('colw', {});
+  function colPx(k) { return colw[k] || parseInt(COLS[k][0].replace('minmax(', ''), 10) || 0; }
+  function colCss(k) { return k === 'title' ? 'minmax(' + colPx(k) + 'px,1fr)' : colw[k] ? colw[k] + 'px' : COLS[k][0]; }
+  function colsMinW() { return 22 + 34 + 20 + 10 * (cols.length + 1) + cols.reduce(function (n, k) { return n + colPx(k); }, 0); }
+  function colsGrid() { return '22px ' + cols.map(colCss).join(' ') + ' 34px'; }
   function colHead() {
     return '<div class="sdl-tr sdl-thead"><span></span>' + cols.map(function (k) {
       var d = COLS[k], on = d[3] && (S.sort === d[3] || (k === 'date' && S.sort === 'old'));
-      return '<span class="th' + (on ? ' on' : '') + (k === 'plays' || k === 'dur' ? ' r' : '') + '" draggable="true" data-col="' + k + '"' + (d[3] ? ' data-sortk="' + k + '"' : '') + ' title="' + tr('Glisser pour déplacer', 'Drag to move') + (d[3] ? tr(' · cliquer pour trier', ' · click to sort') : '') + '">' + esc(LANG === 'fr' ? d[1] : d[2]) + (on ? (S.sort === 'old' ? ' ▲' : k === 'az' || k === 'title' ? ' ▲' : ' ▼') : '') + '</span>';
+      return '<span class="th' + (on ? ' on' : '') + (k === 'plays' || k === 'dur' ? ' r' : '') + '" draggable="true" data-col="' + k + '"' + (d[3] ? ' data-sortk="' + k + '"' : '') + ' title="' + tr('Glisser pour déplacer', 'Drag to move') + (d[3] ? tr(' · cliquer pour trier', ' · click to sort') : '') + '">' + esc(LANG === 'fr' ? d[1] : d[2]) + (on ? (S.sort === 'old' ? ' ▲' : k === 'az' || k === 'title' ? ' ▲' : ' ▼') : '') + '<i class="rz" data-rz="' + k + '" title="' + tr('Glisser pour changer la largeur · double-clic : par défaut', 'Drag to resize · double-click: default') + '"></i></span>';
     }).join('') + '<button class="dots th-cfg" data-act="cols" title="' + tr('Choisir les colonnes', 'Choose columns') + '">⚙</button></div>';
   }
   function colsScreen() {
@@ -949,7 +953,7 @@
       }).join('');
     }
     modal(tr('Colonnes', 'Columns'), '<div class="sdl-muted" style="font-size:13px;margin-bottom:6px">' + tr('Coche ce que tu veux voir, range avec ↑ ↓ (ou glisse les en-têtes de la liste).', 'Tick what you want to see, order with ↑ ↓ (or drag the list headers).') + '</div><div id="sdl-colsl"></div>',
-      [{ label: tr('Par défaut', 'Default'), onclick: function () { cols = ['no', 'img', 'title', 'date', 'like', 'plays', 'dur']; saveCols(); $('#sdl-colsl').innerHTML = body(); } }, { label: 'OK', cls: 'primary', onclick: closeModal }]);
+      [{ label: tr('Par défaut', 'Default'), onclick: function () { cols = ['no', 'img', 'title', 'date', 'like', 'plays', 'dur']; colw = {}; LS.set('colw', colw); saveCols(); $('#sdl-colsl').innerHTML = body(); } }, { label: 'OK', cls: 'primary', onclick: closeModal }]);
     var box = $('#sdl-colsl'); box.innerHTML = body();
     box.addEventListener('click', function (e) {
       var row = e.target.closest('[data-colk]'); if (!row) return; var k = row.dataset.colk, i = cols.indexOf(k);
@@ -1452,7 +1456,21 @@
 
   /* ================================================================ events */
   var dragCol = null;
-  root.addEventListener('dragstart', function (e) { var h = e.target.closest && e.target.closest('.sdl-thead [data-col]'); if (!h) return; dragCol = h.dataset.col; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragCol); } catch (x) {} });
+  var rsz = null, justResized = 0;
+  root.addEventListener('mousedown', function (e) {
+    var h = e.target.closest && e.target.closest('.sdl-thead [data-rz]'); if (!h) return;
+    e.preventDefault(); e.stopPropagation();
+    var th = h.parentElement; rsz = { k: h.dataset.rz, x: e.clientX, w: th.getBoundingClientRect().width, el: th.closest('.sdl-tracks'), h: h }; h.classList.add('on');
+  }, true);
+  on(document, 'mousemove', function (e) {
+    if (!rsz) return;
+    colw[rsz.k] = Math.max(rsz.k === 'title' ? 120 : 28, Math.round(rsz.w + e.clientX - rsz.x));
+    if (rsz.el) { rsz.el.style.setProperty('--cols', colsGrid()); rsz.el.style.setProperty('--minw', colsMinW() + 'px'); }
+  });
+  on(document, 'mouseup', function () { if (!rsz) return; rsz.h.classList.remove('on'); rsz = null; justResized = Date.now(); LS.set('colw', colw); });
+  root.addEventListener('dblclick', function (e) { var h = e.target.closest && e.target.closest('.sdl-thead [data-rz]'); if (!h) return; delete colw[h.dataset.rz]; LS.set('colw', colw); renderTracks(); });
+  root.addEventListener('dragstart', function (e) {
+    if (rsz || (e.target.closest && e.target.closest('.rz'))) { e.preventDefault(); return; } var h = e.target.closest && e.target.closest('.sdl-thead [data-col]'); if (!h) return; dragCol = h.dataset.col; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragCol); } catch (x) {} });
   root.addEventListener('dragover', function (e) { var h = dragCol && e.target.closest && e.target.closest('.sdl-thead [data-col]'); if (!h) return; e.preventDefault(); $$('.sdl-thead .drop', root).forEach(function (x) { x.classList.remove('drop'); }); h.classList.add('drop'); });
   root.addEventListener('drop', function (e) {
     var h = dragCol && e.target.closest && e.target.closest('.sdl-thead [data-col]'); if (!h) return; e.preventDefault();
@@ -1486,6 +1504,7 @@
     }
     var so = cl('[data-wsort]'); if (so) { S.wsSort = so.dataset.wsort; LS.set('wsSort', S.wsSort); renderWs(); return; }
     var fi = cl('[data-filter]'); if (fi) { S.filter = fi.dataset.filter; renderTracks(); return; }
+    if (cl('[data-rz]') || Date.now() - justResized < 300) return;
     var sk = cl('[data-sortk]'); if (sk) { var sv = COLS[sk.dataset.sortk][3]; S.sort = sv === 'new' && S.sort === 'new' ? 'old' : sv; LS.set('sort', S.sort); renderTracks(); return; }
     var srt = cl('[data-sort]'); if (srt) { S.sort = srt.dataset.sort; LS.set('sort', S.sort); renderTracks(); return; }
     var ac = cl('[data-act]'); if (ac) {
