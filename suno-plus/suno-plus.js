@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.14.2';
+  var VERSION = '2.15.0';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -977,7 +977,7 @@
       '<button class="sdl-chip' + (S.filter === 'orig' ? ' on' : '') + '" data-filter="orig" title="' + tr("Tes créations au prompt (sans upload) et ce qui en découle", "Your prompt creations (no upload) and what comes from them") + '">✨ ' + tr("Mes créations", "My creations") + '</button>' +
       '<span class="sdl-muted" style="margin-left:8px">' + tr('Tri', 'Sort') + '</span>' + [['no', 'N°'], ['new', tr('Récents', 'Newest')], ['old', tr('Anciens', 'Oldest')], ['az', 'A → Z'], ['long', tr('Durée', 'Length')], ['plays', '▶ ' + tr('Écoutes', 'Plays')]].map(function (x) { return '<button class="sdl-chip' + (S.sort === x[0] ? ' on' : '') + '" data-sort="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
       '<button class="sdl-chip" data-act="selall" style="margin-left:auto">☑ ' + tr("Tout sélectionner", "Select all") + '</button></div>' +
-      (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">🏷 ' + tr("Renommer", "Rename") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
+      (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bnewws">🆕 ' + tr("Nouvel espace", "New workspace") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">🏷 ' + tr("Renommer", "Rename") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
       '<div class="sdl-tracks cols' + (sel.length ? ' sdl-anysel' : '') + '" style="--cols:' + colsGrid() + ';--minw:' + colsMinW() + 'px">' + (cs.length ? colHead() : '') + (cs.length ? cs.slice(0, S.limit || 400).map(function (c, i) {
         var on = S.playing && S.playing.id === c.id, head = '', sg = sugFor(c), gn = genOf(c);
         if (w.all && S.sort === 'no' && (i === 0 || cs[i - 1].ws !== c.ws)) head = '<div class="sdl-grp" data-ws="' + esc(c.ws.id) + '">' + esc(c.ws.name) + ' <span class="sdl-muted">· ' + (S.clips[c.ws.id] || []).length + '</span></div>';
@@ -1354,6 +1354,39 @@
       } }]);
     setTimeout(function () { var i = $('#sdl-wsn'); if (i) { i.focus(); i.select(); i.onkeydown = function (e) { if (e.key === 'Enter') $('#sdl-modal .primary').click(); }; } }, 30);
   }
+  // New workspace made for these tracks: create it, move them in, pin the first one (it becomes 001).
+  function newWsWith(cs0) {
+    var cs = cs0.slice().sort(function (a, b) { return (a.at || '').localeCompare(b.at || ''); }), first = cs[0];
+    var twins = []; cs.forEach(function (c) { var g = genOf(c); if (g) g.list.forEach(function (x) { if (cs.indexOf(x) < 0 && twins.indexOf(x) < 0) twins.push(x); }); });
+    var sug = cleanTitle(rootOf(first).c.title);
+    modal(tr('Nouvel espace de travail', 'New workspace'),
+      '<input type="text" id="sdl-nw" maxlength="100" style="width:100%" value="' + esc(sug) + '">' +
+      '<div class="sdl-muted" style="font-size:13px;margin-top:8px">' + (cs.length > 1 ? pl(cs.length, 'titre déplacé', 'titres déplacés', 'track moved', 'tracks moved') : tr('« ', '"') + esc(first.title) + tr(' » y sera déplacé', '" will be moved there')) + '</div>' +
+      '<label class="sdl-row" style="border:0"><input type="checkbox" id="sdl-nw-pin" checked><span>📌 ' + tr('Épingler « ', 'Pin "') + esc(first.title) + tr(' » en tête', '" on top') + '</span></label>' +
+      (twins.length ? '<label class="sdl-row" style="border:0"><input type="checkbox" id="sdl-nw-tw"><span>⧉ ' + tr('Emmener aussi son jumeau de génération', 'Also take its generation twin') + (twins.length > 1 ? ' (' + twins.length + ')' : '') + '</span></label>' : ''),
+      [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Créer et déplacer', 'Create and move'), cls: 'primary', onclick: async function () {
+        var name = $('#sdl-nw').value.trim().slice(0, 100); if (!name) return;
+        var pin = $('#sdl-nw-pin').checked, all = cs.concat($('#sdl-nw-tw') && $('#sdl-nw-tw').checked ? twins : []);
+        setButtons([{ label: '…' }]);
+        try {
+          var r = await write('/api/project', { name: name, description: '' });
+          if (!r || !r.id) throw new Error(tr('Suno n\'a pas créé l\'espace', 'Suno did not create the workspace'));
+          var nw = { id: r.id, name: r.name || name, desc: '', img: '', n: 0, upd: new Date().toISOString(), marker: '' };
+          S.ws.unshift(nw); S.clips[nw.id] = [];
+          var bySrc = {}; all.forEach(function (c) { var w = wsOf(c.id); if (w) (bySrc[w.id] = bySrc[w.id] || []).push(c); });
+          for (var sid in bySrc) {
+            var ids = bySrc[sid].map(function (c) { return c.id; });
+            await write('/api/project/' + sid + '/clips', { update_type: 'move', metadata: { clip_ids: ids, target_project_id: nw.id } });
+            S.clips[sid] = (S.clips[sid] || []).filter(function (c) { return ids.indexOf(c.id) < 0; });
+            S.clips[nw.id] = S.clips[nw.id].concat(bySrc[sid]); ids.forEach(function (id) { delete S.sel[id]; });
+          }
+          if (pin) { await write('/api/project/' + nw.id + '/clips', { update_type: 'pinned', metadata: { clip_ids: [first.id], pinned: true } }); S.pins[nw.id] = [first.id]; }
+          nw.n = S.clips[nw.id].length; S.cur = nw.id; LS.set('cur', S.cur);
+          closeModal(); refreshAll(); toast(tr('Espace « ', 'Workspace "') + nw.name + tr(' » créé', '" created') + ' · ' + pl(S.clips[nw.id].length, 'titre', 'titres', 'track', 'tracks'), 6000);
+        } catch (e) { closeModal(); refreshAll(); toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }
+      } }]);
+    setTimeout(function () { var i = $('#sdl-nw'); if (i) { i.focus(); i.select(); i.onkeydown = function (e) { if (e.key === 'Enter') $('#sdl-modal .primary').click(); }; } }, 30);
+  }
   function newWs() {
     modal(tr('Nouvel espace de travail', 'New workspace'), '<input type="text" id="sdl-nws" style="width:100%" placeholder="' + tr('Nom', 'Name') + '">',
       [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Créer', 'Create'), cls: 'primary', onclick: async function () {
@@ -1395,6 +1428,7 @@
       [c.liked ? '♡ ' + tr('Retirer des favoris', 'Remove from favorites') : '♥ ' + tr('Ajouter aux favoris', 'Add to favorites'), function () { toggleLike(c); }],
       [isPinned(c) ? '📌 ' + tr('Désépingler', 'Unpin') : '📌 ' + tr('Épingler en haut de l\'espace', 'Pin to the top of the workspace'), function () { setPinned([c], !isPinned(c)); }],
       ['📁 ' + tr('Déplacer vers…', 'Move to…'), function () { moveTracks([c]); }],
+      ['🆕 ' + tr('Nouvel espace avec ce titre', 'New workspace with this track'), function () { newWsWith([c]); }],
       ['↗ ' + tr('Voir sur Suno', 'See on Suno'), function () { show(false); if (window.next && window.next.router) window.next.router.push('/song/' + c.id); }],
       ['🗑 ' + tr('Supprimer', 'Delete'), function () { deleteTracks([c]); }, 'danger']
     ]);
@@ -1459,6 +1493,7 @@
         case 'selall': vc.forEach(function (c) { S.sel[c.id] = true; }); return renderTracks();
         case 'bnone': S.sel = {}; return renderTracks();
         case 'bmove': return moveTracks(selList());
+        case 'bnewws': return newWsWith(selList());
         case 'bpin': var sl = selList(); return setPinned(sl, !sl.every(function (c) { return isPinned(c); }));
         case 'bdelete': return deleteTracks(selList());
         case 'bclean': return renamer(selList(), false);
