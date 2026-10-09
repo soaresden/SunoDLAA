@@ -1,0 +1,24 @@
+{
+    "permissions": {
+        "allow": [
+            "Bash(git status:*)",
+            "Bash(git diff:*)",
+            "Bash(git log:*)",
+            "Bash(git show:*)",
+            "Bash(git add:*)",
+            "Bash(git commit:*)",
+            "Bash(python suno-plus/build.py)",
+            "Bash(python suno-plus/gen_android_themes.py:*)",
+            "Bash(node -e:*)",
+            "Bash(./gradlew:*)",
+            "Bash(gradlew.bat:*)",
+            "Bash(adb devices:*)",
+            "Bash(adb install:*)",
+            "Bash(adb logcat:*)"
+        ],
+        "deny": [
+            "Bash(git push --force:*)",
+            "Read(**/*cookies*.json)"
+        ]
+    }
+}

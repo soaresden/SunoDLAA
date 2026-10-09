@@ -1,8 +1,5 @@
-# desktop runtime
-desktop/config.json
-desktop/downloads/
-*.log
-# android build
+# build outputs
+suno-plus/suno-plus.built.js
 android/.gradle/
 android/build/
 android/app/build/
@@ -10,8 +7,9 @@ android/local.properties
 android/.idea/
 android/.kotlin/
 *.iml
+*.log
 # secrets
 *cookies*.json
-desktop/logs/
-desktop/cache/
-desktop/backups/
+config.json
+# Claude Code: personal settings stay local (shared ones are in .claude/settings.json)
+.claude/settings.local.json
