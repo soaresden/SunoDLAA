@@ -26,7 +26,8 @@
   function wanted(method, url) {
     try {
       var u = new URL(url, location.href);
-      if (/sentry|statsig|google|segment|datadog|clerk|hotjar|intercom|tiktok|facebook|reddit|doubleclick|analytics|chromadrone|^auth\.suno\.com$/i.test(u.hostname)) return false;
+      if (/sentry|statsig|google|segment|datadog|clerk|hotjar|intercom|tiktok|facebook|reddit|doubleclick|analytics|chromadrone|^auth\.suno\.com$|^s\.prod\.suno\.com$/i.test(u.hostname)) return false;
+      if (/\/listen_milestone$/.test(u.pathname)) return false;
       if (/suno\.com$/.test(u.hostname) && /^\/api\//.test(u.pathname)) return !NOISE.test(u.pathname);
       return method !== 'GET' && method !== 'HEAD';
     } catch (x) { return false; }

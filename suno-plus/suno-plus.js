@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.9.0';
+  var VERSION = '2.10.0';
   if (window.__sdlSkin) { window.__sdlSkin.toggle(); return; }
   // Not on suno.com: go there (click the bookmark again to open the player).
   if (!/(^|\.)suno\.com$/.test(location.hostname)) { location.href = 'https://suno.com/'; return; }
@@ -616,7 +616,7 @@
     '<div class="sdl-wsbar"><button class="sdl-chip" data-act="newws" title="' + tr('Nouvel espace de travail', 'New workspace') + '">＋</button><button class="sdl-chip" data-wsort="recent">' + tr("Récents", "Recent") + '</button><button class="sdl-chip" data-wsort="az">A → Z</button><button class="sdl-chip" data-wsort="size">' + tr("Taille", "Size") + '</button></div>' +
     '<div class="sdl-wslist" id="sdl-wslist"></div><div class="sdl-status" id="sdl-status"></div></aside>' +
     '<main class="sdl-main"><div class="sdl-mainin" id="sdl-mainin"></div>' +
-    '<section class="sdl-lyr" id="sdl-lyr" hidden><div class="sdl-kbg" id="sdl-kbg"></div><h3><span style="flex:1">' + tr("Paroles", "Lyrics") + '</span><button class="sdl-ic" id="sdl-kara" title="' + tr("Karaoké plein écran", "Full-screen karaoke") + '">⤢</button></h3><div id="sdl-lyr-body"></div><button id="sdl-follow" hidden>⤓ ' + tr("Suivre les paroles", "Follow the lyrics") + '</button></section></main>' +
+    '<section class="sdl-lyr" id="sdl-lyr" hidden><div class="sdl-kbg" id="sdl-kbg"></div><h3><span style="flex:1">' + tr("Paroles", "Lyrics") + '</span><button class="sdl-ic" id="sdl-lyredit" title="' + tr("Modifier le titre et les paroles", "Edit title and lyrics") + '">✏️</button><button class="sdl-ic" id="sdl-kara" title="' + tr("Karaoké plein écran", "Full-screen karaoke") + '">⤢</button></h3><div id="sdl-lyr-body"></div><button id="sdl-follow" hidden>⤓ ' + tr("Suivre les paroles", "Follow the lyrics") + '</button></section></main>' +
     '<footer class="sdl-bar"><div class="sdl-now" id="sdl-now" title="' + tr("Aller à l\'espace de travail", "Go to the workspace") + '"></div>' +
     '<div class="sdl-ctl"><div class="sdl-btns"><button class="sdl-ic sdl-tog" id="sdl-shuf" title="' + tr("Aléatoire", "Shuffle") + '">🔀</button><button class="sdl-ic" id="sdl-prev" title="' + tr("Précédent", "Previous") + '">⏮</button>' +
     '<button class="sdl-play" id="sdl-pp">▶</button><button class="sdl-ic" id="sdl-next" title="' + tr("Suivant", "Next") + '">⏭</button><button class="sdl-ic sdl-tog" id="sdl-rep" title="' + tr("Répéter", "Repeat") + '">🔁</button></div>' +
@@ -822,6 +822,25 @@
     var s = $('#sdl-sug'); if (s) s.onclick = function (e) { e.preventDefault(); $('#sdl-rn').value = sug; };
     setTimeout(function () { var i = $('#sdl-rn'); if (i) { i.focus(); i.select(); i.onkeydown = function (e) { if (e.key === 'Enter') $('#sdl-modal .primary').click(); }; } }, 30);
   }
+  function editDetails(c) {
+    var box = 'width:100%;font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;outline:none';
+    modal(tr('Titre et paroles', 'Title and lyrics'),
+      '<input type="text" id="sdl-ed-t" maxlength="100" style="' + box + '" value="' + esc(c.title) + '">' +
+      '<textarea id="sdl-ed-l" maxlength="5000" rows="16" style="' + box + ';margin-top:10px;resize:vertical;min-height:40vh">' + esc(c.prompt || '') + '</textarea>' +
+      '<div class="sdl-muted" style="font-size:12px;margin-top:6px">' + tr('Le karaoké garde le placement calculé par Suno : il peut être décalé si tu changes beaucoup le texte.', 'Karaoke keeps the timing Suno computed: it may drift if you change the text a lot.') + '</div>',
+      [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Enregistrer', 'Save'), cls: 'primary', onclick: async function () {
+        var t = $('#sdl-ed-t').value.trim() || c.title, l = $('#sdl-ed-l').value;
+        if (t === c.title && l === (c.prompt || '')) return closeModal();
+        setButtons([{ label: '…' }]);
+        try {
+          await write('/api/gen/' + c.id + '/set_metadata/', { title: t, lyrics: l });
+          c.title = t; c.prompt = l; closeModal(); refreshAll();
+          if (S.playing && S.playing.id === c.id) loadLyrics(c);
+          toast(tr('Enregistré sur Suno', 'Saved on Suno'));
+        } catch (e) { closeModal(); toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }
+      } }]);
+    setTimeout(function () { var i = $('#sdl-ed-l'); if (i) i.focus(); }, 30);
+  }
   async function toggleLike(c) {
     var want = !c.liked;
     try { await write('/api/gen/' + c.id + '/update_reaction_type/', { reaction: want ? 'LIKE' : null }); c.liked = want; refreshAll(); }
@@ -1009,6 +1028,7 @@
     menu(ev, [
       ['▶ ' + tr('Lire', 'Play'), function () { var cs = viewClips(); startQueue(cs, Math.max(0, cs.indexOf(c)), false); }],
       ['✏️ ' + tr('Renommer', 'Rename'), function () { renameTrack(c); }],
+      ['📝 ' + tr('Modifier les paroles', 'Edit lyrics'), function () { editDetails(c); }],
       cleanTitle(c.title) !== c.title ? ['✨ ' + tr('Nettoyer le titre', 'Clean the title'), function () { cleanTitles([c]); }] : null,
       [c.liked ? '♡ ' + tr('Retirer des favoris', 'Remove from favorites') : '♥ ' + tr('Ajouter aux favoris', 'Add to favorites'), function () { toggleLike(c); }],
       [isPinned(c) ? '📌 ' + tr('Désépingler', 'Unpin') : '📌 ' + tr('Épingler en haut de l\'espace', 'Pin to the top of the workspace'), function () { setPinned([c], !isPinned(c)); }],
@@ -1078,6 +1098,7 @@
       case 'sdl-rep': S.repeat = S.repeat === 'off' ? 'all' : S.repeat === 'all' ? 'one' : 'off'; LS.set('repeat', S.repeat); return renderPlayer();
       case 'sdl-lyrbtn': if (S.karaoke) S.karaoke = false; else S.showLyr = !S.showLyr; LS.set('showLyr', S.showLyr); renderPlayer(); renderLyrics(); return;
       case 'sdl-kara': S.karaoke = !S.karaoke; renderPlayer(); renderLyrics(); return;
+      case 'sdl-lyredit': if (!S.playing) return toast(tr('Rien en lecture', 'Nothing playing')); if (!isMine(S.playing)) return toast(tr('Seulement pour tes propres titres', 'Only for your own tracks')); return editDetails(S.playing);
       case 'sdl-follow': follow = true; bt.hidden = true; lyrCur = -1; return tick();
       case 'sdl-sync': return sync(true);
       case 'sdl-hide': return show(false);

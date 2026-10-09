@@ -30,7 +30,7 @@ display_name, handle, play_count, metadata {tags, prompt, duration, cover_clip_i
 ## Library (write) — the `WRITES` whitelist
 | Call | Body | Answer |
 |---|---|---|
-| `POST /api/gen/<id>/set_metadata/` | `{"title": "…"}` | 200, clip summary |
+| `POST /api/gen/<id>/set_metadata/` | `{"title": "…"}`, or `{"title": "…", "lyrics": "…"}` ("Edit song details"; lyrics become `prompt`) | 200, clip summary |
 | `POST /api/gen/<id>/update_reaction_type/` | `{"reaction": "LIKE"}` or `{"reaction": null}` | |
 | `POST /api/gen/trash` | `{"clip_ids": [...], "trash": true}` (false = restore) | |
 | `POST /api/project` | `{"name": "…", "description": ""}` | 200, new project |
