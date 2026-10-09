@@ -2,6 +2,10 @@
   <img src="assets/logo.png" alt="SUNODLAA" width="520">
 </p>
 
+<p align="center">
+  <a href="https://soaresden.github.io/SunoDLAA/"><b>👉 ♪ Get the SUNODLAA bookmark (drag &amp; drop)</b></a>
+</p>
+
 <h3 align="center">Your Suno library, by workspace. On suno.com, on your phone, in your car.</h3>
 
 <p align="center">
@@ -10,7 +14,8 @@
 </p>
 
 ## ♪ Get the bookmark
-Once, for good: it updates itself.
+Once, for good: it updates itself. Easiest: open **[the bookmark page](https://soaresden.github.io/SunoDLAA/)**
+and drag the ♪ SUNODLAA button onto your bookmarks bar. Or by hand:
 
 1. Show the bookmarks bar (`Ctrl+Shift+B`), right-click it → **Add page…** (Chrome/Brave/Edge) or **Add bookmark…** (Firefox).
 2. Name: `♪ SUNODLAA`. URL: **paste the whole line below** (copy button at the top right of the box).
