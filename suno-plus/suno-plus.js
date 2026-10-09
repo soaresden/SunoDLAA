@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.18.3';
+  var VERSION = '2.18.4';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -667,10 +667,12 @@
     b = b.replace(/^(?:cover|remix)\s+-\s+/i, '').trim();
     return b || cleanTitle(t);
   }
+  // The name of reference: the highest ancestor still in the library (a deleted source is no longer "the original").
+  function rootLib(c) { for (var i = 0, cur = c; i < 12; i++) { var up = parentIds(cur).map(findClip).filter(Boolean)[0]; if (!up || up === c) return cur; cur = up; } return cur; }
   function nameOf(c, R, wsName) {
     var k = catOf(c), own = k === 'create' || k === 'sfx' || k === 'mashup' || !k;
     // the original's name; an original without a usable title takes its workspace's name, and so do the tracks made from it
-    var src = own ? c : rootOf(c).c, sw = src === c ? null : wsOf(src.id);
+    var src = own ? c : rootLib(c), sw = src === c ? null : wsOf(src.id);
     var base = baseTitle(src.title, R);
     if (badTitle(base)) base = cleanTitle(sw ? sw.name : (wsName || '')) || baseTitle(c.title, R);
     var detail = '';
@@ -706,7 +708,10 @@
     var cs = S.clips[wsId] || [], o = originals(cs), count = {}, all = names(wsId, RULES), out = {};
     var key = function (t) { return norm(t).trim(); };
     cs.forEach(function (c) { count[key(c.title)] = (count[key(c.title)] || 0) + 1; });
-    cs.forEach(function (c) { if (o[c.id] || (count[key(c.title)] < 2 && cleanTitle(c.title) === c.title)) return; if (all[c.id] !== c.title) out[c.id] = all[c.id]; });
+    cs.forEach(function (c) {
+      var r = rootLib(c), off = r !== c && norm(baseTitle(c.title)) !== norm(baseTitle(r.title));   // no longer follows its original's name
+      if (o[c.id] || (count[key(c.title)] < 2 && cleanTitle(c.title) === c.title && !off)) return; if (all[c.id] !== c.title) out[c.id] = all[c.id];
+    });
     return (sugCache[wsId] = out);
   }
   function sugFor(c) {
