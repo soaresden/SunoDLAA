@@ -24,6 +24,8 @@ downloader (SunoAAWeb) was deleted. SUNODLAA is now **the player Suno never buil
   (bookmark: the suno.com page; Android: `SunoWebEngine` WebView) or comes from the user's own files.
 - **No download-limit bypass**, no use of `/api/download/...` in bulk.
 - **No content-filter bypass** (Suno blocks copyrighted audio/lyrics uploads; don't help around it).
+  This includes the tempo trick: speeding a track up to pass the upload check, then slowing it back
+  in Suno Studio (`/api/studio/render-state`). The overlay's upload sends files as they are, nothing more.
 - Suno writes only through the calls suno.com itself makes, listed in the `WRITES` whitelist of
   `suno-plus.js` (see `docs/suno-api.md`). Add an endpoint only after seeing it in a spy log.
 
