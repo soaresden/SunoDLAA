@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.14.1';
+  var VERSION = '2.14.2';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -719,7 +719,7 @@
     '.sdl-rnset{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;padding:8px 0 10px;border-bottom:1px solid var(--line)}.sdl-rnset input,.sdl-rnset select{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:3px 6px}.sdl-rnset .sdl-cat{cursor:pointer;opacity:.35}.sdl-rnset .sdl-cat.on{opacity:1}' +
     '.sdl-tr .dt{color:var(--mut);font-size:12px;white-space:nowrap}.sdl-gen{font-size:11px;font-weight:700;color:var(--acc2,var(--acc));border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-left:4px;opacity:.8}' +
     '.sdl-tracks{padding:4px 20px 30px}.sdl-tr{display:grid;grid-template-columns:22px 58px 44px 1fr 110px auto 52px 34px;gap:10px;align-items:center;padding:6px 10px;border-radius:10px;width:100%;text-align:left;cursor:pointer}' +
-    '.sdl-tracks.cols{overflow-x:auto}.sdl-tracks.cols .sdl-tr{grid-template-columns:var(--cols);min-width:max-content}.sdl-thead{position:sticky;top:0;z-index:2;background:var(--bg);cursor:default;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line);border-radius:0}.sdl-thead:hover{background:var(--bg)}' +
+    '.sdl-tracks.cols{overflow-x:auto}.sdl-tracks.cols .sdl-tr{grid-template-columns:var(--cols);min-width:var(--minw)}.sdl-thead{position:sticky;top:0;z-index:2;background:var(--bg);cursor:default;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line);border-radius:0}.sdl-thead:hover{background:var(--bg)}' +
     '.sdl-thead .th{cursor:grab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}.sdl-thead .th[data-sortk]:hover,.sdl-thead .th.on{color:var(--acc)}.sdl-thead .th.r{text-align:right}.sdl-thead .th.drop{box-shadow:inset 3px 0 0 var(--acc)}.sdl-thead .th-cfg{opacity:1}' +
     '.sdl-tr .pc{color:var(--mut);font-variant-numeric:tabular-nums;text-align:right}.sdl-tr .wsn{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.sdl-tr:hover{background:var(--glass)}.sdl-tr.on{background:var(--panel2)}.sdl-tr.on .tt{color:var(--acc)}.sdl-tr.sel{background:' + 'var(--panel2)}' +
@@ -922,6 +922,7 @@
   var cols = (LS.get('cols', null) || ['no', 'img', 'title', 'date', 'like', 'plays', 'dur']).filter(function (k) { return COLS[k]; });
   if (cols.indexOf('title') < 0) cols.splice(2, 0, 'title');
   function saveCols() { LS.set('cols', cols); renderTracks(); }
+  function colsMinW() { return 22 + 34 + 20 + 10 * (cols.length + 1) + cols.reduce(function (n, k) { return n + (parseInt(COLS[k][0].replace('minmax(', ''), 10) || 0); }, 0); }
   function colsGrid() { return '22px ' + cols.map(function (k) { return COLS[k][0]; }).join(' ') + ' 34px'; }
   function colHead() {
     return '<div class="sdl-tr sdl-thead"><span></span>' + cols.map(function (k) {
@@ -977,7 +978,7 @@
       '<span class="sdl-muted" style="margin-left:8px">' + tr('Tri', 'Sort') + '</span>' + [['no', 'N°'], ['new', tr('Récents', 'Newest')], ['old', tr('Anciens', 'Oldest')], ['az', 'A → Z'], ['long', tr('Durée', 'Length')], ['plays', '▶ ' + tr('Écoutes', 'Plays')]].map(function (x) { return '<button class="sdl-chip' + (S.sort === x[0] ? ' on' : '') + '" data-sort="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
       '<button class="sdl-chip" data-act="selall" style="margin-left:auto">☑ ' + tr("Tout sélectionner", "Select all") + '</button></div>' +
       (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">🏷 ' + tr("Renommer", "Rename") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
-      '<div class="sdl-tracks cols' + (sel.length ? ' sdl-anysel' : '') + '" style="--cols:' + colsGrid() + '">' + (cs.length ? colHead() : '') + (cs.length ? cs.slice(0, S.limit || 400).map(function (c, i) {
+      '<div class="sdl-tracks cols' + (sel.length ? ' sdl-anysel' : '') + '" style="--cols:' + colsGrid() + ';--minw:' + colsMinW() + 'px">' + (cs.length ? colHead() : '') + (cs.length ? cs.slice(0, S.limit || 400).map(function (c, i) {
         var on = S.playing && S.playing.id === c.id, head = '', sg = sugFor(c), gn = genOf(c);
         if (w.all && S.sort === 'no' && (i === 0 || cs[i - 1].ws !== c.ws)) head = '<div class="sdl-grp" data-ws="' + esc(c.ws.id) + '">' + esc(c.ws.name) + ' <span class="sdl-muted">· ' + (S.clips[c.ws.id] || []).length + '</span></div>';
         return head + '<div class="sdl-tr' + (on ? ' on' : '') + (o[c.id] ? ' sdl-orig' : '') + (S.sel[c.id] ? ' sel' : '') + '" data-i="' + i + '" data-id="' + c.id + '">' +
