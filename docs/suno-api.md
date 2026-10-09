@@ -36,6 +36,7 @@ display_name, handle, play_count, metadata {tags, prompt, duration, cover_clip_i
 | `POST /api/project` | `{"name": "…", "description": ""}` | 200, new project |
 | `POST /api/project/<id>/metadata` | `{"name": "…", "description": "…"}` (the site sets description = name) | 204 |
 | `POST /api/project/<src>/clips` | `{"update_type": "move", "metadata": {"clip_ids": [...], "target_project_id": "<dst>"}}` | 204 |
+| `POST /api/project/<id>/clips` | `{"update_type": "pinned", "metadata": {"clip_ids": [...], "pinned": true}}` (false = unpin) — "Pin clip to workspace" | 204 |
 | `POST /api/project/trash` | `{"project_id": "<id>", "undo_trash": false}` | 204 |
 | `POST /api/lyrics-projects` | `{"title": "…"}` | 200 {id, title, lyrics, created_at} |
 | `POST /api/lyrics-projects/<id>/flush` | `{"lyrics": "…"}` | 200 {updated_at} |

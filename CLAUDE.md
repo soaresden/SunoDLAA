@@ -30,9 +30,12 @@ downloader (SunoAAWeb) was deleted. SUNODLAA is now **the player Suno never buil
 ## Bookmark overlay (`suno-plus/`)
 - Source: `suno-plus/suno-plus.js` (one IIFE, ES5-style, no build tools). Version: `var VERSION = 'x.y.z'` at the top — bump it on every change.
 - Themes: `suno-plus/themes.json` (shared with Android). Injected at build in place of `/*@THEMES@*/[]`.
-- Build the installer: `python suno-plus/build.py` → rewrites `SUNODLAA - Installer le favori.html`
-  (the bookmark is `javascript:` + the whole script). Denis re-drags the button after each update.
-- Syntax check: `node -e "new Function(require('fs').readFileSync('suno-plus/suno-plus.built.js','utf8'))"` (built file is not committed, it is a build output; delete it or ignore it).
+- Build: `python suno-plus/build.py` → writes `suno-plus/sunodlaa.js` (script + themes, **committed**) and
+  `SUNODLAA - Installer le favori.html`. The bookmark is a small loader that fetches
+  `raw.githubusercontent.com/soaresden/SunoDLAA/main/suno-plus/sunodlaa.js` at each click (suno.com's CSP allows it),
+  so Denis installs it once: **a change reaches him only once pushed to `main`** (raw cache ≤ 5 min, busted by `?t=`).
+  Always rebuild and commit `sunodlaa.js` with `suno-plus.js`.
+- Syntax check: `node -e "new Function(require('fs').readFileSync('suno-plus/sunodlaa.js','utf8'))"`.
 - i18n: every UI string goes through `tr('français', 'English')` / `pl(n, fr1, frN, en1, enN)`; language = browser language.
 - Gotchas learnt the hard way:
   - suno.com's `<html>`/`<body>` carry `data-*` attributes (`data-theme`…): in the click handler use the
@@ -44,6 +47,8 @@ downloader (SunoAAWeb) was deleted. SUNODLAA is now **the player Suno never buil
   - Create screen fills Suno's /create form (Advanced mode): title input, lyrics contenteditable
     (paste event, then execCommand fallback), style textarea (maxLength 1000), exclude input, voice
     buttons (Homme/Femme), then clicks "Créer la chanson". **Not yet confirmed working while signed in.**
+- Console spy for Denis: `docs/console-spy.js` — he pastes it in F12, types `start()`, does the action on suno.com,
+  `stop()` copies a log (no tokens/cookies/emails/file contents) that he pastes here.
 - Debug: F12 → Console, filter `SUNODLAA`. The 🕵 spy records suno.com's own API calls (method, path,
   JSON body, status, start of answer — never tokens) and "Structure de la page" dumps form fields.
 - Test without an account with Playwright on public songs (headless Chromium, `--autoplay-policy=no-user-gesture-required`).
