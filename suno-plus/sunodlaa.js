@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.8.1';
+  var VERSION = '2.9.0';
   if (window.__sdlSkin) { window.__sdlSkin.toggle(); return; }
   // Not on suno.com: go there (click the bookmark again to open the player).
   if (!/(^|\.)suno\.com$/.test(location.hostname)) { location.href = 'https://suno.com/'; return; }
@@ -365,10 +365,42 @@
     return icons.find(function (b) { return /variant-primary/.test(b.className); }) ||
       icons.find(function (b) { return !/playbar|barre|lecteur/i.test(b.getAttribute('aria-label') || ''); }) || null;
   }
+  // Suno's own playbar (bottom of suno.com): the track it holds, and its buttons ("Playbar: Next Song button"...).
+  var UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+  // The playbar = the block around its progress slider that holds a song link and the transport buttons (any site language).
+  function barRoot() {
+    var rs = $$('input[type=range]').filter(function (r) { return !root.contains(r); });
+    for (var i = 0; i < rs.length; i++) for (var e = rs[i].parentElement, k = 0; e && k < 8; e = e.parentElement, k++) if (e.querySelector('a[href^="/song/"]') && e.querySelectorAll('button').length >= 4) return e;
+    return null;
+  }
+  function barSongId() {
+    var br = barRoot(), a = br && br.querySelector('a[href^="/song/"]');
+    if (!a) a = $$('a[href^="/song/"]').filter(function (x) { return !root.contains(x); }).find(function (x) { return /^(playbar|barre|lecteur)/i.test(x.getAttribute('aria-label') || ''); });
+    var m = a && (a.getAttribute('href') || '').match(UUID); return m ? m[0] : null;
+  }
+  // Transport buttons by label ("Playbar: Next Song button"...), else by place: shuffle, previous, play/pause, next, repeat.
+  function barBtn(rx, pos) {
+    var br = barRoot(), bs = br ? $$('button', br) : $$('button[aria-label]').filter(function (b) { return !root.contains(b) && /^(playbar|barre|lecteur)/i.test(b.getAttribute('aria-label') || ''); });
+    return bs.find(function (b) { return rx.test((b.getAttribute('aria-label') || '').replace(/^[^:]*:\s*/, '')); }) || (br && bs.length >= 5 ? bs[pos] : null) || null;
+  }
+  // Suno -> SUNODLAA: whatever suno.com's player holds is shown here (title, cover, time, lyrics).
+  var following = null;
+  async function followSuno() {
+    if (S.loading || following) return;
+    var id = barSongId(); if (!id || (S.playing && S.playing.id === id)) return;
+    following = id;
+    var c = findClip(id);
+    if (!c) { try { c = slim(await callPublic('GET', '/api/clip/' + id)); } catch (e) { var md = navigator.mediaSession && navigator.mediaSession.metadata; c = { id: id, title: (md && md.title) || '…', author: (md && md.artist) || '', img: md && md.artwork && md.artwork[0] ? md.artwork[0].src : '', imgL: '', d: 0, tags: '', at: '', prompt: '' }; } }
+    following = null;
+    if (S.loading || barSongId() !== id) return;
+    var k = S.queue.findIndex(function (x) { return x.id === id; });
+    if (k >= 0) { S.idx = k; S.ext = false; } else { S.queue = [c]; S.idx = 0; S.ext = true; }   // ext: started on suno.com, Suno's queue leads
+    S.playing = c; log('following Suno player', c.title, id); loadLyrics(c); renderPlayer();
+  }
   var playToken = 0;
   async function playIdx(i) {
     if (i < 0 || i >= S.queue.length) return;
-    S.idx = i; var c = S.queue[i]; S.playing = c; var my = ++playToken;
+    S.idx = i; var c = S.queue[i]; S.playing = c; S.ext = false; var my = ++playToken;
     log('play', (i + 1) + '/' + S.queue.length, c.title, c.id);
     S.loading = true; renderPlayer(); loadLyrics(c);
     var a0 = audio(); if (a0 && !a0.paused) a0.pause();
@@ -396,17 +428,22 @@
     S.queue = list; playIdx(i);
   }
   function next(auto) {
+    if (S.ext) { if (!auto) { var nb = barBtn(/next|suivant/i, 3); if (nb) nb.click(); } return; }   // Suno moves on by itself
     if (!S.queue.length) return;
     if (auto && S.repeat === 'one') return playIdx(S.idx);
     var n = S.idx + 1;
     if (n >= S.queue.length) { if (S.repeat === 'all') n = 0; else { renderPlayer(); return; } }
     playIdx(n);
   }
-  function prev() { var a = audio(); if (a && a.currentTime > 4) { a.currentTime = 0; return; } if (S.idx > 0) playIdx(S.idx - 1); }
-  function toggle() { var a = audio(); if (!a || !S.playing) { if (S.queue.length) playIdx(Math.max(0, S.idx)); else startQueue(viewClips(), 0, S.shuffle); return; } if (a.paused) a.play(); else a.pause(); }
+  function prev() { var a = audio(); if (a && a.currentTime > 4) { a.currentTime = 0; return; } if (S.ext) { var pb = barBtn(/previous|pr[ée]c[ée]dent/i, 1); if (pb) pb.click(); return; } if (S.idx > 0) playIdx(S.idx - 1); }
+  function toggle() {
+    var a = audio(); if (!a || !S.playing) { if (S.queue.length) playIdx(Math.max(0, S.idx)); else startQueue(viewClips(), 0, S.shuffle); return; }
+    var b = barBtn(/^(play|pause|lire|lecture|reprendre|mettre en pause)\b/i, 2);   // Suno's own button keeps its playbar in step
+    if (b) b.click(); else if (a.paused) a.play(); else a.pause();
+  }
   function applyVolume() { var a = audio(), v = LS.get('vol', null); if (a && v != null) a.volume = v / 100; }
   document.addEventListener('ended', function (e) { if (e.target === audio() && S.playing && !S.loading) next(true); }, true);
-  ['play', 'pause', 'playing'].forEach(function (ev) { document.addEventListener(ev, function (e) { if (e.target === audio()) renderPlayer(); }, true); });
+  ['play', 'pause', 'playing'].forEach(function (ev) { document.addEventListener(ev, function (e) { if (e.target === audio()) { renderPlayer(); if (ev !== 'pause') setTimeout(followSuno, 300); } }, true); });
   document.addEventListener('timeupdate', function (e) { if (e.target === audio()) tick(); }, true);
 
   /* ================================================================ lyrics + karaoke */
@@ -614,7 +651,7 @@
     fab.hidden = !root.classList.contains('hide') || pill.isConnected;
   }
   // suno.com may rebuild the page right after it loads and drop the overlay: put it back.
-  setInterval(function () { if (!root.isConnected) document.documentElement.appendChild(root); placePill(); }, 1500);
+  setInterval(function () { if (!root.isConnected) document.documentElement.appendChild(root); placePill(); followSuno(); }, 1500);
 
   function show(on) { root.classList.toggle('hide', !on); closeMenu(); placePill(); }
   function toggleUI() { show(root.classList.contains('hide')); }
