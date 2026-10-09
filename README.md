@@ -9,6 +9,23 @@
   The "download" part didn't survive. Here is why, and what it became.
 </p>
 
+## ♪ Get the bookmark
+Once, for good: it updates itself.
+
+1. Show the bookmarks bar (`Ctrl+Shift+B`), right-click it → **Add page…** (Chrome/Brave/Edge) or **Add bookmark…** (Firefox).
+2. Name: `♪ SUNODLAA`. URL: **paste the whole line below** (copy button at the top right of the box).
+3. Go to **suno.com** (signed in) and click the bookmark. Click it again, or press `Esc`, to hide it.
+
+<!--BOOKMARK-->
+```
+javascript:(function(){if(!/(^|\.)suno\.com$/.test(location.hostname)){location.href='https://suno.com/';return}fetch('https://raw.githubusercontent.com/soaresden/SunoDLAA/main/suno-plus/sunodlaa.js?t='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}).then(function(t){(0,eval)(t)}).catch(function(e){if(window.__sdlSkin)window.__sdlSkin.toggle();else alert('SUNODLAA : chargement impossible ('+e.message+')')})})()
+```
+<!--/BOOKMARK-->
+
+**It updates itself.** At each click the bookmark loads the latest version from this repository;
+if an older one is open in the tab, it is replaced (you get a "updated: vX → vY" message). The
+version is shown on the ♪ SUNODLAA button under Suno's logo.
+
 ---
 
 ## The story
@@ -113,20 +130,8 @@ your own session. A glowing **♪ SUNODLAA** button even sits right under Suno's
 
 ## Install
 
-### The bookmark (once, for good)
-1. Show the bookmarks bar (`Ctrl+Shift+B`), right-click it → **Add page…** (Chrome/Brave/Edge) or **Add bookmark…** (Firefox).
-2. Name: `♪ SUNODLAA`. URL: **paste the whole line below** (copy button at the top right of the box).
-3. Go to **suno.com** (signed in) and click the bookmark. Click it again, or press `Esc`, to hide it.
-
-<!--BOOKMARK-->
-```
-javascript:(function(){if(!/(^|\.)suno\.com$/.test(location.hostname)){location.href='https://suno.com/';return}fetch('https://raw.githubusercontent.com/soaresden/SunoDLAA/main/suno-plus/sunodlaa.js?t='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}).then(function(t){(0,eval)(t)}).catch(function(e){if(window.__sdlSkin)window.__sdlSkin.toggle();else alert('SUNODLAA : chargement impossible ('+e.message+')')})})()
-```
-<!--/BOOKMARK-->
-
-**It updates itself.** At each click the bookmark loads the latest version from this repository;
-if an older one is open in the tab, it is replaced (you get a "updated: vX → vY" message). The
-version is shown on the ♪ SUNODLAA button under Suno's logo.
+### The bookmark
+See **[♪ Get the bookmark](#-get-the-bookmark)** at the top of this page.
 
 ### Android
 1. Install the latest APK from [`releases/`](releases/) (allow unknown sources).
