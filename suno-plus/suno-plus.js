@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.18.0';
+  var VERSION = '2.18.1';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -130,10 +130,14 @@
     return null;
   }
   function isMine(c) { return !!wsOf(c.id); }
-  // Voice or instrumental: Suno's own flag when it gives one, else its style ("Instrumental …") or empty / [Instrumental] lyrics.
+  // Voice or instrumental: the style saying so, a stem's part, a generated track without words; else Suno's has_vocal (fine for uploads / edits).
   function isInstru(c) {
+    var lyr = String(c.prompt || '').trim(), noWords = !lyr || /^\[?\s*instrumental\s*\]?$/i.test(lyr);
+    if (/\b(instrumental|no (?:vocals?|voices?|singing|lyrics)|without (?:vocals?|voices?)|sans (?:voix|paroles|chant))\b/i.test(c.tags || '')) return true;
+    if (catOf(c) === 'stem') { var m = String(c.title || '').match(STEM_RX), part = m ? (m[1] || m[2] || '').toLowerCase() : ''; if (part) return !/vocal/.test(part); }
+    if (c.ty === 'gen' && noWords) return true;   // generated without words: Suno's has_vocal is inherited from the source (covers), not reliable
     if (c.hv === true) return false; if (c.hv === false) return true;
-    return /\binstrumental\b/i.test(c.tags || '') || /^\s*(\[\s*instrumental\s*\])?\s*$/i.test(c.prompt || '');
+    return noWords;
   }
   function voiceIcon(c) { var i = isInstru(c); return '<span class="vx" title="' + (i ? tr('Instrumental', 'Instrumental') : tr('Avec voix', 'With vocals')) + '">' + (i ? '🎼' : '🗣️') + '</span>'; }
   // Pinned tracks are per workspace (Suno shows them on top of it).
