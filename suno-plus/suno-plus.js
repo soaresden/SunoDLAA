@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.17.2';
+  var VERSION = '2.17.3';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -539,12 +539,12 @@
     s = s.replace(/\s*\((?:edit|edited|clean|temp)\)/gi, '');
     s = s.replace(/^[\s_]*\d{1,2}-\d{2,3}\s*(?:-\s*)?(?=\S)/, '');
     s = s.replace(/(\s(?:x|&|-|\+|vs\.?)\s+)\d{2}-\d{3}\s+(?=\S)/gi, '$1');
-    s = s.replace(STEM_RX, '').replace(/^\s*!+/, '');
+    s = s.replace(STEM_RX, '');   // a leading "!" is Denis's mark for his own songs: kept
     while (/\s#\d+\s*$/.test(s)) s = s.replace(/\s*#\d+\s*$/, '');            // our own numbers: renumbered afterwards
     s = s.replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s\-–—.,]+|[\s\-–—.,]+$/g, '').trim();
     return s || (t0 || '');
   }
-  var STEM_RX = /\s*(?:\((woodwinds|brass|fx|synth|strings|percussion|drums|bass|vocals|backing vocals|guitar|keyboard|piano|other)\)|-\s*(vocals|instrumental))\s*$/i;
+  var STEM_RX = /\s*(?:\((woodwinds|brass|fx|synth|strings|percussion|drums|bass|vocals|backing vocals|guitar|keyboard|piano|other|instrumental)\)|-\s*(vocals|instrumental))\s*$/i;
   function badTitle(t) { return !t || /^[a-z]:\\/i.test(t) || /^(untitled|sans titre|replace \d)/i.test(t); }
 
   /* ---- what kind of track: Suno's metadata.type / task. One fixed hue each, lightness follows the theme. */
@@ -912,7 +912,7 @@
     var out = base.filter(function (c) {
       if (S.filter === 'fav' && !c.liked) return false;
       if (S.filter === 'pin' && !isPinned(c)) return false;
-      if (S.filter === 'orig' && originOf(c) !== 'prompt') return false;
+      if (S.filter === 'orig' && originOf(c) !== 'prompt' && !(c.ws && /^\s*!/.test(c.ws.name))) return false;   // prompt creations, or filed in a "!" workspace (own songs)
       return !q || norm(c.title).indexOf(q) >= 0 || norm(c.tags).indexOf(q) >= 0 || (S.cur === ALL && c.ws && norm(c.ws.name).indexOf(q) >= 0);
     });
     var by = {
@@ -992,7 +992,7 @@
       '<div class="sdl-tools"><input class="sdl-tq" id="sdl-tq" placeholder="' + tr("Rechercher un titre, un style…", "Search a title, a style…") + '" value="' + esc(S.tQ) + '">' +
       '<button class="sdl-chip' + (S.filter === 'all' ? ' on' : '') + '" data-filter="all">' + tr("Tous", "All") + '</button><button class="sdl-chip' + (S.filter === 'fav' ? ' on' : '') + '" data-filter="fav">♥ ' + tr("Favoris", "Favorites") + '</button>' +
       '<button class="sdl-chip' + (S.filter === 'pin' ? ' on' : '') + '" data-filter="pin">📌 ' + tr("Épinglés", "Pinned") + '</button>' +
-      '<button class="sdl-chip' + (S.filter === 'orig' ? ' on' : '') + '" data-filter="orig" title="' + tr("Tes créations au prompt (sans upload) et ce qui en découle", "Your prompt creations (no upload) and what comes from them") + '">✨ ' + tr("Mes créations", "My creations") + '</button>' +
+      '<button class="sdl-chip' + (S.filter === 'orig' ? ' on' : '') + '" data-filter="orig" title="' + tr("Tes créations au prompt et ce qui en découle, plus tout ce qui est dans tes espaces « ! »", "Your prompt creations and what comes from them, plus everything in your \"!\" workspaces") + '">✨ ' + tr("Mes créations", "My creations") + '</button>' +
       '<span class="sdl-muted" style="margin-left:8px">' + tr('Tri', 'Sort') + '</span>' + [['no', 'N°'], ['new', tr('Récents', 'Newest')], ['old', tr('Anciens', 'Oldest')], ['az', 'A → Z'], ['long', tr('Durée', 'Length')], ['plays', '▶ ' + tr('Écoutes', 'Plays')]].map(function (x) { return '<button class="sdl-chip' + (S.sort === x[0] ? ' on' : '') + '" data-sort="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
       '<button class="sdl-chip" data-act="cols" style="margin-left:auto" title="' + tr("Choisir et ranger les colonnes", "Choose and order the columns") + '">⚙ ' + tr("Colonnes", "Columns") + '</button><button class="sdl-chip" data-act="selall">☑ ' + tr("Tout sélectionner", "Select all") + '</button></div>' +
       (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bnewws">🆕 ' + tr("Nouvel espace", "New workspace") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">🏷 ' + tr("Renommer", "Rename") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
@@ -1232,8 +1232,8 @@
     }
     // Is a workspace this track's home? its name is the song's name (+1.5); "My Workspace" is nobody's home (-1).
     function nameScore(wid, c) {
-      var w2 = S.ws.find(function (x) { return x.id === wid; }), nm = norm(cleanTitle(w2 ? w2.name : '')).trim();
-      var t1 = norm(cleanTitle(rootOf(c).c.title)).trim(), t2 = norm(cleanTitle(c.title)).trim();
+      var w2 = S.ws.find(function (x) { return x.id === wid; }), nm = norm(cleanTitle(w2 ? w2.name : '')).replace(/^[\s!]+/, '').trim();
+      var t1 = norm(cleanTitle(rootOf(c).c.title)).replace(/^[\s!]+/, '').trim(), t2 = norm(cleanTitle(c.title)).replace(/^[\s!]+/, '').trim();
       var named = nm.length > 2 && [t1, t2].some(function (t) { return t && (t.indexOf(nm) >= 0 || nm.indexOf(t) >= 0); }) ? 1.5 : 0;
       return named - (wid === 'default' ? 1 : 0);
     }
@@ -1384,7 +1384,8 @@
   function newWsWith(cs0) {
     var cs = cs0.slice().sort(function (a, b) { return (a.at || '').localeCompare(b.at || ''); }), first = cs[0];
     var twins = []; cs.forEach(function (c) { var g = genOf(c); if (g) g.list.forEach(function (x) { if (cs.indexOf(x) < 0 && twins.indexOf(x) < 0) twins.push(x); }); });
-    var sug = cleanTitle(rootOf(first).c.title), desc = descendants(cs).filter(function (d) { return twins.indexOf(d) < 0; });
+    var fw = wsOf(first.id), mine = originOf(first) === 'prompt' || (fw && /^\s*!/.test(fw.name));
+    var sug = (mine ? '!' : '') + cleanTitle(rootOf(first).c.title).replace(/^[\s!]+/, ''), desc = descendants(cs).filter(function (d) { return twins.indexOf(d) < 0; });
     modal(tr('Nouvel espace de travail', 'New workspace'),
       '<input type="text" id="sdl-nw" maxlength="100" style="width:100%" value="' + esc(sug) + '">' +
       '<div class="sdl-muted" style="font-size:13px;margin-top:8px">' + (cs.length > 1 ? pl(cs.length, 'titre déplacé', 'titres déplacés', 'track moved', 'tracks moved') : tr('« ', '"') + esc(first.title) + tr(' » y sera déplacé', '" will be moved there')) + '</div>' +
