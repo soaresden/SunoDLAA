@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.8.0';
+  var VERSION = '2.8.1';
   if (window.__sdlSkin) { window.__sdlSkin.toggle(); return; }
   // Not on suno.com: go there (click the bookmark again to open the player).
   if (!/(^|\.)suno\.com$/.test(location.hostname)) { location.href = 'https://suno.com/'; return; }
@@ -613,7 +613,8 @@
     else if (pill.isConnected) pill.remove();
     fab.hidden = !root.classList.contains('hide') || pill.isConnected;
   }
-  setInterval(placePill, 1500);
+  // suno.com may rebuild the page right after it loads and drop the overlay: put it back.
+  setInterval(function () { if (!root.isConnected) document.documentElement.appendChild(root); placePill(); }, 1500);
 
   function show(on) { root.classList.toggle('hide', !on); closeMenu(); placePill(); }
   function toggleUI() { show(root.classList.contains('hide')); }
