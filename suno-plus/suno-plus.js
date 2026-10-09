@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.12.0';
+  var VERSION = '2.13.0';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -93,14 +93,14 @@
 
   /* ================================================================ library (cached in this browser) */
   var S = {
-    ws: LS.get('ws', []), clips: LS.get('clips', {}), markers: LS.get('markers', {}), pins: LS.get('pins', {}),
+    ws: LS.get('ws', []), clips: LS.get('clips', {}), par: LS.get('par', {}), parTried: LS.get('parTried', {}), markers: LS.get('markers', {}), pins: LS.get('pins', {}),
     cur: LS.get('cur', null) || '__all__', wsQ: '', tQ: '', filter: 'all', wsSort: LS.get('wsSort', 'recent'),
     queue: [], idx: -1, shuffle: LS.get('shuffle', false), repeat: LS.get('repeat', 'off'),
     playing: null, loading: false, lyr: null, showLyr: LS.get('showLyr', false), karaoke: false,
     exp: { feeds: [], cursor: 0, done: false, loading: false }, pls: {},
     sel: {}, syncing: false, err: '', theme: LS.get('theme', 'holi'), sort: LS.get('sort', 'no')
   };
-  function slim(c) { var m = c.metadata || {}; return { id: c.id, title: c.title || tr('Sans titre', 'Untitled'), at: c.created_at || '', d: m.duration || 0, tags: m.tags || '', cover: m.cover_clip_id || '', img: c.image_url || '', imgL: c.image_large_url || c.image_url || '', liked: !!c.is_liked, hv: m.has_vocal === true ? true : (m.has_vocal === false || m.make_instrumental === true) ? false : null, prompt: m.prompt || '', author: c.display_name || c.handle || '', plays: c.play_count || 0 }; }
+  function slim(c) { var m = c.metadata || {}; return { id: c.id, title: c.title || tr('Sans titre', 'Untitled'), at: c.created_at || '', d: m.duration || 0, tags: m.tags || '', cover: m.cover_clip_id || '', img: c.image_url || '', imgL: c.image_large_url || c.image_url || '', liked: !!c.is_liked, ty: m.type || '', tk: m.task || '', ed: m.edited_clip_id || '', sf: m.stem_from_id || '', us: m.upsample_clip_id || '', op: m.overpainting_clip_id || '', hv: m.has_vocal === true ? true : (m.has_vocal === false || m.make_instrumental === true) ? false : null, prompt: m.prompt || '', author: c.display_name || c.handle || '', plays: c.play_count || 0 }; }
   function originals(cs) { var o = {}; cs.forEach(function (c) { if (c.cover) o[c.cover] = 1; }); return o; }
   function ordered(cs) {   // original(s) first, then oldest -> newest: track 001, 002...
     var o = originals(cs);
@@ -119,7 +119,10 @@
   var numsCache = {};
   function nums(wsId) { if (!numsCache[wsId]) { var m = {}; ordered(S.clips[wsId] || []).forEach(function (c, i) { m[c.id] = i + 1; }); numsCache[wsId] = m; } return numsCache[wsId]; }
   function wsOf(id) { for (var k in S.clips) if (S.clips[k].some(function (c) { return c.id === id; })) return S.ws.find(function (w) { return w.id === k; }); return null; }
+  var clipIdx = null;
   function findClip(id) {
+    if (!clipIdx) { clipIdx = {}; for (var k0 in S.clips) S.clips[k0].forEach(function (x) { clipIdx[x.id] = x; }); }
+    if (clipIdx[id]) return clipIdx[id];
     var f = function (x) { return x.id === id; }, c;
     for (var k in S.clips) { c = S.clips[k].find(f); if (c) return c; }
     for (var p in S.pls) { c = (S.pls[p].clips || []).find(f); if (c) return c; }
@@ -328,7 +331,7 @@
     el.scrollTop = scroll;
     var tq = $('#sdl-tq'); if (tq) tq.oninput = function () { S.tQ = tq.value; var p = tq.selectionStart; renderTracks(); var n = $('#sdl-tq'); n.focus(); n.setSelectionRange(p, p); };
   }
-  function save() { numsCache = {}; sugCache = {}; genCache = {}; LS.set('ws', S.ws); LS.set('clips', S.clips); LS.set('markers', S.markers); LS.set('pins', S.pins); }
+  function save() { numsCache = {}; sugCache = {}; genCache = {}; clipIdx = null; LS.set('ws', S.ws); LS.set('clips', S.clips); LS.set('markers', S.markers); LS.set('pins', S.pins); }
 
   async function sync(force) {
     if (S.syncing) return; S.syncing = true; S.err = ''; renderStatus();
@@ -522,9 +525,12 @@
     if (line && line.words && ln) $$('.w', ln).forEach(function (w) { var wd = line.words[+w.dataset.j]; w.classList.toggle('sung', !!wd && t >= wd.s - 0.05); });
   }
 
-  /* ================================================================ title cleaning (same rules as before) */
+  /* ================================================================ title cleaning */
   function cleanTitle(t0) {
     var s = (t0 || '');
+    s = s.replace(/^\s*(?:spoti\w*|y2mate|savefrom|mp3\w*)\.(?:io|com|cc|net|to)\s*-\s*/i, '');   // download sites
+    s = s.replace(/\s*\(?[\w-]+\.(?:cc|io|com|net|to)\)?\s*$/i, '').replace(/\s*\[\s*\w*mp3\w*[^\]]*\]?/gi, '');
+    s = s.replace(/\s*\((?:(?:clip|vid[ée]o)\s*)?officiel+e?\)|\s*\(official[^)]*\)|\s*\((?:lyrics?|paroles|audio|hd|hq)\)|\s*\(remaster(?:ed)?\)|\s*\(add vocal\)|\s*\(mashup\)/gi, '');
     s = s.replace(/^\s*\[temp\]\s*-\s*/i, '');
     s = s.replace(/^\s*\d{1,2}-\d{2,3}\s*(?:-\s*)?(?=\S)/, '');
     s = s.replace(/(^|[_\s-])(?:dur[ée]e|duration)?[_\s-]?\d{1,2}m\d{1,2}s(?=[_\s-]|\(|$)/gi, ' ');
@@ -532,11 +538,69 @@
     s = s.replace(/\s*\((?:edit|edited|clean|temp)\)/gi, '');
     s = s.replace(/^[\s_]*\d{1,2}-\d{2,3}\s*(?:-\s*)?(?=\S)/, '');
     s = s.replace(/(\s(?:x|&|-|\+|vs\.?)\s+)\d{2}-\d{3}\s+(?=\S)/gi, '$1');
-    s = s.replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s\-–—.]+|[\s\-–—.]+$/g, '').trim();
+    s = s.replace(STEM_RX, '').replace(/^\s*!+/, '');
+    s = s.replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s\-–—.,]+|[\s\-–—.,]+$/g, '').trim();
     return s || (t0 || '');
   }
-  // Suggested names: "<original title> - <start of Suno's style> #n", for tracks with a messy name
-  // (3m39s_01-001 Loca_x3 (Edit)) or a name shared with other tracks of the workspace. Originals (★) keep theirs.
+  var STEM_RX = /\s*(?:\((woodwinds|brass|fx|synth|strings|percussion|drums|bass|vocals|backing vocals|guitar|keyboard|piano|other)\)|-\s*(vocals|instrumental))\s*$/i;
+  function badTitle(t) { return !t || /^[a-z]:\\/i.test(t) || /^(untitled|sans titre|replace \d)/i.test(t); }
+
+  /* ---- what kind of track: Suno's metadata.type / task. One fixed hue each, lightness follows the theme. */
+  var CATS = {
+    create: [42, 'Création', 'Creation'], cover: [205, 'Cover', 'Cover'], vcover: [218, 'Cover voix', 'Voice Cover'], edit: [275, 'Edit', 'Edit'],
+    upload: [162, 'Upload', 'Upload'], stem: [22, 'Stem', 'Stem'], sfx: [0, 'SFX', 'SFX'], extend: [125, 'Extend', 'Extend'],
+    full: [240, 'Complet', 'Full'], remaster: [186, 'Remaster', 'Remaster'], inspo: [300, 'Inspo', 'Inspo'], mashup: [330, 'Mashup', 'Mashup'], fix: [85, 'Retouche', 'Fix']
+  };
+  function catOf(c) {
+    var ty = c.ty, tk = c.tk;
+    if (ty === undefined) return c.cover ? 'cover' : null;   // cached before 2.13, until the next sync
+    if (ty === 'upload') return 'upload'; if (ty === 'edit_v3_export') return 'edit'; if (ty === 'stem') return 'stem'; if (ty === 'upsample') return 'remaster';
+    if (ty === 'concat' || ty === 'concat_infilling') return 'full'; if (ty === 'rendered_context_window') return 'fix';
+    return { cover: 'cover', '': 'create', gen_stem: 'stem', sound: 'sfx', extend: 'extend', upload_extend: 'extend', playlist_condition: 'inspo',
+      mashup_condition: 'mashup', fixed_infill: 'fix', overpainting: 'fix', vox_cover: 'vcover' }[tk] || (ty === 'gen' ? 'create' : null);
+  }
+  function fixLabel(c) { return { fixed_infill: 'Replace', overpainting: 'Add Vocal' }[c.tk] || (c.ty === 'rendered_context_window' ? 'Section' : ''); }
+  function catLabel(k, lang) { var d = CATS[k]; return d ? ((lang || LANG) === 'fr' ? d[1] : d[2]) : ''; }
+  // Where a track comes from: up the cover / edit / stem / remaster links to the first track (parents no longer in the library are fetched once).
+  function parentIds(c) { return [c.cover, c.ed, c.sf, c.us, c.op].filter(function (x) { return x && x !== c.id; }); }
+  function clipOrPar(id) { return findClip(id) || S.par[id] || null; }
+  function rootOf(c) {
+    for (var i = 0, cur = c; i < 12; i++) {
+      var ps = parentIds(cur), nx = null;
+      for (var j = 0; j < ps.length && !nx; j++) nx = clipOrPar(ps[j]);
+      if (!nx) return { c: cur, lost: ps.length > 0 };
+      cur = nx;
+    }
+    return { c: cur, lost: false };
+  }
+  function originOf(c) { var r = rootOf(c), k = r.lost ? null : catOf(r.c); return k === 'create' ? 'prompt' : k === 'upload' ? 'upload' : null; }
+  async function fetchParents() {
+    var miss = {}; Object.keys(S.clips).forEach(function (k) { S.clips[k].forEach(function (c) { parentIds(c).forEach(function (id) { if (!clipOrPar(id)) miss[id] = 1; }); }); });
+    var ids = Object.keys(miss).filter(function (id) { return !S.parTried[id]; }); if (!ids.length) return;
+    log('fetching', ids.length, 'source tracks no longer in the library');
+    for (var i = 0; i < ids.length; i++) {
+      S.parTried[ids[i]] = 1;
+      try { var x = slim(await api('/api/clip/' + ids[i])); S.par[x.id] = { id: x.id, title: x.title, ty: x.ty, tk: x.tk, cover: x.cover, ed: x.ed, sf: x.sf, us: x.us, op: x.op, at: x.at }; } catch (e) {}
+      if (i % 20 === 19) { LS.set('par', S.par); renderTracks(); }
+      await sleep(150);
+    }
+    LS.set('par', S.par); LS.set('parTried', S.parTried); sugCache = {}; renderTracks();
+  }
+  function catBadge(c) {
+    var k = catOf(c); if (!k) return '';
+    var o = originOf(c), r = rootOf(c).c, lab = k === 'fix' ? (fixLabel(c) || catLabel(k)) : catLabel(k);
+    var tip = catLabel(k) + (r !== c ? tr(' · issu de « ', ' · from "') + r.title + tr(' »', '"') : '') + (o === 'prompt' ? tr(' · création au prompt', ' · prompt creation') : o === 'upload' ? tr(' · à partir d\'un upload', ' · from an upload') : '');
+    return '<span class="sdl-cat" style="--h:' + CATS[k][0] + '" title="' + esc(tip) + '">' + (o === 'prompt' && k !== 'create' ? '✨' : '') + esc(lab) + '</span>';
+  }
+
+  /* ---- naming rules (adjustable in the renamer, saved in this browser) */
+  var RULES = (function () {
+    var d = { lang: LANG, sep: ' - ', style: 32, num: true, types: {} };
+    Object.keys(CATS).forEach(function (k) { d.types[k] = k !== 'create'; });
+    var r = LS.get('rules', null); if (r) { for (var k in r) if (k !== 'types') d[k] = r[k]; for (var t in (r.types || {})) d.types[t] = r.types[t]; }
+    return d;
+  })();
+  function saveRules() { LS.set('rules', RULES); sugCache = {}; }
   var sugCache = {}, genCache = {};
   // Suno creates tracks two by two: tracks of a workspace created within 20 s of each other = one generation.
   function gens(wsId) {
@@ -550,28 +614,49 @@
     return (genCache[wsId] = out);
   }
   function genOf(c) { var w = c.ws || wsOf(c.id), g = w && gens(w.id)[c.id]; return g && g.list.length > 1 ? g : null; }
-  function styleShort(tags) {
-    var t = String(tags || '').split(/[,;.]/)[0].replace(/\s+/g, ' ').trim();
-    if (t.length > 40) { t = t.slice(0, 41); var sp = t.lastIndexOf(' '); t = t.slice(0, sp > 15 ? sp : 40); }
+  function styleShort(tags, n) {
+    n = n == null ? 32 : n; if (!n) return '';
+    var t = String(tags || '').split(/[,;.]/)[0].replace(/^\s*(?:this is |it's |a |an |the )+/i, '').replace(/\s+(?:featuring|with|led by|built on|driven by)\b.*$/i, '').replace(/\s+/g, ' ').trim();
+    if (t.length > n) { t = t.slice(0, n + 1); var sp = t.lastIndexOf(' '); t = t.slice(0, sp > 12 ? sp : n); }
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
   }
+  // "<original title><sep><type> <style or stem part> #n", following RULES.
+  function nameOf(c, R, wsName) {
+    var k = catOf(c), own = k === 'create' || k === 'sfx' || k === 'mashup' || !k;
+    var base = cleanTitle(own ? c.title : rootOf(c).c.title);
+    if (badTitle(base)) base = cleanTitle(c.title); if (badTitle(base)) base = wsName || base;
+    var detail = '';
+    if (k === 'cover' || k === 'vcover' || k === 'inspo') { var st = styleShort(c._st != null ? c._st : c.tags, R.style); if (st && norm(base).indexOf(norm(st)) < 0) detail = st; }
+    else if (k === 'stem') { var m = String(c.title || '').match(STEM_RX); detail = m ? (m[1] || m[2]).replace(/\b\w/g, function (x) { return x.toUpperCase(); }) : ''; }
+    else if (k === 'fix') detail = fixLabel(c);
+    var lab = k && R.types[k] ? (k === 'fix' ? '' : catLabel(k, R.lang)) : '';
+    if (k === 'fix' && !R.types.fix) detail = '';
+    var tail = [lab, detail].filter(Boolean).join(' ');
+    return (base + (tail ? R.sep + tail : '')).slice(0, 76);
+  }
+  // Names for a whole workspace: a generation shares its first track's name (not stems: one per instrument), then #1 #2…
+  function names(wsId, R) {
+    var key = function (t) { return norm(t).trim(); };
+    var cs = S.clips[wsId] || [], g = gens(wsId), w = S.ws.find(function (x) { return x.id === wsId; }), out = {}, groups = {};
+    cs.forEach(function (c) {
+      var gg = g[c.id], first = gg && gg.list.length > 1 && catOf(c) !== 'stem' ? gg.list.find(function (x) { return catOf(x) === catOf(c) && x.tk === c.tk; }) || c : c;
+      var n = first === c ? nameOf(c, R, w && w.name) : (out[first.id] || nameOf(first, R, w && w.name));
+      out[c.id] = n;
+    });
+    cs.forEach(function (c) { (groups[key(out[c.id])] = groups[key(out[c.id])] || []).push(c); });
+    Object.keys(groups).forEach(function (k) {
+      var list = groups[k]; if (!R.num || list.length < 2) return;
+      list.sort(function (a, b) { return a.at.localeCompare(b.at) || (a.id < b.id ? -1 : 1); }).forEach(function (c, i) { out[c.id] = out[c.id] + ' #' + (i + 1); });
+    });
+    return out;
+  }
+  // 💡 one-click suggestion: only for messy names (3m39s_01-001 Loca_x3 (Edit)) or names shared in the workspace. Originals (★) keep theirs.
   function suggestions(wsId) {
     if (sugCache[wsId]) return sugCache[wsId];
-    var cs = S.clips[wsId] || [], o = originals(cs), count = {}, groups = {}, out = {};
+    var cs = S.clips[wsId] || [], o = originals(cs), count = {}, all = names(wsId, RULES), out = {};
     var key = function (t) { return norm(t).trim(); };
     cs.forEach(function (c) { count[key(c.title)] = (count[key(c.title)] || 0) + 1; });
-    cs.forEach(function (c) {
-      if (o[c.id] || (count[key(c.title)] < 2 && cleanTitle(c.title) === c.title)) return;
-      var g = gens(wsId)[c.id], first = g && g.list.length > 1 ? g.list[0] : c;
-      var orig = c.cover && findClip(c.cover), base = cleanTitle(orig ? orig.title : c.title), st = styleShort(first.tags);
-      var name = (st && norm(st).indexOf(norm(base)) < 0 ? base + ' - ' + st : base).slice(0, 76);
-      (groups[key(name)] = groups[key(name)] || []).push({ c: c, name: name });
-    });
-    Object.keys(groups).forEach(function (k) {
-      var g = groups[k].sort(function (a, b) { return a.c.at.localeCompare(b.c.at); });
-      var taken = cs.some(function (x) { return key(x.title) === k && !g.some(function (y) { return y.c === x; }); });
-      g.forEach(function (x, i) { var n = g.length > 1 || taken ? x.name + ' #' + (i + 1) : x.name; if (n !== x.c.title) out[x.c.id] = n; });
-    });
+    cs.forEach(function (c) { if (o[c.id] || (count[key(c.title)] < 2 && cleanTitle(c.title) === c.title)) return; if (all[c.id] !== c.title) out[c.id] = all[c.id]; });
     return (sugCache[wsId] = out);
   }
   function sugFor(c) {
@@ -626,6 +711,8 @@
     '.sdl-selbar{position:sticky;top:0;z-index:2;display:flex;gap:8px;align-items:center;margin:0 20px 6px;padding:8px 12px;border-radius:12px;background:var(--acc);color:#fff;box-shadow:var(--shadow)}' +
     '.sdl-selbar button{padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.2)!important;color:#fff!important;font-weight:600}.sdl-selbar .sp{flex:1}' +
     '.sdl-grp{position:sticky;top:0;z-index:1;padding:14px 12px 6px;font-weight:800;font-size:16px;color:var(--acc);background:linear-gradient(var(--bg) 70%,transparent);cursor:pointer}' +
+    '.sdl-cat{display:inline-block;font-size:10.5px;font-weight:700;line-height:16px;border-radius:6px;padding:0 6px;margin-right:7px;vertical-align:1px;background:hsla(var(--h),75%,50%,.15);color:hsl(var(--h),70%,30%);border:1px solid hsla(var(--h),75%,45%,.35)}#sdl-root.dark .sdl-cat{color:hsl(var(--h),80%,74%);background:hsla(var(--h),75%,55%,.16)}' +
+    '.sdl-rnset{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;padding:8px 0 10px;border-bottom:1px solid var(--line)}.sdl-rnset input,.sdl-rnset select{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:3px 6px}.sdl-rnset .sdl-cat{cursor:pointer;opacity:.35}.sdl-rnset .sdl-cat.on{opacity:1}' +
     '.sdl-tr .dt{color:var(--mut);font-size:12px;white-space:nowrap}.sdl-gen{font-size:11px;font-weight:700;color:var(--acc2,var(--acc));border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-left:4px;opacity:.8}' +
     '.sdl-tracks{padding:4px 20px 30px}.sdl-tr{display:grid;grid-template-columns:22px 58px 44px 1fr 110px auto 52px 34px;gap:10px;align-items:center;padding:6px 10px;border-radius:10px;width:100%;text-align:left;cursor:pointer}' +
     '.sdl-tr:hover{background:var(--glass)}.sdl-tr.on{background:var(--panel2)}.sdl-tr.on .tt{color:var(--acc)}.sdl-tr.sel{background:' + 'var(--panel2)}' +
@@ -803,6 +890,7 @@
     var out = base.filter(function (c) {
       if (S.filter === 'fav' && !c.liked) return false;
       if (S.filter === 'pin' && !isPinned(c)) return false;
+      if (S.filter === 'orig' && originOf(c) !== 'prompt') return false;
       return !q || norm(c.title).indexOf(q) >= 0 || norm(c.tags).indexOf(q) >= 0 || (S.cur === ALL && c.ws && norm(c.ws.name).indexOf(q) >= 0);
     });
     var by = {
@@ -836,14 +924,16 @@
       (r && r.first ? ' · ' + esc(fdate(r.first) === fdate(r.last) ? fdate(r.first) : tr('du ', 'from ') + fdate(r.first) + tr(' au ', ' to ') + fdate(r.last)) : '') + '</div>' +
       '<div class="sdl-acts"><button class="sdl-big" data-act="playall">▶ ' + tr("Lire", "Play") + '</button><button class="sdl-ghost" data-act="shufall">🔀 ' + tr("Aléatoire", "Shuffle") + '</button>' +
       '<button class="sdl-ghost" data-act="upload" title="' + tr("Importer un fichier audio dans un espace", "Upload an audio file into a workspace") + '">⬆ ' + tr("Importer", "Upload") + '</button>' +
-      (w.all ? '' : '<button class="sdl-ghost" data-act="wsrename">✏️ ' + tr("Renommer", "Rename") + '</button>') + (ugly ? '<button class="sdl-ghost" data-act="clean">✨ ' + tr('Nettoyer ', 'Clean ') + pl(ugly, 'titre', 'titres', 'title', 'titles') + '</button>' : '') +
+      (w.all ? '' : '<button class="sdl-ghost" data-act="wsrename">✏️ ' + tr("Renommer", "Rename") + '</button>') + '<button class="sdl-ghost" data-act="tidy" title="' + tr("Trouver les titres rangés dans le mauvais espace (paroles d'un autre morceau…)", "Find tracks filed in the wrong workspace (lyrics of another song…)") + '">🧭 ' + tr("Vérifier le rangement", "Check filing") + '</button>' + '<button class="sdl-ghost" data-act="renamer" title="' + tr("Renommer tous les titres affichés selon des règles", "Rename all shown tracks with rules") + '">🏷 ' + tr("Renommer en masse", "Bulk rename") + '</button>' +
+      (ugly ? '<button class="sdl-ghost" data-act="clean">✨ ' + tr('Nettoyer ', 'Clean ') + pl(ugly, 'titre', 'titres', 'title', 'titles') + '</button>' : '') +
       (w.all ? '' : '<button class="sdl-ghost danger" data-act="wsdelete" title="' + tr("Mettre l\'espace à la corbeille Suno", "Send the workspace to Suno's trash") + '">🗑</button>') + '</div></div></div>' +
       '<div class="sdl-tools"><input class="sdl-tq" id="sdl-tq" placeholder="' + tr("Rechercher un titre, un style…", "Search a title, a style…") + '" value="' + esc(S.tQ) + '">' +
       '<button class="sdl-chip' + (S.filter === 'all' ? ' on' : '') + '" data-filter="all">' + tr("Tous", "All") + '</button><button class="sdl-chip' + (S.filter === 'fav' ? ' on' : '') + '" data-filter="fav">♥ ' + tr("Favoris", "Favorites") + '</button>' +
       '<button class="sdl-chip' + (S.filter === 'pin' ? ' on' : '') + '" data-filter="pin">📌 ' + tr("Épinglés", "Pinned") + '</button>' +
+      '<button class="sdl-chip' + (S.filter === 'orig' ? ' on' : '') + '" data-filter="orig" title="' + tr("Tes créations au prompt (sans upload) et ce qui en découle", "Your prompt creations (no upload) and what comes from them") + '">✨ ' + tr("Mes créations", "My creations") + '</button>' +
       '<span class="sdl-muted" style="margin-left:8px">' + tr('Tri', 'Sort') + '</span>' + [['no', 'N°'], ['new', tr('Récents', 'Newest')], ['old', tr('Anciens', 'Oldest')], ['az', 'A → Z'], ['long', tr('Durée', 'Length')], ['plays', '▶ ' + tr('Écoutes', 'Plays')]].map(function (x) { return '<button class="sdl-chip' + (S.sort === x[0] ? ' on' : '') + '" data-sort="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
       '<button class="sdl-chip" data-act="selall" style="margin-left:auto">☑ ' + tr("Tout sélectionner", "Select all") + '</button></div>' +
-      (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">✨ ' + tr("Nettoyer les titres", "Clean titles") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
+      (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">🏷 ' + tr("Renommer", "Rename") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
       '<div class="sdl-tracks' + (sel.length ? ' sdl-anysel' : '') + '">' + (cs.length ? cs.slice(0, S.limit || 400).map(function (c, i) {
         var on = S.playing && S.playing.id === c.id, head = '', sg = sugFor(c), gn = genOf(c);
         if (w.all && S.sort === 'no' && (i === 0 || cs[i - 1].ws !== c.ws)) head = '<div class="sdl-grp" data-ws="' + esc(c.ws.id) + '">' + esc(c.ws.name) + ' <span class="sdl-muted">· ' + (S.clips[c.ws.id] || []).length + '</span></div>';
@@ -851,7 +941,7 @@
           '<input type="checkbox" data-selid="' + c.id + '"' + (S.sel[c.id] ? ' checked' : '') + '>' +
           '<span class="no">' + voiceIcon(c) + (on ? (S.loading ? '<span class="sdl-spin">⟳</span>' : '♪') : String(c.no).padStart(3, '0')) + '</span>' +
           (c.img ? '<img loading="lazy" src="' + esc(c.img) + '">' : '<span></span>') +
-          '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + esc(c.title) + (gn ? ' <span class="sdl-gen" title="' + esc(tr('Générés ensemble le ', 'Made together on ') + fdate(gn.list[0].at, true)) + '">⧉ ' + 'ABCDEFGH'.charAt(gn.list.indexOf(c)) + '</span>' : '') + '</div><div class="tg">' + (sg ? '<button class="sdl-sug" data-sug="' + c.id + '" title="' + tr('Cliquer pour renommer ainsi sur Suno', 'Click to rename it like this on Suno') + '">💡 ' + esc(sg) + '</button>' : '') + (w.all && S.sort !== 'no' && c.ws ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>' +
+          '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + catBadge(c) + esc(c.title) + (gn ? ' <span class="sdl-gen" title="' + esc(tr('Générés ensemble le ', 'Made together on ') + fdate(gn.list[0].at, true)) + '">⧉ ' + 'ABCDEFGH'.charAt(gn.list.indexOf(c)) + '</span>' : '') + '</div><div class="tg">' + (sg ? '<button class="sdl-sug" data-sug="' + c.id + '" title="' + tr('Cliquer pour renommer ainsi sur Suno', 'Click to rename it like this on Suno') + '">💡 ' + esc(sg) + '</button>' : '') + (w.all && S.sort !== 'no' && c.ws ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>' +
           '<span class="dt" title="' + esc(fdate(c.at, true) + ' · ' + pl(c.plays || 0, 'écoute', 'écoutes', 'play', 'plays')) + '">' + (S.sort === 'plays' ? '▶ ' + (c.plays || 0) : esc(fdate(c.at))) + '</span>' +
           '<button class="lk' + (c.liked ? '' : ' off') + '" data-like="' + c.id + '" title="' + tr("Favori", "Favorite") + '">' + (c.liked ? '♥' : '♡') + '</button><span class="du">' + fmt(c.d) + '</span>' +
           '<button class="dots" data-menu="' + c.id + '" title="Actions">⋯</button></div>';
@@ -1038,29 +1128,145 @@
       } }]);
     var q = $('#sdl-mvq'); q.focus(); q.oninput = function () { var v = norm(q.value); $$('#sdl-mvl .sdl-row').forEach(function (e) { e.style.display = !v || e.dataset.n.indexOf(v) >= 0 ? '' : 'none'; }); };
   }
+  /* ---- 🧭 tidy check: tracks that look like they belong to another workspace.
+     1) its lyrics are (almost) those of a song in another workspace, and not those of its own workspace;
+     2) or the track it comes from (cover, edit, stem…) lives in another workspace. */
+  function lyricPairs(t) {
+    var w = norm(String(t || '').replace(/\[[^\]]*\]/g, ' ')).replace(/[^a-z0-9'À-￿]+/g, ' ').split(' ').filter(function (x) { return x.length > 2; });
+    if (w.length < 12) return null;
+    var set = {}, n = 0; for (var i = 0; i < w.length - 1; i++) { var k = w[i] + ' ' + w[i + 1]; if (!set[k]) { set[k] = 1; n++; } }
+    return { set: set, n: n };
+  }
+  function overlap(a, b) { var s1 = a.n <= b.n ? a : b, s2 = s1 === a ? b : a, hit = 0; for (var k in s1.set) if (s2.set[k]) hit++; return hit / s1.n; }
+  function tidyCheck() {
+    var texts = {}, tracks = [];   // same lyrics text = computed once
+    S.ws.forEach(function (w) { (S.clips[w.id] || []).forEach(function (c) {
+      c.ws = w; tracks.push(c);
+      var t = String(c.prompt || '').trim(); if (t.length < 60 || /^\[?\s*instrumental\s*\]?$/i.test(t)) return;
+      var e = texts[t] || (texts[t] = { fp: lyricPairs(t), where: {} }); if (!e.fp) return;
+      (e.where[w.id] = e.where[w.id] || []).push(c); c._lt = t;
+    }); });
+    var keys = Object.keys(texts).filter(function (t) { return texts[t].fp; }), simCache = {};
+    function sims(t) {   // best match of a lyrics text in each workspace
+      if (simCache[t]) return simCache[t];
+      var out = {}, a = texts[t].fp;
+      keys.forEach(function (u) { var v = u === t ? 1 : overlap(a, texts[u].fp); if (v < 0.3) return; Object.keys(texts[u].where).forEach(function (wid) { if (!out[wid] || out[wid].v < v) out[wid] = { v: v, c: texts[u].where[wid][0] }; }); });
+      return (simCache[t] = out);
+    }
+    var found = [];
+    tracks.forEach(function (c) {
+      var w = c.ws, why = null, target = null;
+      if (c._lt) {
+        var sm = sims(c._lt), best = null;
+        // own workspace: best match among the OTHER tracks of it
+        var own, ow =(S.clips[w.id] || []).filter(function (x) { return x !== c && x._lt; });
+        own = ow.reduce(function (m, x) { return Math.max(m, x._lt === c._lt ? 1 : overlap(texts[c._lt].fp, texts[x._lt].fp)); }, 0);
+        Object.keys(sm).forEach(function (wid) { if (wid !== w.id && (!best || sm[wid].v > best.v)) best = { v: sm[wid].v, wid: wid, c: sm[wid].c }; });
+        if (best && best.v >= 0.6 && own < 0.3 && (ow.length || best.v >= 0.7)) {
+          target = best.wid; why = tr('paroles de « ', 'lyrics of "') + best.c.title + tr(' » (', '" (') + Math.round(best.v * 100) + '%)' + (ow.length ? tr(', rien de pareil dans cet espace', ', nothing alike in this workspace') : '');
+        }
+      }
+      if (!why) {
+        var ps = parentIds(c).map(findClip).filter(Boolean)[0], pw = ps && wsOf(ps.id);
+        if (pw && pw.id !== w.id) { target = pw.id; why = tr('issu de « ', 'comes from "') + ps.title + tr(' », rangé dans « ', '", kept in "') + pw.name + tr(' »', '"'); }
+      }
+      if (why) found.push({ c: c, from: w, to: target, why: why });
+    });
+    tracks.forEach(function (c) { delete c._lt; });
+    return found;
+  }
+  function tidyScreen(onlyWs) {
+    modal(tr('Vérifier le rangement', 'Check the filing'), '<div class="sdl-muted"><span class="sdl-spin">⟳</span> ' + tr('Je compare les paroles et les liens de tous tes titres…', 'Comparing lyrics and links of all your tracks…') + '</div>', [{ label: tr('Fermer', 'Close'), onclick: closeModal }]);
+    setTimeout(function () {
+      var list = tidyCheck().filter(function (x) { return !onlyWs || x.from.id === onlyWs || x.to === onlyWs; });
+      var wsSorted = S.ws.slice().sort(function (a, b) { return collator.compare(a.name, b.name); });
+      var body = $('#sdl-modal .sdl-mbody'); if (!body) return;
+      if (!list.length) { body.innerHTML = '<div>' + tr('Tout semble bien rangé 👍', 'Everything looks well filed 👍') + '</div>'; return; }
+      body.innerHTML = '<div class="sdl-muted" style="font-size:13px;margin-bottom:8px">' + pl(list.length, 'titre semble mal rangé', 'titres semblent mal rangés', 'track looks misfiled', 'tracks look misfiled') + tr('. Vérifie, change la destination si besoin, décoche ce qui est voulu.', '. Check, change the destination if needed, untick what is on purpose.') + '</div>' +
+        '<div id="sdl-prog" hidden><div class="sdl-pbar"><i id="sdl-pbar"></i></div><div id="sdl-ptxt" style="font-size:13px"></div></div>' +
+        list.map(function (x, i) {
+          return '<label class="sdl-row" data-i="' + i + '"><input type="checkbox" checked><div style="flex:1;min-width:0"><div>' + catBadge(x.c) + '<b>' + esc(x.c.title) + '</b></div>' +
+            '<div class="sdl-muted" style="font-size:12px">' + tr('dans « ', 'in "') + esc(x.from.name) + tr(' » : ', '": ') + esc(x.why) + '</div>' +
+            '<div style="font-size:13px;margin-top:3px">→ <select style="max-width:100%;font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px 6px">' +
+            wsSorted.map(function (w) { return '<option value="' + esc(w.id) + '"' + (w.id === x.to ? ' selected' : '') + '>' + esc(w.name) + '</option>'; }).join('') + '</select></div></div><span class="st"></span></label>';
+        }).join('');
+      $('#sdl-modal .sdl-mbox').style.maxWidth = '820px';
+      setButtons([{ label: tr('Fermer', 'Close'), onclick: closeModal }, { label: tr('Déplacer la sélection', 'Move the selection'), cls: 'primary', onclick: async function () {
+        var todo = $$('#sdl-modal .sdl-row').map(function (r) { var x = list[+r.dataset.i]; return { r: r, on: $('input[type=checkbox]', r).checked, x: x, to: $('select', r).value }; }).filter(function (y) { return y.on && y.to && y.to !== y.x.from.id; });
+        if (!todo.length) return closeModal();
+        $('#sdl-modal').dataset.busy = 1; $('#sdl-prog').hidden = false; setButtons([{ label: '…' }]);
+        var ok = 0, bad = 0;
+        for (var i = 0; i < todo.length; i++) {
+          var y = todo[i], sid = y.x.from.id, tw = S.ws.find(function (w) { return w.id === y.to; });
+          $('#sdl-ptxt').textContent = (i + 1) + ' / ' + todo.length + ' — ' + y.x.c.title + ' → ' + (tw ? tw.name : ''); $('#sdl-pbar').style.width = (100 * i / todo.length) + '%';
+          try {
+            await write('/api/project/' + sid + '/clips', { update_type: 'move', metadata: { clip_ids: [y.x.c.id], target_project_id: y.to } });
+            S.clips[sid] = (S.clips[sid] || []).filter(function (c) { return c !== y.x.c; }); S.clips[y.to] = (S.clips[y.to] || []).concat([y.x.c]);
+            ok++; $('.st', y.r).textContent = '✅'; y.r.classList.add('done');
+          } catch (e) { bad++; $('.st', y.r).textContent = '❌'; $('.st', y.r).title = e.message; y.r.classList.add('fail'); }
+          await sleep(250);
+        }
+        $('#sdl-pbar').style.width = '100%'; $('#sdl-ptxt').textContent = tr(pl(ok, 'déplacé', 'déplacés', '', ''), ok + ' moved') + (bad ? tr(', ' + bad + ' en échec', ', ' + bad + ' failed') : '');
+        delete $('#sdl-modal').dataset.busy; refreshAll(); setButtons([{ label: 'OK', cls: 'primary', onclick: closeModal }]);
+      } }]);
+    }, 30);
+  }
   var cleanStop = false;
-  function cleanTitles(cs) {
-    var sugs = {}; cs = cs.filter(function (c) { var v = sugFor(c); if (v) sugs[c.id] = v; return !!v; });
-    if (!cs.length) return toast(tr('Rien à nettoyer : les titres sont déjà propres.', 'Nothing to clean: titles are already tidy.'));
-    modal(tr('Nettoyer ', 'Clean ') + pl(cs.length, 'titre', 'titres', 'title', 'titles'),
-      '<div class="sdl-muted" style="font-size:13px">' + tr('Vérifie ou corrige chaque nouveau titre, décoche ceux à garder tels quels.', 'Check or fix each new title; untick those to keep as they are.') + '</div><div id="sdl-prog" hidden><div class="sdl-pbar"><i id="sdl-pbar"></i></div><div id="sdl-ptxt" style="font-size:13px"></div></div>' +
-      cs.map(function (c, i) { return '<label class="sdl-row" data-i="' + i + '"><input type="checkbox" checked><div style="flex:1;min-width:0"><div class="from">' + esc(c.title) + '</div><input type="text" value="' + esc(sugs[c.id]) + '"></div><span class="st"></span></label>'; }).join(''),
+  function cleanTitles(cs) { return renamer(cs, true); }
+  // Bulk renamer. onlyMessy: just the 💡 suggestions (messy or duplicate names); else every track of the list, by the rules.
+  function renamer(cs0, onlyMessy) {
+    var R = JSON.parse(JSON.stringify(RULES)), list = [];
+    function compute() {
+      var byWs = {}; cs0.forEach(function (c) { var w = c.ws || wsOf(c.id); if (w) (byWs[w.id] = byWs[w.id] || []).push(c); });
+      list = [];
+      Object.keys(byWs).forEach(function (wid) {
+        var all = names(wid, R), sug = onlyMessy ? suggestions(wid) : null;
+        byWs[wid].forEach(function (c) { var v = onlyMessy ? sug[c.id] : all[c.id]; if (v && v !== c.title) list.push({ c: c, v: v }); });
+      });
+    }
+    function settings() {
+      return '<div class="sdl-rnset">' +
+        '<label>' + tr('Libellés', 'Labels') + ' <select id="sdl-rn-lang"><option value="fr"' + (R.lang === 'fr' ? ' selected' : '') + '>Français</option><option value="en"' + (R.lang === 'en' ? ' selected' : '') + '>English</option></select></label>' +
+        '<label>' + tr('Séparateur', 'Separator') + ' <input id="sdl-rn-sep" size="3" value="' + esc(R.sep) + '"></label>' +
+        '<label>' + tr('Style (lettres, 0 = sans)', 'Style (letters, 0 = none)') + ' <input id="sdl-rn-style" type="number" min="0" max="60" style="width:56px" value="' + R.style + '"></label>' +
+        '<label><input id="sdl-rn-num" type="checkbox"' + (R.num ? ' checked' : '') + '> #1 #2 ' + tr('sur les doublons', 'on duplicates') + '</label>' +
+        '<div style="width:100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span class="sdl-muted">' + tr('Ajouter le type :', 'Add the type:') + '</span>' +
+        Object.keys(CATS).map(function (k) { return '<span class="sdl-cat' + (R.types[k] ? ' on' : '') + '" data-rntype="' + k + '" style="--h:' + CATS[k][0] + '">' + esc(catLabel(k, R.lang)) + '</span>'; }).join('') + '</div></div>';
+    }
+    function rows() {
+      compute();
+      $('#sdl-rn-count').textContent = list.length ? pl(list.length, 'titre à renommer', 'titres à renommer', 'track to rename', 'tracks to rename') + tr(' sur ', ' of ') + cs0.length : tr('Rien à renommer avec ces règles.', 'Nothing to rename with these rules.');
+      $('#sdl-rn-list').innerHTML = list.slice(0, 1500).map(function (x, i) {
+        return '<label class="sdl-row" data-i="' + i + '"><input type="checkbox" checked><div style="flex:1;min-width:0"><div class="from">' + catBadge(x.c) + esc(x.c.title) + '</div><input type="text" value="' + esc(x.v) + '"></div><span class="st"></span></label>';
+      }).join('');
+    }
+    modal(tr('Renommer ', 'Rename ') + pl(cs0.length, 'titre', 'titres', 'track', 'tracks'),
+      settings() + '<div class="sdl-muted" style="font-size:13px;margin:8px 0">' + tr('Change les règles : l\'aperçu suit. Corrige un nom à la main ou décoche une ligne pour la garder telle quelle.', 'Change the rules: the preview follows. Fix a name by hand or untick a row to keep it as it is.') + ' <b id="sdl-rn-count"></b></div>' +
+      '<div id="sdl-prog" hidden><div class="sdl-pbar"><i id="sdl-pbar"></i></div><div id="sdl-ptxt" style="font-size:13px"></div></div><div id="sdl-rn-list"></div>',
       [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Renommer sur Suno', 'Rename on Suno'), cls: 'primary', onclick: async function () {
-        var rows = $$('#sdl-modal .sdl-row').map(function (r) { return { r: r, on: $('input[type=checkbox]', r).checked, c: cs[+r.dataset.i], v: $('input[type=text]', r).value.trim() }; })
+        var todo = $$('#sdl-rn-list .sdl-row').map(function (r) { var x = list[+r.dataset.i]; return { r: r, on: $('input[type=checkbox]', r).checked, c: x.c, v: $('input[type=text]', r).value.trim().slice(0, 100) }; })
           .filter(function (x) { return x.on && x.v && x.v !== x.c.title; });
-        $('#sdl-modal').dataset.busy = 1; $('#sdl-prog').hidden = false; $$('#sdl-modal input').forEach(function (i) { i.disabled = true; });
+        if (!todo.length) return closeModal();
+        RULES = R; saveRules();
+        $('#sdl-modal').dataset.busy = 1; $('#sdl-prog').hidden = false; $$('#sdl-modal input, #sdl-modal select').forEach(function (i) { i.disabled = true; });
         cleanStop = false; setButtons([{ label: tr('Arrêter', 'Stop'), onclick: function () { cleanStop = true; } }]);
         var ok = 0, bad = 0;
-        for (var i = 0; i < rows.length && !cleanStop; i++) {
-          var x = rows[i]; $('#sdl-ptxt').textContent = (i + 1) + ' / ' + rows.length + ' — ' + x.v; $('#sdl-pbar').style.width = (100 * i / rows.length) + '%';
-          $('.st', x.r).textContent = '⏳'; x.r.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        for (var i = 0; i < todo.length && !cleanStop; i++) {
+          var x = todo[i]; $('#sdl-ptxt').textContent = (i + 1) + ' / ' + todo.length + ' — ' + x.v; $('#sdl-pbar').style.width = (100 * i / todo.length) + '%';
+          $('.st', x.r).textContent = '⏳'; x.r.scrollIntoView({ block: 'center' });
           try { await setTitle(x.c, x.v); ok++; x.r.classList.add('done'); $('.st', x.r).textContent = '✅'; }
-          catch (e) { bad++; x.r.classList.add('fail'); $('.st', x.r).textContent = '❌'; $('.st', x.r).title = e.message; }
+          catch (e) { bad++; x.r.classList.add('fail'); $('.st', x.r).textContent = '❌'; $('.st', x.r).title = e.message; if (/429|too many/i.test(e.message)) await sleep(5000); }
+          if (i % 25 === 24) save();
           await sleep(250);
         }
         $('#sdl-pbar').style.width = '100%'; $('#sdl-ptxt').textContent = tr(pl(ok, 'renommé', 'renommés', '', ''), ok + ' renamed') + (bad ? tr(', ' + bad + ' en échec', ', ' + bad + ' failed') : '') + (cleanStop ? tr(' — arrêté', ' — stopped') : '');
         delete $('#sdl-modal').dataset.busy; refreshAll(); setButtons([{ label: 'OK', cls: 'primary', onclick: closeModal }]);
       } }]);
+    var m = $('#sdl-modal'); m.querySelector('.sdl-mbox').style.maxWidth = '860px';
+    var redo = function () { R.lang = $('#sdl-rn-lang').value; R.sep = $('#sdl-rn-sep').value || ' - '; R.style = Math.max(0, Math.min(60, +$('#sdl-rn-style').value || 0)); R.num = $('#sdl-rn-num').checked; sugCache = {}; rows(); };
+    ['#sdl-rn-lang', '#sdl-rn-sep', '#sdl-rn-style', '#sdl-rn-num'].forEach(function (s) { $(s).addEventListener(s === '#sdl-rn-sep' || s === '#sdl-rn-style' ? 'input' : 'change', redo); });
+    $$('[data-rntype]', m).forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); var k = b.dataset.rntype; R.types[k] = !R.types[k]; b.classList.toggle('on', R.types[k]); rows(); }); });
+    rows();
   }
   function renameWs(w) {
     modal(tr('Renommer l\'espace de travail', 'Rename the workspace'), '<input type="text" id="sdl-wsn" style="width:100%" value="' + esc(w.name) + '">',
@@ -1159,13 +1365,15 @@
         case 'fill': return sendToSuno(false);
         case 'clear': D = { title: '', style: '', exclude: '', lyrics: '', voice: D.voice }; saveDraft(); return renderCreate($('#sdl-mainin'));
         case 'dnew': return newDraft();
+        case 'tidy': return tidyScreen(S.cur === ALL ? null : S.cur);
+        case 'renamer': return renamer(S.cur === ALL ? [].concat.apply([], S.ws.map(function (x) { return S.clips[x.id] || []; })) : (S.clips[S.cur] || []), false);
         case 'clean': return cleanTitles(S.cur === ALL ? [].concat.apply([], S.ws.map(function (x) { return S.clips[x.id] || []; })) : (S.clips[S.cur] || []));
         case 'selall': vc.forEach(function (c) { S.sel[c.id] = true; }); return renderTracks();
         case 'bnone': S.sel = {}; return renderTracks();
         case 'bmove': return moveTracks(selList());
         case 'bpin': var sl = selList(); return setPinned(sl, !sl.every(function (c) { return isPinned(c); }));
         case 'bdelete': return deleteTracks(selList());
-        case 'bclean': return cleanTitles(selList());
+        case 'bclean': return renamer(selList(), false);
         case 'more': S.limit = (S.limit || 400) + 400; return renderTracks();
       }
     }
@@ -1283,5 +1491,6 @@
   applyTheme(S.theme);
   if (S.cur === EXP || S.cur.indexOf('pl:') === 0) setTimeout(function () { openView(S.cur); }, 0);
   renderWs(); renderTracks(); renderPlayer(); renderLyrics();
-  sync(false);
+  var needTypes = Object.keys(S.clips).some(function (k) { return S.clips[k].some(function (c) { return c.ty === undefined; }); });
+  sync(needTypes).then(fetchParents);
 })();
