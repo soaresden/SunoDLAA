@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.13.0';
+  var VERSION = '2.14.0';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -100,7 +100,7 @@
     exp: { feeds: [], cursor: 0, done: false, loading: false }, pls: {},
     sel: {}, syncing: false, err: '', theme: LS.get('theme', 'holi'), sort: LS.get('sort', 'no')
   };
-  function slim(c) { var m = c.metadata || {}; return { id: c.id, title: c.title || tr('Sans titre', 'Untitled'), at: c.created_at || '', d: m.duration || 0, tags: m.tags || '', cover: m.cover_clip_id || '', img: c.image_url || '', imgL: c.image_large_url || c.image_url || '', liked: !!c.is_liked, ty: m.type || '', tk: m.task || '', ed: m.edited_clip_id || '', sf: m.stem_from_id || '', us: m.upsample_clip_id || '', op: m.overpainting_clip_id || '', hv: m.has_vocal === true ? true : (m.has_vocal === false || m.make_instrumental === true) ? false : null, prompt: m.prompt || '', author: c.display_name || c.handle || '', plays: c.play_count || 0 }; }
+  function slim(c) { var m = c.metadata || {}; return { id: c.id, title: c.title || tr('Sans titre', 'Untitled'), at: c.created_at || '', d: m.duration || 0, tags: m.tags || '', cover: m.cover_clip_id || '', img: c.image_url || '', imgL: c.image_large_url || c.image_url || '', liked: !!c.is_liked, mx: m.mashup_clip_ids || [], ty: m.type || '', tk: m.task || '', ed: m.edited_clip_id || '', sf: m.stem_from_id || '', us: m.upsample_clip_id || '', op: m.overpainting_clip_id || '', hv: m.has_vocal === true ? true : (m.has_vocal === false || m.make_instrumental === true) ? false : null, prompt: m.prompt || '', author: c.display_name || c.handle || '', plays: c.play_count || 0 }; }
   function originals(cs) { var o = {}; cs.forEach(function (c) { if (c.cover) o[c.cover] = 1; }); return o; }
   function ordered(cs) {   // original(s) first, then oldest -> newest: track 001, 002...
     var o = originals(cs);
@@ -584,6 +584,10 @@
       if (i % 20 === 19) { LS.set('par', S.par); renderTracks(); }
       await sleep(150);
     }
+    // mashups cached before 2.14 don't know their sources yet
+    var mash = []; Object.keys(S.clips).forEach(function (k) { S.clips[k].forEach(function (c) { if (catOf(c) === 'mashup' && c.mx === undefined) mash.push(c); }); });
+    for (var m = 0; m < mash.length; m++) { try { var full = slim(await api('/api/clip/' + mash[m].id)); mash[m].mx = full.mx; } catch (e) { mash[m].mx = []; } await sleep(150); }
+    if (mash.length) save();
     LS.set('par', S.par); LS.set('parTried', S.parTried); sugCache = {}; renderTracks();
   }
   function catBadge(c) {
@@ -715,6 +719,9 @@
     '.sdl-rnset{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;padding:8px 0 10px;border-bottom:1px solid var(--line)}.sdl-rnset input,.sdl-rnset select{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:3px 6px}.sdl-rnset .sdl-cat{cursor:pointer;opacity:.35}.sdl-rnset .sdl-cat.on{opacity:1}' +
     '.sdl-tr .dt{color:var(--mut);font-size:12px;white-space:nowrap}.sdl-gen{font-size:11px;font-weight:700;color:var(--acc2,var(--acc));border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-left:4px;opacity:.8}' +
     '.sdl-tracks{padding:4px 20px 30px}.sdl-tr{display:grid;grid-template-columns:22px 58px 44px 1fr 110px auto 52px 34px;gap:10px;align-items:center;padding:6px 10px;border-radius:10px;width:100%;text-align:left;cursor:pointer}' +
+    '.sdl-tracks.cols .sdl-tr{grid-template-columns:var(--cols)}.sdl-thead{position:sticky;top:0;z-index:2;background:var(--bg);cursor:default;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line);border-radius:0}.sdl-thead:hover{background:var(--bg)}' +
+    '.sdl-thead .th{cursor:grab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}.sdl-thead .th[data-sortk]:hover,.sdl-thead .th.on{color:var(--acc)}.sdl-thead .th.r{text-align:right}.sdl-thead .th.drop{box-shadow:inset 3px 0 0 var(--acc)}.sdl-thead .th-cfg{opacity:1}' +
+    '.sdl-tr .pc{color:var(--mut);font-variant-numeric:tabular-nums;text-align:right}.sdl-tr .wsn{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.sdl-tr:hover{background:var(--glass)}.sdl-tr.on{background:var(--panel2)}.sdl-tr.on .tt{color:var(--acc)}.sdl-tr.sel{background:' + 'var(--panel2)}' +
     '.sdl-tr input{width:16px;height:16px;accent-color:var(--acc);opacity:.35}.sdl-tr:hover input,.sdl-tr input:checked,.sdl-anysel .sdl-tr input{opacity:1}' +
     '.sdl-tr .no{color:var(--mut);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.sdl-tr .no .vx{font-size:12px;margin-right:5px;opacity:.85}.sdl-tr img{width:44px;height:44px;border-radius:6px;object-fit:cover}' +
@@ -906,6 +913,42 @@
     }
     return out;
   }
+  /* ---- track list columns: shown / hidden and order are the user's (⚙, or drag a header) */
+  var COLS = {
+    no: ['58px', 'N°', 'No.', 'no'], img: ['44px', 'Pochette', 'Cover', ''], title: ['minmax(0,1fr)', 'Titre', 'Title', 'az'],
+    cat: ['96px', 'Type', 'Type', ''], ws: ['150px', 'Espace', 'Workspace', ''], date: ['104px', 'Date', 'Date', 'new'],
+    like: ['32px', '♥', '♥', ''], plays: ['72px', 'Écoutes', 'Plays', 'plays'], dur: ['52px', 'Durée', 'Length', 'long']
+  };
+  var cols = (LS.get('cols', null) || ['no', 'img', 'title', 'date', 'like', 'plays', 'dur']).filter(function (k) { return COLS[k]; });
+  if (cols.indexOf('title') < 0) cols.splice(2, 0, 'title');
+  function saveCols() { LS.set('cols', cols); renderTracks(); }
+  function colsGrid() { return '22px ' + cols.map(function (k) { return COLS[k][0]; }).join(' ') + ' 34px'; }
+  function colHead() {
+    return '<div class="sdl-tr sdl-thead"><span></span>' + cols.map(function (k) {
+      var d = COLS[k], on = d[3] && (S.sort === d[3] || (k === 'date' && S.sort === 'old'));
+      return '<span class="th' + (on ? ' on' : '') + (k === 'plays' || k === 'dur' ? ' r' : '') + '" draggable="true" data-col="' + k + '"' + (d[3] ? ' data-sortk="' + k + '"' : '') + ' title="' + tr('Glisser pour déplacer', 'Drag to move') + (d[3] ? tr(' · cliquer pour trier', ' · click to sort') : '') + '">' + esc(LANG === 'fr' ? d[1] : d[2]) + (on ? (S.sort === 'old' ? ' ▲' : k === 'az' || k === 'title' ? ' ▲' : ' ▼') : '') + '</span>';
+    }).join('') + '<button class="dots th-cfg" data-act="cols" title="' + tr('Choisir les colonnes', 'Choose columns') + '">⚙</button></div>';
+  }
+  function colsScreen() {
+    function body() {
+      return Object.keys(COLS).sort(function (a, b) { var ia = cols.indexOf(a), ib = cols.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); }).map(function (k) {
+        var i = cols.indexOf(k);
+        return '<div class="sdl-row" data-colk="' + k + '"><input type="checkbox"' + (i >= 0 ? ' checked' : '') + (k === 'title' ? ' disabled' : '') + '><span style="flex:1">' + esc(LANG === 'fr' ? COLS[k][1] : COLS[k][2]) + '</span>' +
+          (i >= 0 ? '<button class="sdl-ic" data-colmv="-1">↑</button><button class="sdl-ic" data-colmv="1">↓</button>' : '') + '</div>';
+      }).join('');
+    }
+    modal(tr('Colonnes', 'Columns'), '<div class="sdl-muted" style="font-size:13px;margin-bottom:6px">' + tr('Coche ce que tu veux voir, range avec ↑ ↓ (ou glisse les en-têtes de la liste).', 'Tick what you want to see, order with ↑ ↓ (or drag the list headers).') + '</div><div id="sdl-colsl"></div>',
+      [{ label: tr('Par défaut', 'Default'), onclick: function () { cols = ['no', 'img', 'title', 'date', 'like', 'plays', 'dur']; saveCols(); $('#sdl-colsl').innerHTML = body(); } }, { label: 'OK', cls: 'primary', onclick: closeModal }]);
+    var box = $('#sdl-colsl'); box.innerHTML = body();
+    box.addEventListener('click', function (e) {
+      var row = e.target.closest('[data-colk]'); if (!row) return; var k = row.dataset.colk, i = cols.indexOf(k);
+      var mv = e.target.closest('[data-colmv]');
+      if (mv) { var j = i + (+mv.dataset.colmv); if (j < 0 || j >= cols.length) return; cols.splice(i, 1); cols.splice(j, 0, k); }
+      else if (e.target.type === 'checkbox') { if (e.target.checked && i < 0) cols.push(k); else if (!e.target.checked && i >= 0 && k !== 'title') cols.splice(i, 1); }
+      else return;
+      saveCols(); box.innerHTML = body();
+    });
+  }
   function selList() { var out = []; for (var k in S.clips) S.clips[k].forEach(function (c) { if (S.sel[c.id]) out.push(c); }); return out; }
   function renderTracks() {
     if (S.cur === EXP) return renderExplore($('#sdl-mainin'));
@@ -934,16 +977,22 @@
       '<span class="sdl-muted" style="margin-left:8px">' + tr('Tri', 'Sort') + '</span>' + [['no', 'N°'], ['new', tr('Récents', 'Newest')], ['old', tr('Anciens', 'Oldest')], ['az', 'A → Z'], ['long', tr('Durée', 'Length')], ['plays', '▶ ' + tr('Écoutes', 'Plays')]].map(function (x) { return '<button class="sdl-chip' + (S.sort === x[0] ? ' on' : '') + '" data-sort="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
       '<button class="sdl-chip" data-act="selall" style="margin-left:auto">☑ ' + tr("Tout sélectionner", "Select all") + '</button></div>' +
       (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">🏷 ' + tr("Renommer", "Rename") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
-      '<div class="sdl-tracks' + (sel.length ? ' sdl-anysel' : '') + '">' + (cs.length ? cs.slice(0, S.limit || 400).map(function (c, i) {
+      '<div class="sdl-tracks cols' + (sel.length ? ' sdl-anysel' : '') + '" style="--cols:' + colsGrid() + '">' + (cs.length ? colHead() : '') + (cs.length ? cs.slice(0, S.limit || 400).map(function (c, i) {
         var on = S.playing && S.playing.id === c.id, head = '', sg = sugFor(c), gn = genOf(c);
         if (w.all && S.sort === 'no' && (i === 0 || cs[i - 1].ws !== c.ws)) head = '<div class="sdl-grp" data-ws="' + esc(c.ws.id) + '">' + esc(c.ws.name) + ' <span class="sdl-muted">· ' + (S.clips[c.ws.id] || []).length + '</span></div>';
         return head + '<div class="sdl-tr' + (on ? ' on' : '') + (o[c.id] ? ' sdl-orig' : '') + (S.sel[c.id] ? ' sel' : '') + '" data-i="' + i + '" data-id="' + c.id + '">' +
           '<input type="checkbox" data-selid="' + c.id + '"' + (S.sel[c.id] ? ' checked' : '') + '>' +
-          '<span class="no">' + voiceIcon(c) + (on ? (S.loading ? '<span class="sdl-spin">⟳</span>' : '♪') : String(c.no).padStart(3, '0')) + '</span>' +
-          (c.img ? '<img loading="lazy" src="' + esc(c.img) + '">' : '<span></span>') +
-          '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + catBadge(c) + esc(c.title) + (gn ? ' <span class="sdl-gen" title="' + esc(tr('Générés ensemble le ', 'Made together on ') + fdate(gn.list[0].at, true)) + '">⧉ ' + 'ABCDEFGH'.charAt(gn.list.indexOf(c)) + '</span>' : '') + '</div><div class="tg">' + (sg ? '<button class="sdl-sug" data-sug="' + c.id + '" title="' + tr('Cliquer pour renommer ainsi sur Suno', 'Click to rename it like this on Suno') + '">💡 ' + esc(sg) + '</button>' : '') + (w.all && S.sort !== 'no' && c.ws ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>' +
-          '<span class="dt" title="' + esc(fdate(c.at, true) + ' · ' + pl(c.plays || 0, 'écoute', 'écoutes', 'play', 'plays')) + '">' + (S.sort === 'plays' ? '▶ ' + (c.plays || 0) : esc(fdate(c.at))) + '</span>' +
-          '<button class="lk' + (c.liked ? '' : ' off') + '" data-like="' + c.id + '" title="' + tr("Favori", "Favorite") + '">' + (c.liked ? '♥' : '♡') + '</button><span class="du">' + fmt(c.d) + '</span>' +
+          cols.map(function (k) {
+            if (k === 'no') return '<span class="no">' + voiceIcon(c) + (on ? (S.loading ? '<span class="sdl-spin">⟳</span>' : '♪') : String(c.no).padStart(3, '0')) + '</span>';
+            if (k === 'img') return c.img ? '<img loading="lazy" src="' + esc(c.img) + '">' : '<span></span>';
+            if (k === 'cat') return '<span>' + catBadge(c) + '</span>';
+            if (k === 'ws') return '<span class="wsn" title="' + esc(c.ws ? c.ws.name : '') + '">' + esc(c.ws ? c.ws.name : '') + '</span>';
+            if (k === 'date') return '<span class="dt" title="' + esc(fdate(c.at, true)) + '">' + esc(fdate(c.at)) + '</span>';
+            if (k === 'like') return '<button class="lk' + (c.liked ? '' : ' off') + '" data-like="' + c.id + '" title="' + tr("Favori", "Favorite") + '">' + (c.liked ? '♥' : '♡') + '</button>';
+            if (k === 'plays') return '<span class="pc" title="' + esc(pl(c.plays || 0, 'écoute', 'écoutes', 'play', 'plays')) + '">' + (c.plays || 0) + '</span>';
+            if (k === 'dur') return '<span class="du">' + fmt(c.d) + '</span>';
+            return '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + (cols.indexOf('cat') < 0 ? catBadge(c) : '') + esc(c.title) + (gn ? ' <span class="sdl-gen" title="' + esc(tr('Générés ensemble le ', 'Made together on ') + fdate(gn.list[0].at, true)) + '">⧉ ' + 'ABCDEFGH'.charAt(gn.list.indexOf(c)) + '</span>' : '') + '</div><div class="tg">' + (sg ? '<button class="sdl-sug" data-sug="' + c.id + '" title="' + tr('Cliquer pour renommer ainsi sur Suno', 'Click to rename it like this on Suno') + '">💡 ' + esc(sg) + '</button>' : '') + (w.all && S.sort !== 'no' && c.ws && cols.indexOf('ws') < 0 ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>';
+          }).join('') +
           '<button class="dots" data-menu="' + c.id + '" title="Actions">⋯</button></div>';
       }).join('') + (cs.length > (S.limit || 400) ? '<div style="padding:12px;text-align:center"><button class="sdl-ghost" data-act="more">' + tr('Afficher ', 'Show ') + (cs.length - (S.limit || 400)) + tr(' de plus', ' more') + '</button></div>' : '') : '<div class="sdl-muted" style="padding:20px">' + (S.syncing && !all.length ? tr('Chargement…', 'Loading…') : tr('Aucun titre', 'No track')) + '</div>') + '</div>';
     el.scrollTop = scroll;
@@ -1142,33 +1191,59 @@
     var texts = {}, tracks = [];   // same lyrics text = computed once
     S.ws.forEach(function (w) { (S.clips[w.id] || []).forEach(function (c) {
       c.ws = w; tracks.push(c);
+      if (catOf(c) === 'mashup') return;   // a mashup mixes the lyrics of two songs
       var t = String(c.prompt || '').trim(); if (t.length < 60 || /^\[?\s*instrumental\s*\]?$/i.test(t)) return;
       var e = texts[t] || (texts[t] = { fp: lyricPairs(t), where: {} }); if (!e.fp) return;
       (e.where[w.id] = e.where[w.id] || []).push(c); c._lt = t;
     }); });
     var keys = Object.keys(texts).filter(function (t) { return texts[t].fp; }), simCache = {};
-    function sims(t) {   // best match of a lyrics text in each workspace
+    function sims(t) {   // per workspace: best match of this lyrics text, and how many tracks share it (>= 60 %)
       if (simCache[t]) return simCache[t];
       var out = {}, a = texts[t].fp;
-      keys.forEach(function (u) { var v = u === t ? 1 : overlap(a, texts[u].fp); if (v < 0.3) return; Object.keys(texts[u].where).forEach(function (wid) { if (!out[wid] || out[wid].v < v) out[wid] = { v: v, c: texts[u].where[wid][0] }; }); });
+      keys.forEach(function (u) {
+        var v = u === t ? 1 : overlap(a, texts[u].fp); if (v < 0.3) return;
+        Object.keys(texts[u].where).forEach(function (wid) {
+          var o = out[wid] || (out[wid] = { v: 0, c: null, n: 0 });
+          if (v > o.v) { o.v = v; o.c = texts[u].where[wid][0]; }
+          if (v >= 0.6) o.n += texts[u].where[wid].length;
+        });
+      });
       return (simCache[t] = out);
+    }
+    // Is a workspace this track's home? its name is the song's name (+1.5); "My Workspace" is nobody's home (-1).
+    function nameScore(wid, c) {
+      var w2 = S.ws.find(function (x) { return x.id === wid; }), nm = norm(cleanTitle(w2 ? w2.name : '')).trim();
+      var t1 = norm(cleanTitle(rootOf(c).c.title)).trim(), t2 = norm(cleanTitle(c.title)).trim();
+      var named = nm.length > 2 && [t1, t2].some(function (t) { return t && (t.indexOf(nm) >= 0 || nm.indexOf(t) >= 0); }) ? 1.5 : 0;
+      return named - (wid === 'default' ? 1 : 0);
     }
     var found = [];
     tracks.forEach(function (c) {
-      var w = c.ws, why = null, target = null;
+      var w = c.ws, why = null, target = null, ownN = 0;
       if (c._lt) {
-        var sm = sims(c._lt), best = null;
-        // own workspace: best match among the OTHER tracks of it
-        var own, ow =(S.clips[w.id] || []).filter(function (x) { return x !== c && x._lt; });
-        own = ow.reduce(function (m, x) { return Math.max(m, x._lt === c._lt ? 1 : overlap(texts[c._lt].fp, texts[x._lt].fp)); }, 0);
-        Object.keys(sm).forEach(function (wid) { if (wid !== w.id && (!best || sm[wid].v > best.v)) best = { v: sm[wid].v, wid: wid, c: sm[wid].c }; });
-        if (best && best.v >= 0.6 && own < 0.3 && (ow.length || best.v >= 0.7)) {
-          target = best.wid; why = tr('paroles de « ', 'lyrics of "') + best.c.title + tr(' » (', '" (') + Math.round(best.v * 100) + '%)' + (ow.length ? tr(', rien de pareil dans cet espace', ', nothing alike in this workspace') : '');
+        var sm = sims(c._lt), ownName = nameScore(w.id, c), best = null;
+        ownN = sm[w.id] ? sm[w.id].n - 1 : 0;   // other tracks of its workspace with these lyrics
+        var ownSc = ownN + ownName;
+        Object.keys(sm).forEach(function (wid) {
+          if (wid === w.id || sm[wid].v < 0.6 || wid === 'default') return;
+          var nmS = nameScore(wid, c), sc = sm[wid].n + nmS;
+          if (!best || sc > best.sc) best = { wid: wid, sc: sc, nm: nmS, v: sm[wid].v, n: sm[wid].n, c: sm[wid].c };
+        });
+        // alone here and alone there: only the names can tell (else two different songs that look alike)
+        var clear = best && best.sc > ownSc && (ownN > 0 || best.n > 1 || best.nm > ownName);
+        if (clear) {
+          target = best.wid;
+          why = tr('paroles de « ', 'lyrics of "') + best.c.title + tr(' » (', '" (') + Math.round(best.v * 100) + '%)' + (ownN === 0 ? tr(', rien de pareil dans cet espace', ', nothing alike in this workspace') : '');
         }
       }
-      if (!why) {
+      if (catOf(c) === 'mashup') {   // a mashup lives with its most played source
+        var srcs = (c.mx || []).map(findClip).filter(Boolean).sort(function (a, b) { return (b.plays || 0) - (a.plays || 0); }), top = srcs[0], tw = top && wsOf(top.id);
+        if (tw && tw.id !== w.id) found.push({ c: c, from: w, to: tw.id, why: tr('mashup : sa source la plus écoutée est « ', 'mashup: its most played source is "') + top.title + tr(' » (', '" (') + pl(top.plays || 0, 'écoute', 'écoutes', 'play', 'plays') + tr('), rangée dans « ', '), kept in "') + tw.name + tr(' »', '"') });
+        return;
+      }
+      if (!why && !(c._lt && ownN > 0) && nameScore(w.id, c) <= 0) {   // lyrics or name tie it here: on purpose
         var ps = parentIds(c).map(findClip).filter(Boolean)[0], pw = ps && wsOf(ps.id);
-        if (pw && pw.id !== w.id) { target = pw.id; why = tr('issu de « ', 'comes from "') + ps.title + tr(' », rangé dans « ', '", kept in "') + pw.name + tr(' »', '"'); }
+        if (pw && pw.id !== w.id && pw.id !== 'default') { target = pw.id; why = tr('issu de « ', 'comes from "') + ps.title + tr(' », rangé dans « ', '", kept in "') + pw.name + tr(' »', '"'); }
       }
       if (why) found.push({ c: c, from: w, to: target, why: why });
     });
@@ -1325,6 +1400,16 @@
   }
 
   /* ================================================================ events */
+  var dragCol = null;
+  root.addEventListener('dragstart', function (e) { var h = e.target.closest && e.target.closest('.sdl-thead [data-col]'); if (!h) return; dragCol = h.dataset.col; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragCol); } catch (x) {} });
+  root.addEventListener('dragover', function (e) { var h = dragCol && e.target.closest && e.target.closest('.sdl-thead [data-col]'); if (!h) return; e.preventDefault(); $$('.sdl-thead .drop', root).forEach(function (x) { x.classList.remove('drop'); }); h.classList.add('drop'); });
+  root.addEventListener('drop', function (e) {
+    var h = dragCol && e.target.closest && e.target.closest('.sdl-thead [data-col]'); if (!h) return; e.preventDefault();
+    var to = h.dataset.col; if (to !== dragCol) { cols.splice(cols.indexOf(dragCol), 1); cols.splice(cols.indexOf(to), 0, dragCol); saveCols(); }
+    dragCol = null;
+  });
+  root.addEventListener('dragend', function () { dragCol = null; $$('.sdl-thead .drop', root).forEach(function (x) { x.classList.remove('drop'); }); });
+
   root.addEventListener('click', function (e) {
     var t = e.target;
     // closest() limited to the overlay (suno.com's own <html>/<body> carry data-* attributes too)
@@ -1350,6 +1435,7 @@
     }
     var so = cl('[data-wsort]'); if (so) { S.wsSort = so.dataset.wsort; LS.set('wsSort', S.wsSort); renderWs(); return; }
     var fi = cl('[data-filter]'); if (fi) { S.filter = fi.dataset.filter; renderTracks(); return; }
+    var sk = cl('[data-sortk]'); if (sk) { var sv = COLS[sk.dataset.sortk][3]; S.sort = sv === 'new' && S.sort === 'new' ? 'old' : sv; LS.set('sort', S.sort); renderTracks(); return; }
     var srt = cl('[data-sort]'); if (srt) { S.sort = srt.dataset.sort; LS.set('sort', S.sort); renderTracks(); return; }
     var ac = cl('[data-act]'); if (ac) {
       var w = curWs(), vc = viewClips();
@@ -1366,6 +1452,7 @@
         case 'clear': D = { title: '', style: '', exclude: '', lyrics: '', voice: D.voice }; saveDraft(); return renderCreate($('#sdl-mainin'));
         case 'dnew': return newDraft();
         case 'tidy': return tidyScreen(S.cur === ALL ? null : S.cur);
+        case 'cols': return colsScreen();
         case 'renamer': return renamer(S.cur === ALL ? [].concat.apply([], S.ws.map(function (x) { return S.clips[x.id] || []; })) : (S.clips[S.cur] || []), false);
         case 'clean': return cleanTitles(S.cur === ALL ? [].concat.apply([], S.ws.map(function (x) { return S.clips[x.id] || []; })) : (S.clips[S.cur] || []));
         case 'selall': vc.forEach(function (c) { S.sel[c.id] = true; }); return renderTracks();
@@ -1377,7 +1464,7 @@
         case 'more': S.limit = (S.limit || 400) + 400; return renderTracks();
       }
     }
-    var trow = cl('.sdl-tr'); if (trow && !cl('button,input')) { var list = viewClips(); return startQueue(list, +trow.dataset.i, S.shuffle); }
+    var trow = cl('.sdl-tr:not(.sdl-thead)'); if (trow && !cl('button,input')) { var list = viewClips(); return startQueue(list, +trow.dataset.i, S.shuffle); }
     var bt = cl('button'); if (!bt) return;
     switch (bt.id) {
       case 'sdl-pp': return toggle();
