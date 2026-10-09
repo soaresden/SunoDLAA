@@ -158,14 +158,14 @@ Mazda MX-5 (1280×480). On the phone, once: Android Auto → Settings → tap *V
 
 ## Repository layout
 ```
-suno-plus/      The bookmark's source (suno-plus.js), sunodlaa.js (built, loaded by the bookmark), themes.json, build scripts
+suno-plus/      The bookmark's source (suno-plus.js), sunodlaa-app.js (built), sunodlaa.js (the bootstrap the bookmark loads), themes.json, build scripts
 android/        Android Studio project (Kotlin, Jetpack Compose, Media3, Room)
 releases/       Ready-to-install APK
 Launch Android Drive Unit Test.bat    Android Auto on the PC
 ```
 
 ## Build
-- **Bookmark**: `python suno-plus/build.py` rebuilds `suno-plus/sunodlaa.js` from `suno-plus.js` and `themes.json` (and the bookmark line in this README). Push to publish.
+- **Bookmark**: `python suno-plus/build.py` rebuilds `suno-plus/sunodlaa-app.js` from `suno-plus.js` and `themes.json` (and the bookmark line in this README). Push to publish.
 - **Themes**: edit `suno-plus/themes.json`, then `python suno-plus/gen_android_themes.py android/app/src/main/java/com/soaresden/sunoauto/ui/theme/Themes.kt` so the phone gets the same ones.
 - **Android**: open `android/` in Android Studio (JDK 17), or `cd android && ./gradlew :app:assembleDebug`.
 

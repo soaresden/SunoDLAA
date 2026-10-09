@@ -32,15 +32,17 @@ downloader (SunoAAWeb) was deleted. SUNODLAA is now **the player Suno never buil
 ## Bookmark overlay (`suno-plus/`)
 - Source: `suno-plus/suno-plus.js` (one IIFE, ES5-style, no build tools). Version: `var VERSION = 'x.y.z'` at the top — bump it on every change.
 - Themes: `suno-plus/themes.json` (shared with Android). Injected at build in place of `/*@THEMES@*/[]`.
-- Build: `python suno-plus/build.py` → writes `suno-plus/sunodlaa.js` (script + themes, **committed**) and the bookmark
+- Build: `python suno-plus/build.py` → writes `suno-plus/sunodlaa-app.js` (script + themes, **committed**), `suno-plus/sunodlaa.js`
+  (a tiny bootstrap: asks api.github.com for main's latest commit and loads sunodlaa-app.js at that sha, because raw `main`
+  stays stale up to 5 min whatever the query string; falls back to raw main) and the bookmark
   line in `README.md` (between `<!--BOOKMARK-->` markers; no installer page any more). The bookmark is a **fixed** loader:
   each click fetches `raw.githubusercontent.com/soaresden/SunoDLAA/main/suno-plus/sunodlaa.js?t=…` and evals it
   (suno.com's CSP allows it). **Never change the loader** (Denis would have to reinstall); put logic in the script.
   The script itself: same VERSION already open → toggle; older one open → `destroy()` it and start (a version without
   `destroy`, i.e. < 2.12, → page reload). So every global hook must go through `on(target, ev, fn)` / `offs`
   (listeners, intervals) so `destroy()` can unplug it. **A change reaches Denis only once pushed to `main`.**
-  Always rebuild and commit `sunodlaa.js` with `suno-plus.js`.
-- Syntax check: `node -e "new Function(require('fs').readFileSync('suno-plus/sunodlaa.js','utf8'))"`.
+  Always rebuild and commit `sunodlaa-app.js` with `suno-plus.js`.
+- Syntax check: `node -e "new Function(require('fs').readFileSync('suno-plus/sunodlaa-app.js','utf8'))"`.
 - i18n: every UI string goes through `tr('français', 'English')` / `pl(n, fr1, frN, en1, enN)`; language = browser language.
 - Gotchas learnt the hard way:
   - suno.com's `<html>`/`<body>` carry `data-*` attributes (`data-theme`…): in the click handler use the
