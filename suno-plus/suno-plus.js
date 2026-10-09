@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.18.2';
+  var VERSION = '2.18.3';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -655,13 +655,27 @@
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
   }
   // "<original title><sep><type> <style or stem part> #n", following RULES.
+  // A title without what the renamer itself adds (" - Cover Violin duet", " - SFX", " - Stem Vocals", "#2"…, any separator,
+  // FR or EN) nor the old "Cover - " prefix: so renaming again gives the same name instead of piling up labels.
+  var OUR_LABELS = ['Cover voix', 'Voice Cover', 'Cover', 'Edit', 'Upload', 'Stem', 'SFX', 'Extend', 'Complet', 'Full', 'Remaster', 'Inspo', 'Mashup', 'Retouche', 'Fix', 'Replace', 'Add Vocal', 'Section', 'Création', 'Creation'];
+  function baseTitle(t, R) {
+    var seps = [' - ']; if (R && R.sep && seps.indexOf(R.sep) < 0) seps.push(R.sep);
+    var esc2 = function (x) { return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+    var tail = new RegExp('(?:' + seps.map(esc2).join('|') + ')(?:' + OUR_LABELS.map(esc2).join('|') + ')(?:\\s+(?:(?!\\s-\\s).){0,70})?$', 'i');
+    var b = cleanTitle(t), prev;
+    do { prev = b; b = b.replace(/\s*#\d+\s*$/, '').replace(tail, '').trim(); } while (b !== prev && b);
+    b = b.replace(/^(?:cover|remix)\s+-\s+/i, '').trim();
+    return b || cleanTitle(t);
+  }
   function nameOf(c, R, wsName) {
     var k = catOf(c), own = k === 'create' || k === 'sfx' || k === 'mashup' || !k;
-    var base = cleanTitle(own ? c.title : rootOf(c).c.title);
-    if (badTitle(base)) base = cleanTitle(c.title); if (badTitle(base)) base = cleanTitle(wsName || '') || base;
+    // the original's name; an original without a usable title takes its workspace's name, and so do the tracks made from it
+    var src = own ? c : rootOf(c).c, sw = src === c ? null : wsOf(src.id);
+    var base = baseTitle(src.title, R);
+    if (badTitle(base)) base = cleanTitle(sw ? sw.name : (wsName || '')) || baseTitle(c.title, R);
     var detail = '';
     if (k === 'cover' || k === 'vcover' || k === 'inspo') { var st = styleShort(c._st != null ? c._st : c.tags, R.style); if (st && norm(base).indexOf(norm(st)) < 0) detail = st; }
-    else if (k === 'stem') { var m = String(c.title || '').match(STEM_RX); detail = m ? (m[1] || m[2]).replace(/\b\w/g, function (x) { return x.toUpperCase(); }) : ''; }
+    else if (k === 'stem') { var m = String(c.title || '').match(STEM_RX) || String(c.title || '').match(/\bStem\s+(Vocals|Backing Vocals|Instrumental|Woodwinds|Brass|FX|Synth|Strings|Percussion|Drums|Bass|Guitar|Keyboard|Piano|Other)\b/i); detail = m ? (m[1] || m[2]).replace(/\b\w/g, function (x) { return x.toUpperCase(); }) : ''; }
     else if (k === 'fix') detail = fixLabel(c);
     var lab = k && R.types[k] ? (k === 'fix' ? '' : catLabel(k, R.lang)) : '';
     if (k === 'fix' && !R.types.fix) detail = '';
@@ -669,7 +683,7 @@
     return (base + (tail ? R.sep + tail : '')).slice(0, 76);
   }
   // Same request to Suno: same kind, and same source track (covers, edits…) or same title (own creations).
-  function sameSource(x, c) { var k = catOf(c); return (k === 'create' || k === 'sfx' || k === 'mashup' || !k) ? norm(cleanTitle(x.title)) === norm(cleanTitle(c.title)) : parentIds(x).join() === parentIds(c).join(); }
+  function sameSource(x, c) { var k = catOf(c), pc = parentIds(c).join(); return (k === 'create' || k === 'sfx' || k === 'mashup' || !k || !pc) ? norm(baseTitle(x.title)) === norm(baseTitle(c.title)) : parentIds(x).join() === pc; }
   // Names for a whole workspace: a generation shares its first track's name (not stems: one per instrument), then #1 #2…
   function names(wsId, R) {
     var key = function (t) { return norm(t).trim(); };
