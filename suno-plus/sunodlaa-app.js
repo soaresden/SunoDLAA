@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.18.4';
+  var VERSION = '2.18.5';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -911,12 +911,14 @@
     var n = 0; for (var k in S.clips) n += S.clips[k].length;
     el.innerHTML = S.err ? esc(S.err) : S.syncing ? '<span class="sdl-spin">⟳</span> ' + tr('Synchro Suno… ', 'Syncing Suno… ') + esc(S.syncInfo || '') : pl(S.ws.length, 'espace', 'espaces', 'workspace', 'workspaces') + ' · ' + pl(n, 'titre', 'titres', 'track', 'tracks') + ' · v' + VERSION;
   }
+  // "My Workspace" (id default) always first, whatever the sort.
+  function wsTop(a, b) { return (b.id === 'default') - (a.id === 'default'); }
   function renderWs() {
     var q = norm(S.wsQ);
     var list = S.ws.filter(function (w) { return !q || norm(w.name).indexOf(q) >= 0; });
-    if (S.wsSort === 'az') list.sort(function (a, b) { return collator.compare(a.name, b.name); });
-    else if (S.wsSort === 'size') list.sort(function (a, b) { return ((S.clips[b.id] || []).length || b.n) - ((S.clips[a.id] || []).length || a.n); });
-    else list.sort(function (a, b) { return (wsRange(b).last || '').localeCompare(wsRange(a).last || ''); });
+    if (S.wsSort === 'az') list.sort(function (a, b) { return wsTop(a, b) || collator.compare(a.name, b.name); });
+    else if (S.wsSort === 'size') list.sort(function (a, b) { return wsTop(a, b) || ((S.clips[b.id] || []).length || b.n) - ((S.clips[a.id] || []).length || a.n); });
+    else list.sort(function (a, b) { return wsTop(a, b) || (wsRange(b).last || '').localeCompare(wsRange(a).last || ''); });
     var total = 0; S.ws.forEach(function (w) { total += (S.clips[w.id] || []).length; });
     $$('[data-wsort]').forEach(function (b) { b.classList.toggle('on', b.dataset.wsort === S.wsSort); });
     $('#sdl-wslist').innerHTML = '<button class="sdl-ws' + (S.cur === ALL ? ' on' : '') + '" data-ws="' + ALL + '"><span class="ph" style="display:grid;place-items:center;font-size:20px;color:#fff;background:linear-gradient(135deg,var(--acc),var(--acc2))">♫</span>' +
@@ -942,7 +944,7 @@
     }
     if (S.cur === EXP || S.cur === CRE) return [];
     if (S.cur === ALL) {
-      var wl = S.ws.slice().sort(function (a, b) { return collator.compare(a.name, b.name); });
+      var wl = S.ws.slice().sort(function (a, b) { return wsTop(a, b) || collator.compare(a.name, b.name); });
       wl.forEach(function (w) { ordered(S.clips[w.id] || []).forEach(function (c) { c.ws = w; base.push(c); }); });
     } else { var w0 = curWs(); base = ordered(S.clips[S.cur] || []); base.forEach(function (c) { c.ws = w0; }); }
     base.forEach(function (c) { c.no = c.ws ? nums(c.ws.id)[c.id] : 0; });
@@ -1165,7 +1167,7 @@
     var out = slim(c); if (title) out.title = title; return out;
   }
   function uploadAudio(w0) {
-    var list = S.ws.slice().sort(function (a, b) { return collator.compare(a.name, b.name); });
+    var list = S.ws.slice().sort(function (a, b) { return wsTop(a, b) || collator.compare(a.name, b.name); });
     var def = w0 ? w0.id : ((S.ws.find(function (w) { return w.id === 'default'; }) || list[0] || {}).id);
     modal(tr('Importer un fichier audio', 'Upload an audio file'),
       '<input type="file" id="sdl-upf" accept="' + UPLOAD_TYPES + '" style="width:100%">' +
@@ -1212,7 +1214,7 @@
   function moveTracks(cs) {
     var src = {}; cs.forEach(function (c) { var w = wsOf(c.id); if (w) src[w.id] = 1; });
     var desc = descendants(cs);
-    var list = S.ws.slice().sort(function (a, b) { return collator.compare(a.name, b.name); });
+    var list = S.ws.slice().sort(function (a, b) { return wsTop(a, b) || collator.compare(a.name, b.name); });
     modal(tr('Déplacer ', 'Move ') + pl(cs.length, 'titre', 'titres', 'track', 'tracks') + tr(' vers…', ' to…'),
       '<input type="text" id="sdl-mvq" style="width:100%" placeholder="' + tr("Rechercher un espace…", "Search a workspace…") + '"><div id="sdl-mvl" style="margin-top:8px;max-height:46vh;overflow:auto">' +
       list.map(function (w) { var only = Object.keys(src).length === 1 && src[w.id]; return '<label class="sdl-row" data-n="' + esc(norm(w.name)) + '"' + (only ? ' style="opacity:.4"' : '') + '><input type="radio" name="sdl-mv" value="' + w.id + '"' + (only ? ' disabled' : '') + '><span style="flex:1">' + esc(w.name) + '</span><span class="sdl-muted">' + (S.clips[w.id] || []).length + '</span></label>'; }).join('') + '</div>' + descBox('sdl-mv-desc', desc.length),
@@ -1317,7 +1319,7 @@
     modal(tr('Vérifier le rangement', 'Check the filing'), '<div class="sdl-muted"><span class="sdl-spin">⟳</span> ' + tr('Je compare les paroles et les liens de tous tes titres…', 'Comparing lyrics and links of all your tracks…') + '</div>', [{ label: tr('Fermer', 'Close'), onclick: closeModal }]);
     setTimeout(function () {
       var list = tidyCheck().filter(function (x) { return !onlyWs || x.from.id === onlyWs || x.to === onlyWs; });
-      var wsSorted = S.ws.slice().sort(function (a, b) { return collator.compare(a.name, b.name); });
+      var wsSorted = S.ws.slice().sort(function (a, b) { return wsTop(a, b) || collator.compare(a.name, b.name); });
       var body = $('#sdl-modal .sdl-mbody'); if (!body) return;
       if (!list.length) { body.innerHTML = '<div>' + tr('Tout semble bien rangé 👍', 'Everything looks well filed 👍') + '</div>'; return; }
       body.innerHTML = '<div class="sdl-muted" style="font-size:13px;margin-bottom:8px">' + pl(list.length, 'titre semble mal rangé', 'titres semblent mal rangés', 'track looks misfiled', 'tracks look misfiled') + tr('. Vérifie, change la destination si besoin, décoche ce qui est voulu.', '. Check, change the destination if needed, untick what is on purpose.') + '</div>' +
