@@ -88,9 +88,12 @@ your own session. A glowing **♪ SUNODLAA** button even sits right under Suno's
   playlist in full, play them in a row.
 - Tracks numbered **original first** (★), then oldest → newest. Sort by number, date, title, length.
 - **Play a whole workspace**, shuffle, repeat. Lyrics with **word-by-word karaoke**, full screen.
-- **Manage your library live on Suno**: rename (with a clean-title suggestion), move to another
-  workspace, delete, like; create a workspace; select many tracks at once; rename / delete a workspace;
-  ✨ clean all messy titles of a workspace in one go.
+- **Manage your library live on Suno**: rename, edit lyrics, move to another workspace, delete, like,
+  📌 pin to the top of a workspace, ⬆ upload one of your audio files into the workspace you choose;
+  create, rename, delete a workspace; select many tracks at once.
+- **💡 Clean names in one click**: messy or duplicate titles get a suggestion built from the original
+  title and the style (`Loca - Violin duet #1`); tracks Suno made together are marked ⧉ A / ⧉ B.
+- **One player**: what suno.com plays shows up in SUNODLAA, and SUNODLAA's buttons drive suno.com's player.
 - **8 themes**: Holi, Orange Suno, Plage, Bleu, Amoureux, Deep Ocean, Feu, Nuit. Your choice is
   saved in the browser.
 - **Playback is Suno's own player.** The overlay opens the song in the page and presses Play.
@@ -110,12 +113,20 @@ your own session. A glowing **♪ SUNODLAA** button even sits right under Suno's
 
 ## Install
 
-### The bookmark
-1. Open **`SUNODLAA - Installer le favori.html`** (at the root of this repository) in your browser.
-2. Show the bookmarks bar (`Ctrl+Shift+B`) and **drag the ♪ SUNODLAA button onto it**.
+### The bookmark (once, for good)
+1. Show the bookmarks bar (`Ctrl+Shift+B`), right-click it → **Add page…** (Chrome/Brave/Edge) or **Add bookmark…** (Firefox).
+2. Name: `♪ SUNODLAA`. URL: **paste the whole line below** (copy button at the top right of the box).
 3. Go to **suno.com** (signed in) and click the bookmark. Click it again, or press `Esc`, to hide it.
 
-To update: open the installer again and drag the new button (replace the old bookmark).
+<!--BOOKMARK-->
+```
+javascript:(function(){if(!/(^|\.)suno\.com$/.test(location.hostname)){location.href='https://suno.com/';return}fetch('https://raw.githubusercontent.com/soaresden/SunoDLAA/main/suno-plus/sunodlaa.js?t='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}).then(function(t){(0,eval)(t)}).catch(function(e){if(window.__sdlSkin)window.__sdlSkin.toggle();else alert('SUNODLAA : chargement impossible ('+e.message+')')})})()
+```
+<!--/BOOKMARK-->
+
+**It updates itself.** At each click the bookmark loads the latest version from this repository;
+if an older one is open in the tab, it is replaced (you get a "updated: vX → vY" message). The
+version is shown on the ♪ SUNODLAA button under Suno's logo.
 
 ### Android
 1. Install the latest APK from [`releases/`](releases/) (allow unknown sources).
@@ -137,15 +148,14 @@ Mazda MX-5 (1280×480). On the phone, once: Android Auto → Settings → tap *V
 
 ## Repository layout
 ```
-SUNODLAA - Installer le favori.html   Bookmark installer (drag & drop)
-suno-plus/      The bookmark's source (suno-plus.js), themes.json, build scripts
+suno-plus/      The bookmark's source (suno-plus.js), sunodlaa.js (built, loaded by the bookmark), themes.json, build scripts
 android/        Android Studio project (Kotlin, Jetpack Compose, Media3, Room)
 releases/       Ready-to-install APK
 Launch Android Drive Unit Test.bat    Android Auto on the PC
 ```
 
 ## Build
-- **Bookmark**: `python suno-plus/build.py` rebuilds the installer from `suno-plus.js` and `themes.json`.
+- **Bookmark**: `python suno-plus/build.py` rebuilds `suno-plus/sunodlaa.js` from `suno-plus.js` and `themes.json` (and the bookmark line in this README). Push to publish.
 - **Themes**: edit `suno-plus/themes.json`, then `python suno-plus/gen_android_themes.py android/app/src/main/java/com/soaresden/sunoauto/ui/theme/Themes.kt` so the phone gets the same ones.
 - **Android**: open `android/` in Android Studio (JDK 17), or `cd android && ./gradlew :app:assembleDebug`.
 

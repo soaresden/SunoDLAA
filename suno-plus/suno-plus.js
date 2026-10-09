@@ -5,10 +5,20 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.11.0';
-  if (window.__sdlSkin) { window.__sdlSkin.toggle(); return; }
+  var VERSION = '2.12.0';
+  // The bookmark fetches this script at each click: same version already open -> show/hide it;
+  // older version open -> remove it and start this one (versions before 2.12 need a page reload).
+  var prevSkin = window.__sdlSkin;
+  if (prevSkin && prevSkin.version === VERSION) { prevSkin.toggle(); return; }
   // Not on suno.com: go there (click the bookmark again to open the player).
   if (!/(^|\.)suno\.com$/.test(location.hostname)) { location.href = 'https://suno.com/'; return; }
+  if (prevSkin) {
+    if (!prevSkin.destroy) { alert('SUNODLAA v' + VERSION + ' : nouvelle version. La page va se recharger, reclique ensuite sur le favori.'); location.reload(); return; }
+    prevSkin.destroy();
+  }
+  // Everything hooked outside the overlay, so a newer version can unplug this one.
+  var offs = [];
+  function on(t, ev, fn, o) { t.addEventListener(ev, fn, o); offs.push(function () { t.removeEventListener(ev, fn, o); }); }
 
   var THEMES = /*@THEMES@*/[];
 
@@ -90,7 +100,7 @@
     exp: { feeds: [], cursor: 0, done: false, loading: false }, pls: {},
     sel: {}, syncing: false, err: '', theme: LS.get('theme', 'holi'), sort: LS.get('sort', 'no')
   };
-  function slim(c) { var m = c.metadata || {}; return { id: c.id, title: c.title || tr('Sans titre', 'Untitled'), at: c.created_at || '', d: m.duration || 0, tags: m.tags || '', cover: m.cover_clip_id || '', img: c.image_url || '', imgL: c.image_large_url || c.image_url || '', liked: !!c.is_liked, prompt: m.prompt || '', author: c.display_name || c.handle || '', plays: c.play_count || 0 }; }
+  function slim(c) { var m = c.metadata || {}; return { id: c.id, title: c.title || tr('Sans titre', 'Untitled'), at: c.created_at || '', d: m.duration || 0, tags: m.tags || '', cover: m.cover_clip_id || '', img: c.image_url || '', imgL: c.image_large_url || c.image_url || '', liked: !!c.is_liked, hv: m.has_vocal === true ? true : (m.has_vocal === false || m.make_instrumental === true) ? false : null, prompt: m.prompt || '', author: c.display_name || c.handle || '', plays: c.play_count || 0 }; }
   function originals(cs) { var o = {}; cs.forEach(function (c) { if (c.cover) o[c.cover] = 1; }); return o; }
   function ordered(cs) {   // original(s) first, then oldest -> newest: track 001, 002...
     var o = originals(cs);
@@ -117,6 +127,12 @@
     return null;
   }
   function isMine(c) { return !!wsOf(c.id); }
+  // Voice or instrumental: Suno's own flag when it gives one, else its style ("Instrumental …") or empty / [Instrumental] lyrics.
+  function isInstru(c) {
+    if (c.hv === true) return false; if (c.hv === false) return true;
+    return /\binstrumental\b/i.test(c.tags || '') || /^\s*(\[\s*instrumental\s*\])?\s*$/i.test(c.prompt || '');
+  }
+  function voiceIcon(c) { var i = isInstru(c); return '<span class="vx" title="' + (i ? tr('Instrumental', 'Instrumental') : tr('Avec voix', 'With vocals')) + '">' + (i ? '🎼' : '🗣️') + '</span>'; }
   // Pinned tracks are per workspace (Suno shows them on top of it).
   function isPinned(c, w) { w = w || c.ws || wsOf(c.id); return !!w && (S.pins[w.id] || []).indexOf(c.id) >= 0; }
   async function loadPins(id) {
@@ -312,7 +328,7 @@
     el.scrollTop = scroll;
     var tq = $('#sdl-tq'); if (tq) tq.oninput = function () { S.tQ = tq.value; var p = tq.selectionStart; renderTracks(); var n = $('#sdl-tq'); n.focus(); n.setSelectionRange(p, p); };
   }
-  function save() { numsCache = {}; sugCache = {}; LS.set('ws', S.ws); LS.set('clips', S.clips); LS.set('markers', S.markers); LS.set('pins', S.pins); }
+  function save() { numsCache = {}; sugCache = {}; genCache = {}; LS.set('ws', S.ws); LS.set('clips', S.clips); LS.set('markers', S.markers); LS.set('pins', S.pins); }
 
   async function sync(force) {
     if (S.syncing) return; S.syncing = true; S.err = ''; renderStatus();
@@ -442,9 +458,9 @@
     if (b) b.click(); else if (a.paused) a.play(); else a.pause();
   }
   function applyVolume() { var a = audio(), v = LS.get('vol', null); if (a && v != null) a.volume = v / 100; }
-  document.addEventListener('ended', function (e) { if (e.target === audio() && S.playing && !S.loading) next(true); }, true);
-  ['play', 'pause', 'playing'].forEach(function (ev) { document.addEventListener(ev, function (e) { if (e.target === audio()) { renderPlayer(); if (ev !== 'pause') setTimeout(followSuno, 300); } }, true); });
-  document.addEventListener('timeupdate', function (e) { if (e.target === audio()) tick(); }, true);
+  on(document, 'ended', function (e) { if (e.target === audio() && S.playing && !S.loading) next(true); }, true);
+  ['play', 'pause', 'playing'].forEach(function (ev) { on(document, ev, function (e) { if (e.target === audio()) { renderPlayer(); if (ev !== 'pause') setTimeout(followSuno, 300); } }, true); });
+  on(document, 'timeupdate', function (e) { if (e.target === audio()) tick(); }, true);
 
   /* ================================================================ lyrics + karaoke */
   async function loadLyrics(c) {
@@ -455,6 +471,20 @@
       S.lyr = lines.some(function (l) { return !l.sec; }) ? { lines: lines } : { text: c.prompt };
     } catch (e) { S.lyr = { text: c.prompt }; }
     renderLyrics();
+  }
+  function lrcTime(t) { t = Math.max(0, t || 0); var m = Math.floor(t / 60), sec = t - m * 60; return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec.toFixed(2); }
+  async function saveLrc(c) {
+    try {
+      var lines = S.playing === c && S.lyr && S.lyr.lines ? S.lyr.lines : buildLines(await api('/api/gen/' + c.id + '/aligned_lyrics/v2/'));
+      lines = lines.filter(function (l) { return !l.sec && l.t; });
+      if (!lines.length) return toast(tr('Pas de paroles synchronisées pour ce titre', 'No synced lyrics for this track'), 5000);
+      var head = ['[ti:' + c.title + ']', c.author ? '[ar:' + c.author + ']' : '', c.d ? '[length:' + fmt(c.d) + ']' : '', '[re:SUNODLAA v' + VERSION + ']'].filter(Boolean);
+      var txt = head.concat(lines.map(function (l) { return '[' + lrcTime(l.s) + ']' + l.t; })).join('\r\n') + '\r\n';
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain;charset=utf-8' }));
+      a.download = (c.title || 'paroles').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 120) + '.lrc';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      toast(tr('Paroles enregistrées : ', 'Lyrics saved: ') + a.download);
+    } catch (e) { toast(tr('Paroles indisponibles : ', 'Lyrics unavailable: ') + e.message, 6000); }
   }
   function buildLines(d) {
     var words = d.aligned_words || [], lines = [], cur = null;
@@ -475,7 +505,7 @@
     if (!L || L.loading) { el.innerHTML = '<div class="sdl-muted">…</div>'; return; }
     if (L.lines) el.innerHTML = L.lines.map(function (l, i) {
       return l.sec ? '<div class="sdl-ly sec" data-i="' + i + '">' + esc(l.t.replace(/[\[\]]/g, '')) + '</div>'
-        : '<div class="sdl-ly" data-i="' + i + '">' + (l.words ? l.words.map(function (w, j) { return '<span class="w" data-j="' + j + '">' + esc(w.w) + '</span>'; }).join('') : esc(l.t)) + '</div>';
+        : '<div class="sdl-ly" data-i="' + i + '" title="' + tr('Aller à ', 'Jump to ') + fmt(l.s) + '"><span class="tc">' + fmt(l.s) + '</span>' + (l.words ? l.words.map(function (w, j) { return '<span class="w" data-j="' + j + '">' + esc(w.w) + '</span>'; }).join('') : esc(l.t)) + '</div>';
     }).join('');
     else el.innerHTML = L.text ? '<div class="sdl-ly static">' + esc(L.text).replace(/\n/g, '<br>') + '</div>' : '<div class="sdl-muted">' + tr('Pas de paroles', 'No lyrics') + '</div>';
     var a = audio(); if (a) lyrTick(a.currentTime);
@@ -507,7 +537,19 @@
   }
   // Suggested names: "<original title> - <start of Suno's style> #n", for tracks with a messy name
   // (3m39s_01-001 Loca_x3 (Edit)) or a name shared with other tracks of the workspace. Originals (★) keep theirs.
-  var sugCache = {};
+  var sugCache = {}, genCache = {};
+  // Suno creates tracks two by two: tracks of a workspace created within 20 s of each other = one generation.
+  function gens(wsId) {
+    if (genCache[wsId]) return genCache[wsId];
+    var cs = (S.clips[wsId] || []).slice().sort(function (a, b) { return a.at.localeCompare(b.at) || (a.id < b.id ? -1 : 1); }), out = {}, cur = null;
+    cs.forEach(function (c) {
+      var t = Date.parse(c.at) || 0;
+      if (!cur || !t || t - cur.t > 20000) cur = { t: t, list: [] };
+      cur.list.push(c); out[c.id] = cur;
+    });
+    return (genCache[wsId] = out);
+  }
+  function genOf(c) { var w = c.ws || wsOf(c.id), g = w && gens(w.id)[c.id]; return g && g.list.length > 1 ? g : null; }
   function styleShort(tags) {
     var t = String(tags || '').split(/[,;.]/)[0].replace(/\s+/g, ' ').trim();
     if (t.length > 40) { t = t.slice(0, 41); var sp = t.lastIndexOf(' '); t = t.slice(0, sp > 15 ? sp : 40); }
@@ -520,7 +562,8 @@
     cs.forEach(function (c) { count[key(c.title)] = (count[key(c.title)] || 0) + 1; });
     cs.forEach(function (c) {
       if (o[c.id] || (count[key(c.title)] < 2 && cleanTitle(c.title) === c.title)) return;
-      var orig = c.cover && findClip(c.cover), base = cleanTitle(orig ? orig.title : c.title), st = styleShort(c.tags);
+      var g = gens(wsId)[c.id], first = g && g.list.length > 1 ? g.list[0] : c;
+      var orig = c.cover && findClip(c.cover), base = cleanTitle(orig ? orig.title : c.title), st = styleShort(first.tags);
       var name = (st && norm(st).indexOf(norm(base)) < 0 ? base + ' - ' + st : base).slice(0, 76);
       (groups[key(name)] = groups[key(name)] || []).push({ c: c, name: name });
     });
@@ -539,9 +582,10 @@
 
   /* ================================================================ themes */
   function hexA(h, a) { var n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
-  function applyTheme(id) {
+  // try = preview only (theme menu): saved when the user keeps it.
+  function applyTheme(id, tryOnly) {
     var th = THEMES.find(function (t) { return t.id === id; }) || THEMES[0]; if (!th) return;
-    S.theme = th.id; LS.set('theme', th.id);
+    S.theme = th.id; if (!tryOnly) LS.set('theme', th.id);
     var v = { bg: th.bg, panel: th.panel, panel2: th.panel2, line: th.line, txt: th.txt, mut: th.mut, acc: th.acc, acc2: th.acc2, acc3: th.acc3, gold: th.gold };
     for (var k in v) root.style.setProperty('--' + k, v[k]);
     var pos = ['8% 6%', '92% 12%', '78% 92%', '14% 88%', '50% 50%'], al = th.dark ? 0.22 : 0.28;
@@ -582,11 +626,11 @@
     '.sdl-selbar{position:sticky;top:0;z-index:2;display:flex;gap:8px;align-items:center;margin:0 20px 6px;padding:8px 12px;border-radius:12px;background:var(--acc);color:#fff;box-shadow:var(--shadow)}' +
     '.sdl-selbar button{padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.2)!important;color:#fff!important;font-weight:600}.sdl-selbar .sp{flex:1}' +
     '.sdl-grp{position:sticky;top:0;z-index:1;padding:14px 12px 6px;font-weight:800;font-size:16px;color:var(--acc);background:linear-gradient(var(--bg) 70%,transparent);cursor:pointer}' +
-    '.sdl-tr .dt{color:var(--mut);font-size:12px;white-space:nowrap}' +
-    '.sdl-tracks{padding:4px 20px 30px}.sdl-tr{display:grid;grid-template-columns:22px 36px 44px 1fr 110px auto 52px 34px;gap:10px;align-items:center;padding:6px 10px;border-radius:10px;width:100%;text-align:left;cursor:pointer}' +
+    '.sdl-tr .dt{color:var(--mut);font-size:12px;white-space:nowrap}.sdl-gen{font-size:11px;font-weight:700;color:var(--acc2,var(--acc));border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-left:4px;opacity:.8}' +
+    '.sdl-tracks{padding:4px 20px 30px}.sdl-tr{display:grid;grid-template-columns:22px 58px 44px 1fr 110px auto 52px 34px;gap:10px;align-items:center;padding:6px 10px;border-radius:10px;width:100%;text-align:left;cursor:pointer}' +
     '.sdl-tr:hover{background:var(--glass)}.sdl-tr.on{background:var(--panel2)}.sdl-tr.on .tt{color:var(--acc)}.sdl-tr.sel{background:' + 'var(--panel2)}' +
     '.sdl-tr input{width:16px;height:16px;accent-color:var(--acc);opacity:.35}.sdl-tr:hover input,.sdl-tr input:checked,.sdl-anysel .sdl-tr input{opacity:1}' +
-    '.sdl-tr .no{color:var(--mut);text-align:right;font-variant-numeric:tabular-nums}.sdl-tr img{width:44px;height:44px;border-radius:6px;object-fit:cover}' +
+    '.sdl-tr .no{color:var(--mut);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.sdl-tr .no .vx{font-size:12px;margin-right:5px;opacity:.85}.sdl-tr img{width:44px;height:44px;border-radius:6px;object-fit:cover}' +
     '.sdl-sug{font:inherit;font-size:12px;font-weight:600;color:var(--acc);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:1px 9px;margin-right:6px;cursor:pointer}.sdl-sug:hover{border-color:var(--acc)}' +
     '.sdl-tr .tt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sdl-tr .tg{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.sdl-tr .du{color:var(--mut);font-variant-numeric:tabular-nums;text-align:right}.sdl-tr .lk{color:var(--acc);font-size:16px;width:28px;height:28px;border-radius:50%}.sdl-tr .lk.off{color:var(--mut);opacity:0}.sdl-tr:hover .lk.off{opacity:.7}' +
@@ -595,6 +639,7 @@
     '.sdl-lyr{width:380px;flex:none;border-left:1px solid var(--line);display:flex;flex-direction:column;background:var(--glass);backdrop-filter:blur(14px);position:relative}.sdl-lyr[hidden]{display:none}' +
     '.sdl-lyr h3{margin:0;padding:12px 10px 12px 18px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center}' +
     '#sdl-lyr-body{overflow:auto;flex:1;padding:10px 20px 50vh}.sdl-ly{padding:6px 0;font-size:20px;font-weight:700;color:var(--mut);opacity:.55;transition:color .2s,opacity .2s;cursor:pointer}' +
+    '.sdl-ly .tc{font-size:11px;font-weight:600;color:var(--mut);margin-right:10px;font-variant-numeric:tabular-nums;vertical-align:middle}.sdl-ly:not(.sec):hover{opacity:1;color:var(--txt)}.sdl-ly:not(.sec):hover .tc{color:var(--acc)}#sdl-root.kara .sdl-ly .tc{display:none}' +
     '.sdl-ly.past{opacity:.8}.sdl-ly.on{color:var(--txt);opacity:1}.sdl-ly .w.sung{color:var(--acc)}.sdl-ly.sec{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--acc2);opacity:1;padding-top:16px;cursor:default}' +
     '.sdl-ly.static{font-size:15px;font-weight:400;color:var(--txt);opacity:1;cursor:default}#sdl-follow{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);padding:8px 14px;border-radius:999px;background:var(--acc)!important;color:#fff!important;font-weight:700}' +
     '#sdl-root.kara .sdl-lyr{position:fixed;inset:0 0 86px 0;width:auto;z-index:5;border:0;background:var(--deco)}#sdl-root.kara #sdl-lyr-body{padding:20vh 10vw 50vh;text-align:center}' +
@@ -638,7 +683,7 @@
     '.sdl-mbtns button{padding:9px 18px;border-radius:999px;border:1px solid var(--line)!important;font-weight:600}.sdl-mbtns .primary{background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important}.sdl-mbtns .danger{background:#e5484d!important;border-color:#e5484d!important;color:#fff!important}' +
     '.sdl-row{display:flex;gap:10px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--line)}.sdl-row .from{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sdl-row input[type=text]{width:100%;margin-top:3px}' +
     '.sdl-row.done{opacity:.6}.sdl-row.fail{background:rgba(229,72,77,.08)}.sdl-pbar{height:6px;border-radius:3px;background:var(--panel2);overflow:hidden;margin:6px 0}.sdl-pbar i{display:block;height:100%;background:var(--acc);width:0;transition:width .3s}' +
-    '.sdl-themes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:6px}.sdl-th{display:flex;gap:8px;align-items:center;padding:8px;border-radius:10px;border:2px solid transparent!important;text-align:left}' +
+    '.sdl-themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:6px;max-height:62vh;overflow:auto}.sdl-th{display:flex;gap:8px;align-items:center;padding:8px;border-radius:10px;border:2px solid transparent!important;text-align:left}' +
     '.sdl-th.on{border-color:var(--acc)!important}.sdl-th .sw{width:34px;height:34px;border-radius:8px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}' +
     '#sdl-fab{position:fixed;right:18px;bottom:96px;z-index:2147483001;padding:10px 14px;border-radius:999px;border:0;font:700 13px system-ui;color:#fff;cursor:pointer;background:linear-gradient(90deg,#E81E8C,#F57C00);box-shadow:0 6px 20px rgba(0,0,0,.3)}' +
     '</style>' +
@@ -648,7 +693,7 @@
     '<div class="sdl-wsbar"><button class="sdl-chip" data-act="newws" title="' + tr('Nouvel espace de travail', 'New workspace') + '">＋</button><button class="sdl-chip" data-wsort="recent">' + tr("Récents", "Recent") + '</button><button class="sdl-chip" data-wsort="az">A → Z</button><button class="sdl-chip" data-wsort="size">' + tr("Taille", "Size") + '</button></div>' +
     '<div class="sdl-wslist" id="sdl-wslist"></div><div class="sdl-status" id="sdl-status"></div></aside>' +
     '<main class="sdl-main"><div class="sdl-mainin" id="sdl-mainin"></div>' +
-    '<section class="sdl-lyr" id="sdl-lyr" hidden><div class="sdl-kbg" id="sdl-kbg"></div><h3><span style="flex:1">' + tr("Paroles", "Lyrics") + '</span><button class="sdl-ic" id="sdl-lyredit" title="' + tr("Modifier le titre et les paroles", "Edit title and lyrics") + '">✏️</button><button class="sdl-ic" id="sdl-kara" title="' + tr("Karaoké plein écran", "Full-screen karaoke") + '">⤢</button></h3><div id="sdl-lyr-body"></div><button id="sdl-follow" hidden>⤓ ' + tr("Suivre les paroles", "Follow the lyrics") + '</button></section></main>' +
+    '<section class="sdl-lyr" id="sdl-lyr" hidden><div class="sdl-kbg" id="sdl-kbg"></div><h3><span style="flex:1">' + tr("Paroles", "Lyrics") + '</span><button class="sdl-ic" id="sdl-lrc" title="' + tr("Télécharger les paroles synchronisées (.lrc)", "Download synced lyrics (.lrc)") + '">⬇</button><button class="sdl-ic" id="sdl-lyredit" title="' + tr("Modifier le titre et les paroles", "Edit title and lyrics") + '">✏️</button><button class="sdl-ic" id="sdl-kara" title="' + tr("Karaoké plein écran", "Full-screen karaoke") + '">⤢</button></h3><div id="sdl-lyr-body"></div><button id="sdl-follow" hidden>⤓ ' + tr("Suivre les paroles", "Follow the lyrics") + '</button></section></main>' +
     '<footer class="sdl-bar"><div class="sdl-now" id="sdl-now" title="' + tr("Aller à l\'espace de travail", "Go to the workspace") + '"></div>' +
     '<div class="sdl-ctl"><div class="sdl-btns"><button class="sdl-ic sdl-tog" id="sdl-shuf" title="' + tr("Aléatoire", "Shuffle") + '">🔀</button><button class="sdl-ic" id="sdl-prev" title="' + tr("Précédent", "Previous") + '">⏮</button>' +
     '<button class="sdl-play" id="sdl-pp">▶</button><button class="sdl-ic" id="sdl-next" title="' + tr("Suivant", "Next") + '">⏭</button><button class="sdl-ic sdl-tog" id="sdl-rep" title="' + tr("Répéter", "Repeat") + '">🔁</button></div>' +
@@ -669,7 +714,7 @@
     '@keyframes sdlrot{to{transform:rotate(360deg)}}@keyframes sdlglow{50%{box-shadow:0 0 26px rgba(61,123,255,.5)}}';
   document.head.appendChild(gst);
   var pill = document.createElement('button'); pill.id = 'sdl-pill'; pill.type = 'button';
-  pill.innerHTML = '<b>♪ SUNODLAA</b><span>' + tr('le lecteur qu\'ils n\'ont pas fait', 'the player they never built') + '</span>';
+  pill.innerHTML = '<b>♪ SUNODLAA</b><span>v' + VERSION + '</span>';
   pill.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); toggleUI(); });
   function sunoLogo() {
     var as = document.querySelectorAll('a[href="/"]');
@@ -683,7 +728,8 @@
     fab.hidden = !root.classList.contains('hide') || pill.isConnected;
   }
   // suno.com may rebuild the page right after it loads and drop the overlay: put it back.
-  setInterval(function () { if (!root.isConnected) document.documentElement.appendChild(root); placePill(); followSuno(); }, 1500);
+  var beat = setInterval(function () { if (!root.isConnected) document.documentElement.appendChild(root); placePill(); followSuno(); }, 1500);
+  offs.push(function () { clearInterval(beat); });
 
   function show(on) { root.classList.toggle('hide', !on); closeMenu(); placePill(); }
   function toggleUI() { show(root.classList.contains('hide')); }
@@ -711,7 +757,7 @@
     m.style.left = Math.max(8, Math.min(innerWidth - m.offsetWidth - 8, r.right - m.offsetWidth)) + 'px';
   }
   function closeMenu() { var m = $('#sdl-menu'); if (m) m.remove(); }
-  document.addEventListener('mousedown', function (e) { if (!e.target.closest || !e.target.closest('#sdl-menu')) closeMenu(); }, true);
+  on(document, 'mousedown', function (e) { if (!e.target.closest || !e.target.closest('#sdl-menu')) closeMenu(); }, true);
 
   /* ================================================================ render */
   function renderStatus() {
@@ -761,7 +807,8 @@
     });
     var by = {
       new: function (a, b) { return b.at.localeCompare(a.at); }, old: function (a, b) { return a.at.localeCompare(b.at); },
-      az: function (a, b) { return collator.compare(a.title, b.title); }, long: function (a, b) { return (b.d || 0) - (a.d || 0); }
+      az: function (a, b) { return collator.compare(a.title, b.title); }, long: function (a, b) { return (b.d || 0) - (a.d || 0); },
+      plays: function (a, b) { return (b.plays || 0) - (a.plays || 0) || b.at.localeCompare(a.at); }
     }[S.sort];
     if (by) out.sort(by);
     // pinned tracks on top of their workspace (in "All tracks", only when grouped by workspace)
@@ -794,18 +841,18 @@
       '<div class="sdl-tools"><input class="sdl-tq" id="sdl-tq" placeholder="' + tr("Rechercher un titre, un style…", "Search a title, a style…") + '" value="' + esc(S.tQ) + '">' +
       '<button class="sdl-chip' + (S.filter === 'all' ? ' on' : '') + '" data-filter="all">' + tr("Tous", "All") + '</button><button class="sdl-chip' + (S.filter === 'fav' ? ' on' : '') + '" data-filter="fav">♥ ' + tr("Favoris", "Favorites") + '</button>' +
       '<button class="sdl-chip' + (S.filter === 'pin' ? ' on' : '') + '" data-filter="pin">📌 ' + tr("Épinglés", "Pinned") + '</button>' +
-      '<span class="sdl-muted" style="margin-left:8px">' + tr('Tri', 'Sort') + '</span>' + [['no', 'N°'], ['new', tr('Récents', 'Newest')], ['old', tr('Anciens', 'Oldest')], ['az', 'A → Z'], ['long', tr('Durée', 'Length')]].map(function (x) { return '<button class="sdl-chip' + (S.sort === x[0] ? ' on' : '') + '" data-sort="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
+      '<span class="sdl-muted" style="margin-left:8px">' + tr('Tri', 'Sort') + '</span>' + [['no', 'N°'], ['new', tr('Récents', 'Newest')], ['old', tr('Anciens', 'Oldest')], ['az', 'A → Z'], ['long', tr('Durée', 'Length')], ['plays', '▶ ' + tr('Écoutes', 'Plays')]].map(function (x) { return '<button class="sdl-chip' + (S.sort === x[0] ? ' on' : '') + '" data-sort="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
       '<button class="sdl-chip" data-act="selall" style="margin-left:auto">☑ ' + tr("Tout sélectionner", "Select all") + '</button></div>' +
       (sel.length ? '<div class="sdl-selbar"><b>' + pl(sel.length, 'sélectionné', 'sélectionnés', 'selected', 'selected') + '</b><span class="sp"></span><button data-act="bmove">📁 ' + tr("Déplacer", "Move") + '</button><button data-act="bpin">📌 ' + (sel.every(function (c) { return isPinned(c); }) ? tr("Désépingler", "Unpin") : tr("Épingler", "Pin")) + '</button><button data-act="bclean">✨ ' + tr("Nettoyer les titres", "Clean titles") + '</button><button data-act="bdelete">🗑 ' + tr("Supprimer", "Delete") + '</button><button data-act="bnone">✕</button></div>' : '') +
       '<div class="sdl-tracks' + (sel.length ? ' sdl-anysel' : '') + '">' + (cs.length ? cs.slice(0, S.limit || 400).map(function (c, i) {
-        var on = S.playing && S.playing.id === c.id, head = '', sg = sugFor(c);
+        var on = S.playing && S.playing.id === c.id, head = '', sg = sugFor(c), gn = genOf(c);
         if (w.all && S.sort === 'no' && (i === 0 || cs[i - 1].ws !== c.ws)) head = '<div class="sdl-grp" data-ws="' + esc(c.ws.id) + '">' + esc(c.ws.name) + ' <span class="sdl-muted">· ' + (S.clips[c.ws.id] || []).length + '</span></div>';
         return head + '<div class="sdl-tr' + (on ? ' on' : '') + (o[c.id] ? ' sdl-orig' : '') + (S.sel[c.id] ? ' sel' : '') + '" data-i="' + i + '" data-id="' + c.id + '">' +
           '<input type="checkbox" data-selid="' + c.id + '"' + (S.sel[c.id] ? ' checked' : '') + '>' +
-          '<span class="no">' + (on ? (S.loading ? '<span class="sdl-spin">⟳</span>' : '♪') : String(c.no).padStart(3, '0')) + '</span>' +
+          '<span class="no">' + voiceIcon(c) + (on ? (S.loading ? '<span class="sdl-spin">⟳</span>' : '♪') : String(c.no).padStart(3, '0')) + '</span>' +
           (c.img ? '<img loading="lazy" src="' + esc(c.img) + '">' : '<span></span>') +
-          '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + esc(c.title) + '</div><div class="tg">' + (sg ? '<button class="sdl-sug" data-sug="' + c.id + '" title="' + tr('Cliquer pour renommer ainsi sur Suno', 'Click to rename it like this on Suno') + '">💡 ' + esc(sg) + '</button>' : '') + (w.all && S.sort !== 'no' && c.ws ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>' +
-          '<span class="dt" title="' + esc(fdate(c.at, true)) + '">' + esc(fdate(c.at)) + '</span>' +
+          '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + esc(c.title) + (gn ? ' <span class="sdl-gen" title="' + esc(tr('Générés ensemble le ', 'Made together on ') + fdate(gn.list[0].at, true)) + '">⧉ ' + 'ABCDEFGH'.charAt(gn.list.indexOf(c)) + '</span>' : '') + '</div><div class="tg">' + (sg ? '<button class="sdl-sug" data-sug="' + c.id + '" title="' + tr('Cliquer pour renommer ainsi sur Suno', 'Click to rename it like this on Suno') + '">💡 ' + esc(sg) + '</button>' : '') + (w.all && S.sort !== 'no' && c.ws ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>' +
+          '<span class="dt" title="' + esc(fdate(c.at, true) + ' · ' + pl(c.plays || 0, 'écoute', 'écoutes', 'play', 'plays')) + '">' + (S.sort === 'plays' ? '▶ ' + (c.plays || 0) : esc(fdate(c.at))) + '</span>' +
           '<button class="lk' + (c.liked ? '' : ' off') + '" data-like="' + c.id + '" title="' + tr("Favori", "Favorite") + '">' + (c.liked ? '♥' : '♡') + '</button><span class="du">' + fmt(c.d) + '</span>' +
           '<button class="dots" data-menu="' + c.id + '" title="Actions">⋯</button></div>';
       }).join('') + (cs.length > (S.limit || 400) ? '<div style="padding:12px;text-align:center"><button class="sdl-ghost" data-act="more">' + tr('Afficher ', 'Show ') + (cs.length - (S.limit || 400)) + tr(' de plus', ' more') + '</button></div>' : '') : '<div class="sdl-muted" style="padding:20px">' + (S.syncing && !all.length ? tr('Chargement…', 'Loading…') : tr('Aucun titre', 'No track')) + '</div>') + '</div>';
@@ -1061,6 +1108,7 @@
       ['▶ ' + tr('Lire', 'Play'), function () { var cs = viewClips(); startQueue(cs, Math.max(0, cs.indexOf(c)), false); }],
       ['✏️ ' + tr('Renommer', 'Rename'), function () { renameTrack(c); }],
       ['📝 ' + tr('Modifier les paroles', 'Edit lyrics'), function () { editDetails(c); }],
+      ['⬇ ' + tr('Paroles synchronisées (.lrc)', 'Synced lyrics (.lrc)'), function () { saveLrc(c); }],
       sugFor(c) ? ['✨ ' + tr('Renommer en « ', 'Rename to "') + sugFor(c) + tr(' »', '"'), function () { setTitle(c, sugFor(c)).then(function () { refreshAll(); }, function (e) { toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }); }] : null,
       [c.liked ? '♡ ' + tr('Retirer des favoris', 'Remove from favorites') : '♥ ' + tr('Ajouter aux favoris', 'Add to favorites'), function () { toggleLike(c); }],
       [isPinned(c) ? '📌 ' + tr('Désépingler', 'Unpin') : '📌 ' + tr('Épingler en haut de l\'espace', 'Pin to the top of the workspace'), function () { setPinned([c], !isPinned(c)); }],
@@ -1079,7 +1127,7 @@
     var lk = cl('[data-like]'); if (lk) { var c1 = findClip(lk.dataset.like); if (c1) toggleLike(c1); return; }
     var sgb = cl('[data-sug]'); if (sgb) { var c3 = findClip(sgb.dataset.sug), v3 = c3 && sugFor(c3); if (v3) { sgb.disabled = true; setTitle(c3, v3).then(function () { refreshAll(); toast(tr('Renommé : ', 'Renamed: ') + v3); }, function (e) { sgb.disabled = false; toast(tr('Suno a refusé : ', 'Suno refused: ') + e.message, 7000); }); } return; }
     var mn = cl('[data-menu]'); if (mn) { var c2 = findClip(mn.dataset.menu); if (c2) trackMenu(e, c2); return; }
-    var th = cl('[data-sdltheme]'); if (th) { applyTheme(th.dataset.sdltheme); return; }
+    var th = cl('[data-sdltheme]'); if (th) { applyTheme(th.dataset.sdltheme, true); return; }
     var stb = cl('[data-style]'); if (stb) { toggleStyle(stb.dataset.style); return; }
     var sec = cl('[data-sec]'); if (sec) { insertSection(sec.dataset.sec); return; }
     var vb = cl('[data-voice]'); if (vb) { readCreate(); D.voice = vb.dataset.voice; saveDraft(); renderCreate($('#sdl-mainin')); return; }
@@ -1131,12 +1179,16 @@
       case 'sdl-rep': S.repeat = S.repeat === 'off' ? 'all' : S.repeat === 'all' ? 'one' : 'off'; LS.set('repeat', S.repeat); return renderPlayer();
       case 'sdl-lyrbtn': if (S.karaoke) S.karaoke = false; else S.showLyr = !S.showLyr; LS.set('showLyr', S.showLyr); renderPlayer(); renderLyrics(); return;
       case 'sdl-kara': S.karaoke = !S.karaoke; renderPlayer(); renderLyrics(); return;
+      case 'sdl-lrc': if (!S.playing) return toast(tr('Rien en lecture', 'Nothing playing')); return saveLrc(S.playing);
       case 'sdl-lyredit': if (!S.playing) return toast(tr('Rien en lecture', 'Nothing playing')); if (!isMine(S.playing)) return toast(tr('Seulement pour tes propres titres', 'Only for your own tracks')); return editDetails(S.playing);
       case 'sdl-follow': follow = true; bt.hidden = true; lyrCur = -1; return tick();
       case 'sdl-sync': return sync(true);
       case 'sdl-hide': return show(false);
       case 'sdl-spy': return spyPanel();
-      case 'sdl-theme': return modal(tr('Thème', 'Theme'), '<div class="sdl-themes" id="sdl-themes"></div>', [{ label: 'OK', cls: 'primary', onclick: closeModal }]), renderThemes();
+      case 'sdl-theme': var was = S.theme;   // click = try it live; Keep saves it, Cancel goes back
+        modal(tr('Thème', 'Theme') + ' · ' + THEMES.length, '<div class="sdl-muted" style="font-size:13px;margin-bottom:6px">' + tr('Clique pour essayer, puis garde celui qui te plaît.', 'Click to try one, then keep the one you like.') + '</div><div class="sdl-themes" id="sdl-themes"></div>',
+          [{ label: tr('Annuler', 'Cancel'), onclick: function () { applyTheme(was); closeModal(); } }, { label: tr('Garder', 'Keep'), cls: 'primary', onclick: function () { applyTheme(S.theme); closeModal(); } }]);
+        $('#sdl-modal').dataset.busy = 1; $('#sdl-modal').dataset.esc = 'cancel'; renderThemes(); return;
     }
   });
   $('#sdl-now').addEventListener('click', function () { var w = S.playing && wsOf(S.playing.id); if (w) { S.cur = w.id; renderWs(); renderTracks(); } });
@@ -1148,9 +1200,9 @@
   sk.addEventListener('change', function () { var a = audio(); if (a && isFinite(a.duration)) a.currentTime = a.duration * sk.value / 1000; seeking = false; });
   $('#sdl-vol').addEventListener('input', function (e) { var a = audio(); if (a) a.volume = e.target.value / 100; LS.set('vol', +e.target.value); });
   fab.addEventListener('click', function () { show(true); });
-  document.addEventListener('keydown', function (e) {
+  on(document, 'keydown', function (e) {
     if (root.classList.contains('hide')) return;
-    if (e.key === 'Escape') { if ($('#sdl-modal')) closeModal(); else if (S.karaoke) { S.karaoke = false; renderPlayer(); } else show(false); e.preventDefault(); e.stopPropagation(); return; }
+    if (e.key === 'Escape') { var md = $('#sdl-modal'); if (md && md.dataset.esc === 'cancel') $('.sdl-mbtns button', md).click(); else if (md) closeModal(); else if (S.karaoke) { S.karaoke = false; renderPlayer(); } else show(false); e.preventDefault(); e.stopPropagation(); return; }
     if (e.target.matches && e.target.matches('input,textarea')) return;
     if (e.code === 'Space') { toggle(); e.preventDefault(); e.stopPropagation(); }
     else if (e.key === 'ArrowRight' && e.shiftKey) next(false);
@@ -1225,7 +1277,9 @@
   }
 
   placePill();
-  window.__sdlSkin = { toggle: toggleUI, sync: sync, state: S, version: VERSION, render: function () { renderWs(); renderTracks(); renderPlayer(); } };
+  function destroy() { offs.forEach(function (f) { f(); }); playToken++; SPY.on = false; [root, pill, fab, gst].forEach(function (e) { e.remove(); }); closeMenu(); if (window.__sdlSkin && window.__sdlSkin.version === VERSION) window.__sdlSkin = null; }
+  window.__sdlSkin = { toggle: toggleUI, sync: sync, state: S, version: VERSION, destroy: destroy, render: function () { renderWs(); renderTracks(); renderPlayer(); } };
+  if (prevSkin) { show(true); toast(tr('SUNODLAA mis à jour : v', 'SUNODLAA updated: v') + prevSkin.version + ' → v' + VERSION, 5000); }
   applyTheme(S.theme);
   if (S.cur === EXP || S.cur.indexOf('pl:') === 0) setTimeout(function () { openView(S.cur); }, 0);
   renderWs(); renderTracks(); renderPlayer(); renderLyrics();

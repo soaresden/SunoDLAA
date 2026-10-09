@@ -13,7 +13,7 @@ downloader (SunoAAWeb) was deleted. SUNODLAA is now **the player Suno never buil
 
 | Part | Where | What |
 |---|---|---|
-| Bookmark overlay | `suno-plus/` + `SUNODLAA - Installer le favori.html` | Full-screen UI on top of suno.com in the user's own tab: workspaces, all tracks, sort, dates, karaoke, rename / move / delete / like / clean titles, new workspace, Explore, Create, spy, 8 themes, FR/EN |
+| Bookmark overlay | `suno-plus/` + the bookmark line in `README.md` | Full-screen UI on top of suno.com in the user's own tab: workspaces, all tracks, sort (incl. plays), dates, karaoke + LRC, rename / lyrics / move / delete / like / pin / upload, 💡 name suggestions, ⧉ generations, 🗣️/🎼, synced with suno.com's player, Explore, Create, spy, 23 themes, FR/EN |
 | Android + Android Auto | `android/` (Kotlin, Compose, Media3, Room, WorkManager) | Workspaces-first player; tracks without a file play through **Suno's own web player** in a hidden WebView; optional pCloud/phone files + play cache |
 | DHU launcher | `Launch Android Drive Unit Test.bat` | Android Auto on the PC (Desktop Head Unit), MX-5 1280×480 preset |
 | Releases | `releases/SUNODLAA-vX.Y.Z.apk` | Ready-to-install APKs |
@@ -32,10 +32,13 @@ downloader (SunoAAWeb) was deleted. SUNODLAA is now **the player Suno never buil
 ## Bookmark overlay (`suno-plus/`)
 - Source: `suno-plus/suno-plus.js` (one IIFE, ES5-style, no build tools). Version: `var VERSION = 'x.y.z'` at the top — bump it on every change.
 - Themes: `suno-plus/themes.json` (shared with Android). Injected at build in place of `/*@THEMES@*/[]`.
-- Build: `python suno-plus/build.py` → writes `suno-plus/sunodlaa.js` (script + themes, **committed**) and
-  `SUNODLAA - Installer le favori.html`. The bookmark is a small loader that fetches
-  `raw.githubusercontent.com/soaresden/SunoDLAA/main/suno-plus/sunodlaa.js` at each click (suno.com's CSP allows it),
-  so Denis installs it once: **a change reaches him only once pushed to `main`** (raw cache ≤ 5 min, busted by `?t=`).
+- Build: `python suno-plus/build.py` → writes `suno-plus/sunodlaa.js` (script + themes, **committed**) and the bookmark
+  line in `README.md` (between `<!--BOOKMARK-->` markers; no installer page any more). The bookmark is a **fixed** loader:
+  each click fetches `raw.githubusercontent.com/soaresden/SunoDLAA/main/suno-plus/sunodlaa.js?t=…` and evals it
+  (suno.com's CSP allows it). **Never change the loader** (Denis would have to reinstall); put logic in the script.
+  The script itself: same VERSION already open → toggle; older one open → `destroy()` it and start (a version without
+  `destroy`, i.e. < 2.12, → page reload). So every global hook must go through `on(target, ev, fn)` / `offs`
+  (listeners, intervals) so `destroy()` can unplug it. **A change reaches Denis only once pushed to `main`.**
   Always rebuild and commit `sunodlaa.js` with `suno-plus.js`.
 - Syntax check: `node -e "new Function(require('fs').readFileSync('suno-plus/sunodlaa.js','utf8'))"`.
 - i18n: every UI string goes through `tr('français', 'English')` / `pl(n, fr1, frN, en1, enN)`; language = browser language.
