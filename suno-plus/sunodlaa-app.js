@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.15.0';
+  var VERSION = '2.15.1';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -1231,7 +1231,7 @@
           if (!best || sc > best.sc) best = { wid: wid, sc: sc, nm: nmS, v: sm[wid].v, n: sm[wid].n, c: sm[wid].c };
         });
         // alone here and alone there: only the names can tell (else two different songs that look alike)
-        var clear = best && best.sc > ownSc && (ownN > 0 || best.n > 1 || best.nm > ownName);
+        var clear = ownN === 0 && best && best.sc > ownSc && (best.n > 1 || best.nm > ownName);   // tracks with lyric-siblings here form a group: on purpose
         if (clear) {
           target = best.wid;
           why = tr('paroles de « ', 'lyrics of "') + best.c.title + tr(' » (', '" (') + Math.round(best.v * 100) + '%)' + (ownN === 0 ? tr(', rien de pareil dans cet espace', ', nothing alike in this workspace') : '');
