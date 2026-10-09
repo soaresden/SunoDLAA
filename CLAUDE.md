@@ -3,7 +3,7 @@
 ## Who / how
 - Owner: Denis (Soaresden). **Always answer in French.** Short answers, then do the work.
 - Repo: `D:\DOCS\Documents\GitHub\SunoPlayerDownloader` → GitHub `soaresden/SunoDLAA`.
-- Commit when a piece of work is done and verified (clear message). **Push only when Denis asks.**
+- Commit when a piece of work is done and verified (clear message), **then push right away: never ask Denis before pushing** (since Oct 2026; force-push still needs his OK).
 - JSON files we write: pretty, 4-space indent, `"key": value`, CRLF, UTF-8 without BOM.
 - Never commit secrets: Suno cookies (`__client`), tokens, `*cookies*.json`, `local.properties`.
 
