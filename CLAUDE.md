@@ -72,7 +72,6 @@ downloader (SunoAAWeb) was deleted. SUNODLAA is now **the player Suno never buil
 - Debug: Settings → send diagnostic (zip with sync stats, stream hosts, download/playback errors, `events:` log).
 
 ## Open items (Oct 2026)
-- **First Claude Code session:** copy `docs/claude-settings.json` to `.claude/settings.json` (allow-list for git/gradle/adb/build commands), then delete the copy in `docs/` and commit.
 - Create screen: confirm filling + "Créer" while signed in (Denis's French UI); adjust selectors from a spy log / page structure if needed.
 - Android Auto: Suno web tracks with screen off / in the car — confirm; GPS prompts don't duck the WebView (option: pause/duck on transient focus loss).
 - Android parity with the bookmark: "All tracks" grouping/sort, Explore, track dates.
