@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.18.1';
+  var VERSION = '2.18.2';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -36,6 +36,9 @@
   var LOC = LANG === 'fr' ? 'fr-FR' : 'en-GB';
   function tr(fr, en) { return LANG === 'fr' ? fr : en; }
   function pl(n, fr1, frN, en1, enN) { return n + ' ' + (LANG === 'fr' ? (n > 1 ? frN : fr1) : (n === 1 ? en1 : enN)); }
+  function tms(c) { var t = Date.parse(c && c.at); return isNaN(t) ? 0 : t; }
+  function byTime(a, b) { return tms(a) - tms(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0); }
+  function ftime(iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
   function fdate(iso, time) { if (!iso) return ''; var d = new Date(iso); if (isNaN(d)) return ''; return d.toLocaleDateString(LOC, { day: 'numeric', month: 'short', year: 'numeric' }) + (time ? ' ' + d.toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' }) : ''); }
   var LS = {
     get: function (k, d) { try { var v = localStorage.getItem('sdl_' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
@@ -104,11 +107,11 @@
   function originals(cs) { var o = {}; cs.forEach(function (c) { if (c.cover) o[c.cover] = 1; }); return o; }
   function ordered(cs) {   // original(s) first, then oldest -> newest: track 001, 002...
     var o = originals(cs);
-    return cs.slice().sort(function (a, b) { return ((o[b.id] ? 1 : 0) - (o[a.id] ? 1 : 0)) || a.at.localeCompare(b.at); });
+    return cs.slice().sort(function (a, b) { return ((o[b.id] ? 1 : 0) - (o[a.id] ? 1 : 0)) || byTime(a, b); });
   }
   function wsCover(w) {
     var cs = S.clips[w.id] || []; if (!cs.length) return w.img || '';
-    var o = originals(cs), byDate = cs.slice().sort(function (a, b) { return a.at.localeCompare(b.at); });
+    var o = originals(cs), byDate = cs.slice().sort(byTime);
     var f = byDate.find(function (c) { return o[c.id] && c.img; }) || byDate.find(function (c) { return c.img; });
     return f ? f.img : (w.img || '');
   }
@@ -636,9 +639,9 @@
   // Suno creates tracks two by two: tracks of a workspace created within 20 s of each other = one generation.
   function gens(wsId) {
     if (genCache[wsId]) return genCache[wsId];
-    var cs = (S.clips[wsId] || []).slice().sort(function (a, b) { return a.at.localeCompare(b.at) || (a.id < b.id ? -1 : 1); }), out = {}, cur = null;
+    var cs = (S.clips[wsId] || []).slice().sort(byTime), out = {}, cur = null;
     cs.forEach(function (c) {
-      var t = Date.parse(c.at) || 0;
+      var t = tms(c);
       if (!cur || !t || t - cur.t > 20000) cur = { t: t, list: [] };
       cur.list.push(c); out[c.id] = cur;
     });
@@ -679,7 +682,7 @@
     cs.forEach(function (c) { (groups[key(out[c.id])] = groups[key(out[c.id])] || []).push(c); });
     Object.keys(groups).forEach(function (k) {
       var list = groups[k]; if (!R.num || list.length < 2) return;
-      list.sort(function (a, b) { return a.at.localeCompare(b.at) || (a.id < b.id ? -1 : 1); }).forEach(function (c, i) { out[c.id] = out[c.id] + ' #' + (i + 1); });
+      list.sort(byTime).forEach(function (c, i) { out[c.id] = out[c.id] + ' #' + (i + 1); });
     });
     return out;
   }
@@ -746,7 +749,7 @@
     '.sdl-grp{position:sticky;top:0;z-index:1;padding:14px 12px 6px;font-weight:800;font-size:16px;color:var(--acc);background:linear-gradient(var(--bg) 70%,transparent);cursor:pointer}' +
     '.sdl-cat{display:inline-block;font-size:10.5px;font-weight:700;line-height:16px;border-radius:6px;padding:0 6px;margin-right:7px;vertical-align:1px;background:hsla(var(--h),75%,50%,.15);color:hsl(var(--h),70%,30%);border:1px solid hsla(var(--h),75%,45%,.35)}#sdl-root.dark .sdl-cat{color:hsl(var(--h),80%,74%);background:hsla(var(--h),75%,55%,.16)}' +
     '.sdl-rnset{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;padding:8px 0 10px;border-bottom:1px solid var(--line)}.sdl-rnset input,.sdl-rnset select{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:3px 6px}.sdl-rnset .sdl-cat{cursor:pointer;opacity:.35}.sdl-rnset .sdl-cat.on{opacity:1}' +
-    '.sdl-tr .dt{color:var(--mut);font-size:12px;white-space:nowrap}.sdl-gen{font-size:11px;font-weight:700;color:var(--acc2,var(--acc));border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-left:4px;opacity:.8}' +
+    '.sdl-tr .dt{color:var(--mut);font-size:12px;white-space:nowrap;line-height:1.25}.sdl-tr .dt small{display:block;font-size:11px;opacity:.75;font-variant-numeric:tabular-nums}.sdl-gen{font-size:11px;font-weight:700;color:var(--acc2,var(--acc));border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-left:4px;opacity:.8}' +
     '.sdl-tracks{padding:4px 20px 30px}.sdl-tr{display:grid;grid-template-columns:22px 58px 44px 1fr 110px auto 52px 34px;gap:10px;align-items:center;padding:6px 10px;border-radius:10px;width:100%;text-align:left;cursor:pointer}' +
     '.sdl-tracks.cols{overflow-x:auto}.sdl-tracks.cols .sdl-tr{grid-template-columns:var(--cols);min-width:var(--minw)}.sdl-thead{position:sticky;top:0;z-index:2;background:var(--bg);cursor:default;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line);border-radius:0}.sdl-thead:hover{background:var(--bg)}' +
     '.sdl-thead .th{position:relative;padding-right:8px}.sdl-thead .rz{position:absolute;top:0;bottom:0;right:0;width:8px;cursor:col-resize;z-index:3}.sdl-thead .rz:hover,.sdl-thead .rz.on{background:linear-gradient(90deg,transparent 5px,var(--acc) 5px,var(--acc) 7px,transparent 7px)}' +
@@ -931,9 +934,9 @@
       return !q || norm(c.title).indexOf(q) >= 0 || norm(c.tags).indexOf(q) >= 0 || (S.cur === ALL && c.ws && norm(c.ws.name).indexOf(q) >= 0);
     });
     var by = {
-      new: function (a, b) { return b.at.localeCompare(a.at); }, old: function (a, b) { return a.at.localeCompare(b.at); },
+      new: function (a, b) { return byTime(b, a); }, old: byTime,
       az: function (a, b) { return collator.compare(a.title, b.title); }, long: function (a, b) { return (b.d || 0) - (a.d || 0); },
-      plays: function (a, b) { return (b.plays || 0) - (a.plays || 0) || b.at.localeCompare(a.at); }
+      plays: function (a, b) { return (b.plays || 0) - (a.plays || 0) || byTime(b, a); }
     }[S.sort];
     if (by) out.sort(by);
     // pinned tracks on top of their workspace (in "All tracks", only when grouped by workspace)
@@ -1021,11 +1024,11 @@
             if (k === 'img') return c.img ? '<img loading="lazy" src="' + esc(c.img) + '">' : '<span></span>';
             if (k === 'cat') return '<span>' + catBadge(c) + '</span>';
             if (k === 'ws') return '<span class="wsn" title="' + esc(c.ws ? c.ws.name : '') + '">' + esc(c.ws ? c.ws.name : '') + '</span>';
-            if (k === 'date') return '<span class="dt" title="' + esc(fdate(c.at, true)) + '">' + esc(fdate(c.at)) + '</span>';
+            if (k === 'date') return '<span class="dt" title="' + esc(fdate(c.at) + ' ' + ftime(c.at)) + '">' + esc(fdate(c.at)) + '<small>' + esc(ftime(c.at)) + '</small></span>';
             if (k === 'like') return '<button class="lk' + (c.liked ? '' : ' off') + '" data-like="' + c.id + '" title="' + tr("Favori", "Favorite") + '">' + (c.liked ? '♥' : '♡') + '</button>';
             if (k === 'plays') return '<span class="pc" title="' + esc(pl(c.plays || 0, 'écoute', 'écoutes', 'play', 'plays')) + '">' + (c.plays || 0) + '</span>';
             if (k === 'dur') return '<span class="du">' + fmt(c.d) + '</span>';
-            return '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + (cols.indexOf('cat') < 0 ? catBadge(c) : '') + esc(c.title) + (gn ? ' <span class="sdl-gen" title="' + esc(tr('Générés ensemble le ', 'Made together on ') + fdate(gn.list[0].at, true)) + '">⧉ ' + 'ABCDEFGH'.charAt(gn.list.indexOf(c)) + '</span>' : '') + '</div><div class="tg">' + (sg ? '<button class="sdl-sug" data-sug="' + c.id + '" title="' + tr('Cliquer pour renommer ainsi sur Suno', 'Click to rename it like this on Suno') + '">💡 ' + esc(sg) + '</button>' : '') + (w.all && S.sort !== 'no' && c.ws && cols.indexOf('ws') < 0 ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>';
+            return '<span style="min-width:0"><div class="tt">' + (isPinned(c) ? '<span title="' + tr('Épinglé', 'Pinned') + '">📌 </span>' : '') + (o[c.id] ? '<span class="sdl-star">★ </span>' : '') + (cols.indexOf('cat') < 0 ? catBadge(c) : '') + esc(c.title) + (gn ? ' <span class="sdl-gen" title="' + esc(tr('Générés ensemble le ', 'Made together on ') + fdate(gn.list[0].at) + ' ' + ftime(gn.list[0].at)) + '">⧉ ' + 'ABCDEFGH'.charAt(gn.list.indexOf(c)) + '</span>' : '') + '</div><div class="tg">' + (sg ? '<button class="sdl-sug" data-sug="' + c.id + '" title="' + tr('Cliquer pour renommer ainsi sur Suno', 'Click to rename it like this on Suno') + '">💡 ' + esc(sg) + '</button>' : '') + (w.all && S.sort !== 'no' && c.ws && cols.indexOf('ws') < 0 ? '<b>' + esc(c.ws.name) + '</b> · ' : '') + esc(c.tags) + '</div></span>';
           }).join('') +
           '<button class="dots" data-menu="' + c.id + '" title="Actions">⋯</button></div>';
       }).join('') + (cs.length > (S.limit || 400) ? '<div style="padding:12px;text-align:center"><button class="sdl-ghost" data-act="more">' + tr('Afficher ', 'Show ') + (cs.length - (S.limit || 400)) + tr(' de plus', ' more') + '</button></div>' : '') : '<div class="sdl-muted" style="padding:20px">' + (S.syncing && !all.length ? tr('Chargement…', 'Loading…') : tr('Aucun titre', 'No track')) + '</div>') + '</div>';
@@ -1398,7 +1401,7 @@
   }
   // New workspace made for these tracks: create it, move them in, pin the first one (it becomes 001).
   function newWsWith(cs0) {
-    var cs = cs0.slice().sort(function (a, b) { return (a.at || '').localeCompare(b.at || ''); }), first = cs[0];
+    var cs = cs0.slice().sort(byTime), first = cs[0];
     var twins = []; cs.forEach(function (c) { var g = genOf(c); if (g) g.list.forEach(function (x) { if (cs.indexOf(x) < 0 && twins.indexOf(x) < 0) twins.push(x); }); });
     var fw = wsOf(first.id), mine = originOf(first) === 'prompt' || (fw && /^\s*!/.test(fw.name));
     var sug = (mine ? '!' : '') + cleanTitle(rootOf(first).c.title).replace(/^[\s!]+/, ''), desc = descendants(cs).filter(function (d) { return twins.indexOf(d) < 0; });
