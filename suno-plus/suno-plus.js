@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.19.1';
+  var VERSION = '2.19.2';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -1538,7 +1538,7 @@
           $('#sdl-ptxt').textContent = (i + 1) + ' / ' + todo.length + ' — ' + v; $('#sdl-pbar').style.width = (100 * i / todo.length) + '%';
           var sb = $('#sdl-modal .sdl-mbtns button'); if (sb) sb.textContent = tr('Arrêter', 'Stop') + ' · ' + (i + 1) + '/' + todo.length;
           y.r.scrollIntoView({ block: 'nearest' });
-          try { await write('/api/project/' + y.x.w.id + '/metadata', { name: v, description: y.x.w.desc || v }); y.x.w.name = v; ok++; $('.st', y.r).textContent = '✅'; y.r.classList.add('done'); }
+          try { await write('/api/project/' + y.x.w.id + '/metadata', { name: v, description: y.x.w.desc || v }); y.x.w.name = v; if (!y.x.own && y.x.artist) { WSA[y.x.w.id] = y.x.artist; LS.set('wsArtists', WSA); } ok++; $('.st', y.r).textContent = '✅'; y.r.classList.add('done'); }
           catch (e) { bad++; $('.st', y.r).textContent = '❌'; $('.st', y.r).title = e.message; y.r.classList.add('fail'); }
           await sleep(250);
         }
@@ -1548,7 +1548,7 @@
     $('#sdl-modal .sdl-mbox').style.maxWidth = '900px';
     function sync2() {   // fields -> rows (+ remember artists)
       me = $('#sdl-wsme').value.trim(); up = $('#sdl-wsup').checked; LS.set('myArtist', me); LS.set('wsUpper', up);
-      rows.forEach(function (x, i) { var r = $('#sdl-wsl [data-i="' + i + '"]'); if (!r) return; x.artist = $('.wa', r).value.trim(); x.title = $('.wt', r).value.trim() || x.title; if (x.artist && !x.own) WSA[x.w.id] = x.artist; });
+      rows.forEach(function (x, i) { var r = $('#sdl-wsl [data-i="' + i + '"]'); if (!r) return; x.artist = $('.wa', r).value.trim(); x.title = $('.wt', r).value.trim() || x.title; if (x.artist && !x.own && x.manual) WSA[x.w.id] = x.artist; });   // only what Denis typed or applied
       LS.set('wsArtists', WSA);
     }
     function refreshRow(i) { var r = $('#sdl-wsl [data-i="' + i + '"]'); if (!r) return; var tmp = document.createElement('div'); tmp.innerHTML = rowHtml(rows[i], i); r.replaceWith(tmp.firstChild); }
