@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.19.0';
+  var VERSION = '2.19.1';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -1487,12 +1487,26 @@
     return Object.keys(cnt).map(function (a) { var b = hints.reduce(function (m, h) { return Math.max(m, alike(a, h)); }, 0); return { a: a, s: cnt[a] + (b >= 0.7 ? 100 : 0) }; })
       .sort(function (x, y) { return y.s - x.s; }).map(function (x) { return x.a; });
   }
+  function wsLyrics(w) {   // the workspace's longest lyrics (most tracks share them)
+    var best = ''; (S.clips[w.id] || []).forEach(function (c) { var t = String(c.prompt || '').trim(); if (t.length > best.length && !/^\[?\s*instrumental\s*\]?$/i.test(t)) best = t; }); return best;
+  }
+  async function lrcArtists(title, ours) {
+    var r = await fetch('https://lrclib.net/api/search?track_name=' + encodeURIComponent(title)); if (!r.ok) throw new Error('LRCLIB HTTP ' + r.status);
+    var d = await r.json(), fp = ours ? lyricPairs(ours) : null, by = {};
+    (d || []).forEach(function (x) {
+      if (!x.artistName || alike(x.trackName || '', title) < 0.7) return;
+      var v = fp && x.plainLyrics ? overlap(fp, lyricPairs(x.plainLyrics) || { set: {}, n: 1 }) : 0, a = x.artistName.trim(), o = by[a] || (by[a] = { a: a, v: 0, n: 0 });
+      o.n++; if (v > o.v) o.v = v;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (x, y) { return (y.v >= 0.3) - (x.v >= 0.3) || y.v - x.v || y.n - x.n; });
+  }
   function wsNamer() {
     var me = LS.get('myArtist', ''), up = LS.get('wsUpper', false), stopMB = false, rows = [];
     var list = S.ws.filter(function (w) { return w.id !== 'default'; }).sort(function (a, b) { return collator.compare(a.name.replace(/^!+/, ''), b.name.replace(/^!+/, '')); });
     rows = list.map(function (w) {
       var p = wsParts(w), own = /^\s*!/.test(w.name), hints = titleHints(w, p.title);
-      return { w: w, own: own, title: p.title, artist: p.artist || WSA[w.id] || hints[0] || '', cands: hints.slice(), hints: hints };
+      var src = p.artist ? tr('nom actuel', 'current name') : WSA[w.id] ? tr('déjà choisi', 'chosen before') : hints[0] ? tr('d\'après tes titres', 'from your track titles') : '';
+      return { w: w, own: own, title: p.title, artist: p.artist || WSA[w.id] || hints[0] || '', cands: hints.slice(), hints: hints, why: src, manual: !!(p.artist || WSA[w.id]) };
     });
     function newName(x) { var a = x.own ? (x.artist || me) : x.artist; if (!a) return null; a = up ? a.toUpperCase() : a; return (x.own ? '!' : '') + a + ' - ' + x.title; }
     function rowHtml(x, i) {
@@ -1503,10 +1517,11 @@
         '<input type="text" class="wa" list="sdl-wsa-' + i + '" placeholder="' + (x.own ? tr('ton nom d\'artiste', 'your artist name') : tr('Artiste', 'Artist')) + '" value="' + esc(x.artist) + '" style="width:40%">' +
         '<datalist id="sdl-wsa-' + i + '">' + x.cands.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>' +
         '<span>-</span><input type="text" class="wt" value="' + esc(x.title) + '" style="flex:1">' +
-        '<button class="sdl-ic" data-wsq="' + i + '" title="' + tr('Chercher l\'artiste sur le web avec une ligne des paroles', 'Search the artist on the web with a line of the lyrics') + '">🔎</button></div></div><span class="st"></span></div>';
+        '<button class="sdl-ic" data-wsq="' + i + '" title="' + tr('Chercher l\'artiste sur le web avec une ligne des paroles', 'Search the artist on the web with a line of the lyrics') + '">🔎</button></div>' +
+        (x.why ? '<div class="sdl-muted" style="font-size:11px;margin-top:2px">' + esc(x.why) + '</div>' : '') + '</div><span class="st"></span></div>';
     }
     modal(tr('Renommer les espaces : Artiste - Titre', 'Rename workspaces: Artist - Title'),
-      '<div class="sdl-rnset"><button class="sdl-ghost" id="sdl-wsmb">🎵 ' + tr('Trouver les artistes (MusicBrainz)', 'Find artists (MusicBrainz)') + '</button>' +
+      '<div class="sdl-rnset"><button class="sdl-ghost" id="sdl-wsmb" title="' + tr('Compare tes paroles à LRCLIB, sinon l\'artiste le plus fréquent (LRCLIB, MusicBrainz)', 'Compares your lyrics with LRCLIB, else the most frequent artist (LRCLIB, MusicBrainz)') + '">🎵 ' + tr('Trouver les artistes', 'Find artists') + '</button>' +
       '<label>' + tr('Mon nom d\'artiste (espaces « ! »)', 'My artist name ("!" workspaces)') + ' <input id="sdl-wsme" size="12" value="' + esc(me) + '"></label>' +
       '<label><input type="checkbox" id="sdl-wsup"' + (up ? ' checked' : '') + '> ' + tr('ARTISTE en majuscules', 'ARTIST in capitals') + '</label>' +
       '<details style="width:100%"><summary class="sdl-muted" style="cursor:pointer">' + tr('Coller une liste « Espace ⇥ Artiste »', 'Paste a "Workspace ⇥ Artist" list') + '</summary><textarea id="sdl-wsimp" rows="4" style="width:100%;font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:8px" placeholder="Hey Oh&#9;Tragédie"></textarea><button class="sdl-ghost" id="sdl-wsimpgo">' + tr('Appliquer la liste', 'Apply the list') + '</button></details></div>' +
@@ -1538,7 +1553,7 @@
     }
     function refreshRow(i) { var r = $('#sdl-wsl [data-i="' + i + '"]'); if (!r) return; var tmp = document.createElement('div'); tmp.innerHTML = rowHtml(rows[i], i); r.replaceWith(tmp.firstChild); }
     var box = $('#sdl-wsl');
-    box.addEventListener('input', function (e) { var r = e.target.closest('[data-i]'); if (!r || !e.target.classList.contains('wa') && !e.target.classList.contains('wt')) return; var x = rows[+r.dataset.i]; x.artist = $('.wa', r).value.trim(); x.title = $('.wt', r).value.trim() || x.title; var nn = newName(x); $('input[type=checkbox]', r).checked = !!nn && nn !== x.w.name; });
+    box.addEventListener('input', function (e) { var r = e.target.closest('[data-i]'); if (!r || !e.target.classList.contains('wa') && !e.target.classList.contains('wt')) return; var x = rows[+r.dataset.i]; if (e.target.classList.contains('wa')) { x.manual = true; x.why = tr('à la main', 'by hand'); } x.artist = $('.wa', r).value.trim(); x.title = $('.wt', r).value.trim() || x.title; var nn = newName(x); $('input[type=checkbox]', r).checked = !!nn && nn !== x.w.name; });
     box.addEventListener('click', function (e) {
       var q = e.target.closest('[data-wsq]'); if (!q) return; e.preventDefault();
       var x = rows[+q.dataset.wsq], line = lyricLine(x.w);
@@ -1556,17 +1571,24 @@
       $('#sdl-prog').hidden = false;
       for (var i = 0; i < todo.length && !stopMB; i++) {
         var x = todo[i], k = rows.indexOf(x); btn.textContent = '🎵 ' + (i + 1) + '/' + todo.length;
-        $('#sdl-ptxt').textContent = 'MusicBrainz : ' + x.title; $('#sdl-pbar').style.width = (100 * i / todo.length) + '%';
-        try {
-          var found = await mbArtists(x.title, x.hints.concat(x.artist ? [x.artist] : []));
-          x.cands = found.concat(x.hints).filter(function (v, j, a) { return a.indexOf(v) === j; }).slice(0, 12);
-          if (!x.artist && found[0]) x.artist = found[0];
-          else if (x.artist && found[0] && alike(x.artist, found[0]) >= 0.7) x.artist = found[0];   // "Trag die" -> "Tragédie"
-          refreshRow(k);
-        } catch (err) { log('musicbrainz', err.message); }
-        await sleep(1100);   // MusicBrainz asks for 1 request per second
+        $('#sdl-ptxt').textContent = tr('Recherche : ', 'Looking up: ') + x.title; $('#sdl-pbar').style.width = (100 * i / todo.length) + '%';
+        var lr = [], mb = [];
+        try { lr = await lrcArtists(x.title, wsLyrics(x.w)); } catch (err) { log('lrclib', err.message); }
+        var byLyrics = lr[0] && lr[0].v >= 0.3 ? lr[0] : null;
+        if (!byLyrics) { try { mb = await mbArtists(x.title, x.hints.concat(x.artist ? [x.artist] : [])); } catch (err) { log('musicbrainz', err.message); } await sleep(1100); }   // MusicBrainz: 1 request per second
+        var guess = byLyrics ? byLyrics.a : null, how = byLyrics ? tr('✓ paroles ', '✓ lyrics ') + Math.round(byLyrics.v * 100) + '%' : '';
+        if (!guess) {   // no lyrics match: the most frequent artist, a name like one of ours first
+          var pool = lr.map(function (o) { return o.a; }).concat(mb), score = {};
+          pool.forEach(function (a, j) { score[a] = (score[a] || 0) + (pool.length - j) + (x.hints.some(function (h) { return alike(a, h) >= 0.7; }) ? 1000 : 0); });
+          guess = Object.keys(score).sort(function (a, b) { return score[b] - score[a]; })[0] || null;
+          if (guess) how = x.hints.some(function (h) { return alike(guess, h) >= 0.7; }) ? tr('titre + bases musicales', 'title + music databases') : tr('le plus fréquent (à vérifier)', 'most frequent (check it)');
+        }
+        x.cands = (byLyrics ? [byLyrics.a] : []).concat(lr.map(function (o) { return o.a; }), mb, x.hints).filter(function (v, j, a) { return v && a.indexOf(v) === j; }).slice(0, 12);
+        if (guess && (!x.manual || (x.artist && alike(x.artist, guess) >= 0.7))) { x.artist = guess; x.why = how; }   // never overwrite a hand-typed artist ("Trag die" -> "Tragédie" is fine)
+        refreshRow(k);
+        await sleep(300);
       }
-      btn.textContent = '🎵 ' + tr('Trouver les artistes (MusicBrainz)', 'Find artists (MusicBrainz)'); $('#sdl-prog').hidden = true; sync2();
+      btn.textContent = '🎵 ' + tr('Trouver les artistes', 'Find artists'); $('#sdl-prog').hidden = true; sync2();
     });
   }
   function newWs() {
