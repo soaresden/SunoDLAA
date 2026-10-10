@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.18.5';
+  var VERSION = '2.19.0';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -836,7 +836,7 @@
     '<aside class="sdl-side"><div class="sdl-brand"><b>SUNODLAA</b><span class="sp"></span>' +
     '<button class="sdl-ic" id="sdl-spy" title="' + tr("Mouchard : enregistrer ce que fait suno.com", "Spy: record what suno.com does") + '">🕵</button><button class="sdl-ic" id="sdl-theme" title="' + tr("Thème", "Theme") + '">🎨</button><button class="sdl-ic" id="sdl-sync" title="' + tr("Actualiser depuis Suno", "Refresh from Suno") + '">⟳</button><button class="sdl-ic" id="sdl-hide" title="' + tr("Fermer (Échap) : revenir à la page Suno", "Close (Esc): back to the Suno page") + '">✕</button></div>' +
     '<input class="sdl-search" id="sdl-wsq" placeholder="' + tr("Rechercher un espace de travail…", "Search a workspace…") + '">' +
-    '<div class="sdl-wsbar"><button class="sdl-chip" data-act="newws" title="' + tr('Nouvel espace de travail', 'New workspace') + '">＋</button><button class="sdl-chip" data-wsort="recent">' + tr("Récents", "Recent") + '</button><button class="sdl-chip" data-wsort="az">A → Z</button><button class="sdl-chip" data-wsort="size">' + tr("Taille", "Size") + '</button></div>' +
+    '<div class="sdl-wsbar"><button class="sdl-chip" data-act="newws" title="' + tr('Nouvel espace de travail', 'New workspace') + '">＋</button><button class="sdl-chip" data-act="wsnames" title="' + tr('Renommer les espaces en « Artiste - Titre »', 'Rename workspaces as "Artist - Title"') + '">🏷</button><button class="sdl-chip" data-wsort="recent">' + tr("Récents", "Recent") + '</button><button class="sdl-chip" data-wsort="az">A → Z</button><button class="sdl-chip" data-wsort="size">' + tr("Taille", "Size") + '</button></div>' +
     '<div class="sdl-wslist" id="sdl-wslist"></div><div class="sdl-status" id="sdl-status"></div></aside>' +
     '<main class="sdl-main"><div class="sdl-mainin" id="sdl-mainin"></div>' +
     '<section class="sdl-lyr" id="sdl-lyr" hidden><div class="sdl-kbg" id="sdl-kbg"></div><h3><span style="flex:1">' + tr("Paroles", "Lyrics") + '</span><button class="sdl-ic" id="sdl-lrc" title="' + tr("Télécharger les paroles synchronisées (.lrc)", "Download synced lyrics (.lrc)") + '">⬇</button><button class="sdl-ic" id="sdl-lyredit" title="' + tr("Modifier le titre et les paroles", "Edit title and lyrics") + '">✏️</button><button class="sdl-ic" id="sdl-kara" title="' + tr("Karaoké plein écran", "Full-screen karaoke") + '">⤢</button></h3><div id="sdl-lyr-body"></div><button id="sdl-follow" hidden>⤓ ' + tr("Suivre les paroles", "Follow the lyrics") + '</button></section></main>' +
@@ -1454,6 +1454,121 @@
       } }]);
     setTimeout(function () { var i = $('#sdl-nw'); if (i) { i.focus(); i.select(); i.onkeydown = function (e) { if (e.key === 'Enter') $('#sdl-modal .primary').click(); }; } }, 30);
   }
+  /* ---- 🏷 workspaces as "Artist - Title": artist from the workspace's own track titles, MusicBrainz, a pasted list,
+     or by hand (🔎 searches the web with a line of the lyrics). "!" workspaces (own songs) use "my artist name" or stay. */
+  var WSA = LS.get('wsArtists', {});   // workspace id -> artist (remembered)
+  function letters(t) { return norm(t).replace(/[^a-z0-9]/g, ''); }
+  function lev(a, b) { if (a === b) return 0; var m = a.length, n = b.length, d = [], i, j; if (!m || !n) return m || n; for (i = 0; i <= n; i++) d[i] = i; for (i = 1; i <= m; i++) { var prev = d[0]; d[0] = i; for (j = 1; j <= n; j++) { var t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = t; } } return d[n]; }
+  function alike(a, b) { a = letters(a); b = letters(b); if (!a || !b) return 0; return 1 - lev(a, b) / Math.max(a.length, b.length); }
+  function wsParts(w) {   // current name already "Artist - Title"?
+    var n = w.name.replace(/^\s*!+/, ''), i = n.indexOf(' - ');
+    return i > 0 ? { artist: n.slice(0, i).trim(), title: n.slice(i + 3).trim() } : { artist: '', title: cleanTitle(n) };
+  }
+  function titleHints(w, title) {   // "Artist - Title" patterns in the workspace's track titles: the part that is not the title
+    var out = {};
+    (S.clips[w.id] || []).forEach(function (c) {
+      var t = cleanTitle(c.title).replace(/^\s*!+/, ''), parts = t.split(/\s+-\s+/).map(function (x) { return x.replace(/\(.*?\)|\[.*?\]/g, '').trim(); }).filter(Boolean);
+      if (parts.length < 2) return;
+      var other = parts.filter(function (x) { return alike(x, title) < 0.6 && !/^(cover|edit|upload|stem|sfx|remaster|inspo|mashup|extend|complet|full)\b/i.test(x); });
+      if (other.length === 1 && other[0].length <= 40) out[other[0]] = (out[other[0]] || 0) + 1;
+    });
+    return Object.keys(out).sort(function (a, b) { return out[b] - out[a]; });
+  }
+  function lyricLine(w) {   // the most distinctive line of the workspace's lyrics, for a web search
+    var best = '', seen = {};
+    (S.clips[w.id] || []).forEach(function (c) { String(c.prompt || '').split('\n').forEach(function (l) { l = l.replace(/\[.*?\]|\(.*?\)/g, '').trim(); if (l.length < 18 || l.length > 90) return; seen[l] = (seen[l] || 0) + 1; if (!best || seen[l] > seen[best] || (seen[l] === seen[best] && l.length > best.length)) best = l; }); });
+    return best;
+  }
+  async function mbArtists(title, hints) {   // MusicBrainz: artists of recordings with this title, most frequent first, names like ours first
+    var r = await fetch('https://musicbrainz.org/ws/2/recording?fmt=json&limit=40&query=' + encodeURIComponent('recording:"' + title.replace(/"/g, '') + '"'), { headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error('MusicBrainz HTTP ' + r.status);
+    var d = await r.json(), cnt = {};
+    (d.recordings || []).forEach(function (x) { if ((x.score || 0) < 90 || alike(x.title, title) < 0.8) return; var a = (x['artist-credit'] || []).map(function (y) { return y.name + (y.joinphrase || ''); }).join('').trim(); if (a) cnt[a] = (cnt[a] || 0) + 1; });
+    return Object.keys(cnt).map(function (a) { var b = hints.reduce(function (m, h) { return Math.max(m, alike(a, h)); }, 0); return { a: a, s: cnt[a] + (b >= 0.7 ? 100 : 0) }; })
+      .sort(function (x, y) { return y.s - x.s; }).map(function (x) { return x.a; });
+  }
+  function wsNamer() {
+    var me = LS.get('myArtist', ''), up = LS.get('wsUpper', false), stopMB = false, rows = [];
+    var list = S.ws.filter(function (w) { return w.id !== 'default'; }).sort(function (a, b) { return collator.compare(a.name.replace(/^!+/, ''), b.name.replace(/^!+/, '')); });
+    rows = list.map(function (w) {
+      var p = wsParts(w), own = /^\s*!/.test(w.name), hints = titleHints(w, p.title);
+      return { w: w, own: own, title: p.title, artist: p.artist || WSA[w.id] || hints[0] || '', cands: hints.slice(), hints: hints };
+    });
+    function newName(x) { var a = x.own ? (x.artist || me) : x.artist; if (!a) return null; a = up ? a.toUpperCase() : a; return (x.own ? '!' : '') + a + ' - ' + x.title; }
+    function rowHtml(x, i) {
+      var nn = newName(x);
+      return '<div class="sdl-row sdl-wsn" data-i="' + i + '"><input type="checkbox"' + (nn && nn !== x.w.name ? ' checked' : '') + '><div style="flex:1;min-width:0">' +
+        '<div class="from">' + esc(x.w.name) + ' <span class="sdl-muted">· ' + pl((S.clips[x.w.id] || []).length, 'titre', 'titres', 'track', 'tracks') + '</span></div>' +
+        '<div style="display:flex;gap:6px;align-items:center;margin-top:3px">' + (x.own ? '<b title="' + tr('Ta création', 'Your own song') + '">!</b>' : '') +
+        '<input type="text" class="wa" list="sdl-wsa-' + i + '" placeholder="' + (x.own ? tr('ton nom d\'artiste', 'your artist name') : tr('Artiste', 'Artist')) + '" value="' + esc(x.artist) + '" style="width:40%">' +
+        '<datalist id="sdl-wsa-' + i + '">' + x.cands.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>' +
+        '<span>-</span><input type="text" class="wt" value="' + esc(x.title) + '" style="flex:1">' +
+        '<button class="sdl-ic" data-wsq="' + i + '" title="' + tr('Chercher l\'artiste sur le web avec une ligne des paroles', 'Search the artist on the web with a line of the lyrics') + '">🔎</button></div></div><span class="st"></span></div>';
+    }
+    modal(tr('Renommer les espaces : Artiste - Titre', 'Rename workspaces: Artist - Title'),
+      '<div class="sdl-rnset"><button class="sdl-ghost" id="sdl-wsmb">🎵 ' + tr('Trouver les artistes (MusicBrainz)', 'Find artists (MusicBrainz)') + '</button>' +
+      '<label>' + tr('Mon nom d\'artiste (espaces « ! »)', 'My artist name ("!" workspaces)') + ' <input id="sdl-wsme" size="12" value="' + esc(me) + '"></label>' +
+      '<label><input type="checkbox" id="sdl-wsup"' + (up ? ' checked' : '') + '> ' + tr('ARTISTE en majuscules', 'ARTIST in capitals') + '</label>' +
+      '<details style="width:100%"><summary class="sdl-muted" style="cursor:pointer">' + tr('Coller une liste « Espace ⇥ Artiste »', 'Paste a "Workspace ⇥ Artist" list') + '</summary><textarea id="sdl-wsimp" rows="4" style="width:100%;font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:8px" placeholder="Hey Oh&#9;Tragédie"></textarea><button class="sdl-ghost" id="sdl-wsimpgo">' + tr('Appliquer la liste', 'Apply the list') + '</button></details></div>' +
+      '<div class="sdl-muted" style="font-size:13px;margin:6px 0">' + tr('Choisis ou tape l\'artiste (la flèche propose les candidats), corrige le titre, décoche ce qui ne change pas. My Workspace n\'est jamais renommé.', 'Pick or type the artist (the arrow lists candidates), fix the title, untick what stays. My Workspace is never renamed.') + '</div>' +
+      '<div id="sdl-prog" hidden><div class="sdl-pbar"><i id="sdl-pbar"></i></div><div id="sdl-ptxt" style="font-size:13px"></div></div><div id="sdl-wsl">' + rows.map(rowHtml).join('') + '</div>',
+      [{ label: tr('Annuler', 'Cancel'), onclick: function () { stopMB = true; closeModal(); } }, { label: tr('Renommer les espaces', 'Rename workspaces'), cls: 'primary', onclick: async function () {
+        stopMB = true; sync2();
+        var todo = rows.map(function (x, i) { return { x: x, r: $('#sdl-wsl [data-i="' + i + '"]') }; }).filter(function (y) { return $('input[type=checkbox]', y.r).checked && newName(y.x) && newName(y.x) !== y.x.w.name; });
+        if (!todo.length) return closeModal();
+        $('#sdl-modal').dataset.busy = 1; $('#sdl-prog').hidden = false; cleanStop = false; setButtons([{ label: tr('Arrêter', 'Stop'), onclick: function () { cleanStop = true; } }]);
+        var ok = 0, bad = 0;
+        for (var i = 0; i < todo.length && !cleanStop; i++) {
+          var y = todo[i], v = newName(y.x).slice(0, 100);
+          $('#sdl-ptxt').textContent = (i + 1) + ' / ' + todo.length + ' — ' + v; $('#sdl-pbar').style.width = (100 * i / todo.length) + '%';
+          var sb = $('#sdl-modal .sdl-mbtns button'); if (sb) sb.textContent = tr('Arrêter', 'Stop') + ' · ' + (i + 1) + '/' + todo.length;
+          y.r.scrollIntoView({ block: 'nearest' });
+          try { await write('/api/project/' + y.x.w.id + '/metadata', { name: v, description: y.x.w.desc || v }); y.x.w.name = v; ok++; $('.st', y.r).textContent = '✅'; y.r.classList.add('done'); }
+          catch (e) { bad++; $('.st', y.r).textContent = '❌'; $('.st', y.r).title = e.message; y.r.classList.add('fail'); }
+          await sleep(250);
+        }
+        $('#sdl-pbar').style.width = '100%'; $('#sdl-ptxt').textContent = tr(pl(ok, 'espace renommé', 'espaces renommés', '', ''), ok + ' renamed') + (bad ? tr(', ' + bad + ' en échec', ', ' + bad + ' failed') : '');
+        delete $('#sdl-modal').dataset.busy; refreshAll(); setButtons([{ label: 'OK', cls: 'primary', onclick: closeModal }]);
+      } }]);
+    $('#sdl-modal .sdl-mbox').style.maxWidth = '900px';
+    function sync2() {   // fields -> rows (+ remember artists)
+      me = $('#sdl-wsme').value.trim(); up = $('#sdl-wsup').checked; LS.set('myArtist', me); LS.set('wsUpper', up);
+      rows.forEach(function (x, i) { var r = $('#sdl-wsl [data-i="' + i + '"]'); if (!r) return; x.artist = $('.wa', r).value.trim(); x.title = $('.wt', r).value.trim() || x.title; if (x.artist && !x.own) WSA[x.w.id] = x.artist; });
+      LS.set('wsArtists', WSA);
+    }
+    function refreshRow(i) { var r = $('#sdl-wsl [data-i="' + i + '"]'); if (!r) return; var tmp = document.createElement('div'); tmp.innerHTML = rowHtml(rows[i], i); r.replaceWith(tmp.firstChild); }
+    var box = $('#sdl-wsl');
+    box.addEventListener('input', function (e) { var r = e.target.closest('[data-i]'); if (!r || !e.target.classList.contains('wa') && !e.target.classList.contains('wt')) return; var x = rows[+r.dataset.i]; x.artist = $('.wa', r).value.trim(); x.title = $('.wt', r).value.trim() || x.title; var nn = newName(x); $('input[type=checkbox]', r).checked = !!nn && nn !== x.w.name; });
+    box.addEventListener('click', function (e) {
+      var q = e.target.closest('[data-wsq]'); if (!q) return; e.preventDefault();
+      var x = rows[+q.dataset.wsq], line = lyricLine(x.w);
+      window.open('https://www.google.com/search?q=' + encodeURIComponent((line ? '"' + line + '"' : x.title) + ' ' + tr('paroles artiste', 'lyrics artist')), '_blank', 'noopener');
+    });
+    ['#sdl-wsme', '#sdl-wsup'].forEach(function (sel) { $(sel).addEventListener(sel === '#sdl-wsup' ? 'change' : 'input', function () { sync2(); rows.forEach(function (x, i) { if (x.own) refreshRow(i); else if (sel === '#sdl-wsup') refreshRow(i); }); }); });
+    $('#sdl-wsimpgo').addEventListener('click', function (e) {
+      e.preventDefault(); sync2(); var n = 0;
+      $('#sdl-wsimp').value.split(/\r?\n/).forEach(function (l) { var p = l.split(/\t|\s{2,}|\s+[=→>|]\s+/); if (p.length < 2) return; var key = norm(p[0]).replace(/^!+/, '').trim(), art = p[1].trim();
+        rows.forEach(function (x, i) { if (norm(x.w.name).replace(/^!+/, '').trim() === key && art) { x.artist = art; if (!x.own) WSA[x.w.id] = art; refreshRow(i); n++; } }); });
+      LS.set('wsArtists', WSA); toast(pl(n, 'espace complété', 'espaces complétés', 'workspace filled', 'workspaces filled'));
+    });
+    $('#sdl-wsmb').addEventListener('click', async function (e) {
+      e.preventDefault(); sync2(); stopMB = false; var btn = this, todo = rows.filter(function (x) { return !x.own; });
+      $('#sdl-prog').hidden = false;
+      for (var i = 0; i < todo.length && !stopMB; i++) {
+        var x = todo[i], k = rows.indexOf(x); btn.textContent = '🎵 ' + (i + 1) + '/' + todo.length;
+        $('#sdl-ptxt').textContent = 'MusicBrainz : ' + x.title; $('#sdl-pbar').style.width = (100 * i / todo.length) + '%';
+        try {
+          var found = await mbArtists(x.title, x.hints.concat(x.artist ? [x.artist] : []));
+          x.cands = found.concat(x.hints).filter(function (v, j, a) { return a.indexOf(v) === j; }).slice(0, 12);
+          if (!x.artist && found[0]) x.artist = found[0];
+          else if (x.artist && found[0] && alike(x.artist, found[0]) >= 0.7) x.artist = found[0];   // "Trag die" -> "Tragédie"
+          refreshRow(k);
+        } catch (err) { log('musicbrainz', err.message); }
+        await sleep(1100);   // MusicBrainz asks for 1 request per second
+      }
+      btn.textContent = '🎵 ' + tr('Trouver les artistes (MusicBrainz)', 'Find artists (MusicBrainz)'); $('#sdl-prog').hidden = true; sync2();
+    });
+  }
   function newWs() {
     modal(tr('Nouvel espace de travail', 'New workspace'), '<input type="text" id="sdl-nws" style="width:100%" placeholder="' + tr('Nom', 'Name') + '">',
       [{ label: tr('Annuler', 'Cancel'), onclick: closeModal }, { label: tr('Créer', 'Create'), cls: 'primary', onclick: async function () {
@@ -1562,6 +1677,7 @@
         case 'wsrename': return w && renameWs(w);
         case 'wsdelete': return w && deleteWs(w);
         case 'newws': return newWs();
+        case 'wsnames': return wsNamer();
         case 'upload': return uploadAudio(w);
         case 'expmore': return loadExplore();
         case 'create': return sendToSuno(true);
