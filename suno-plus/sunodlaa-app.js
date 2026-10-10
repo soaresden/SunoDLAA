@@ -5,7 +5,7 @@
    as the site itself, with your own session. */
 (function () {
   'use strict';
-  var VERSION = '2.19.2';
+  var VERSION = '2.19.3';
   // The bookmark fetches this script at each click: same version already open -> show/hide it;
   // older version open -> remove it and start this one (versions before 2.12 need a page reload).
   var prevSkin = window.__sdlSkin;
@@ -1514,7 +1514,7 @@
       return '<div class="sdl-row sdl-wsn" data-i="' + i + '"><input type="checkbox"' + (nn && nn !== x.w.name ? ' checked' : '') + '><div style="flex:1;min-width:0">' +
         '<div class="from">' + esc(x.w.name) + ' <span class="sdl-muted">· ' + pl((S.clips[x.w.id] || []).length, 'titre', 'titres', 'track', 'tracks') + '</span></div>' +
         '<div style="display:flex;gap:6px;align-items:center;margin-top:3px">' + (x.own ? '<b title="' + tr('Ta création', 'Your own song') + '">!</b>' : '') +
-        '<input type="text" class="wa" list="sdl-wsa-' + i + '" placeholder="' + (x.own ? tr('ton nom d\'artiste', 'your artist name') : tr('Artiste', 'Artist')) + '" value="' + esc(x.artist) + '" style="width:40%">' +
+        '<input type="text" class="wa" list="sdl-wsa-' + i + '" placeholder="' + esc(x.own ? (me || tr('ton nom d\'artiste', 'your artist name')) : tr('Artiste', 'Artist')) + '" value="' + esc(x.artist) + '" style="width:40%">' +
         '<datalist id="sdl-wsa-' + i + '">' + x.cands.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>' +
         '<span>-</span><input type="text" class="wt" value="' + esc(x.title) + '" style="flex:1">' +
         '<button class="sdl-ic" data-wsq="' + i + '" title="' + tr('Chercher l\'artiste sur le web avec une ligne des paroles', 'Search the artist on the web with a line of the lyrics') + '">🔎</button></div>' +
